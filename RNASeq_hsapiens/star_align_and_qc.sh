@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --time=2:00:00
+#SBATCH --time=5:00:00
 #SBATCH --account=sjaiswal
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64GB
