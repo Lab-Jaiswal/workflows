@@ -64,27 +64,22 @@ mutect_vcf_filter <- filter(mutect_vcf_bind, is_in(Variant_Classification, c("FR
     filter(nchar(Protein_Change) > 0)
 
 mutect_vcf_ncol <- str_split(mutect_vcf_filter$AD, ",") %>% map_int(length) %>% max
-mutect_vcf_ad <- str_split_fixed(mutect_vcf_filter$AD, ",", mutect_vcf_ncol) %>% as_tibble %>% mutate(across(everything(), as.numeric))
-colnames(mutect_vcf_ad) <- c("t_ref_count", str_c("t_alt_count_", seq(1:(mutect_vcf_ncol - 1))))
 
-mutect_vcf_af <- str_split_fixed(mutect_vcf_filter$tumor_f, ",", (mutect_vcf_ncol - 1)) %>% as_tibble %>% mutate(across(everything(), as.numeric))
-colnames(mutect_vcf_af) <- str_c("tumor_f", seq(1:(mutect_vcf_ncol - 1)))
-
-mutect_vcf_f2r1 <- str_split_fixed(mutect_vcf_filter$F2R1, ",", mutect_vcf_ncol) %>% as_tibble %>% mutate(across(everything(), as.numeric))
-colnames(mutect_vcf_f2r1) <- c("f2r1_reference", str_c("f2r1_alternate", seq(1:(mutect_vcf_ncol - 1))))
-
-mutect_vcf_f1r2 <- str_split_fixed(mutect_vcf_filter$F1R2, ",", mutect_vcf_ncol)  %>% as_tibble %>% mutate(across(everything(), as.numeric))
-colnames(mutect_vcf_f1r2) <- c("f1r2_reference", str_c("f1r2_alternate", seq(1:(mutect_vcf_ncol - 1))))
-
-mutect_vcf_mbq <- str_split_fixed(mutect_vcf_filter$MBQ, ",", mutect_vcf_ncol) %>% as_tibble %>% mutate(across(everything(), as.numeric))
-colnames(mutect_vcf_mbq) <- c("mbq_reference", str_c("mbq_alternate", seq(1:(mutect_vcf_ncol - 1))))
-
-mutect_vcf_mmq <- str_split_fixed(mutect_vcf_filter$MMQ, ",", mutect_vcf_ncol) %>% as_tibble %>% mutate(across(everything(), as.numeric))
-colnames(mutect_vcf_mmq) <- c("mmq_reference", str_c("mmq_alternate", seq(1:(mutect_vcf_ncol - 1))))
-
-mutect_vcf_mfrl <- str_split_fixed(mutect_vcf_filter$MFRL, ",", mutect_vcf_ncol)  %>% as_tibble %>% mutate(across(everything(), as.numeric))
-colnames(mutect_vcf_mfrl) <- c("mfrl_reference", str_c("mfrl_alternate", seq(1:(mutect_vcf_ncol - 1))))
-
+Split_Columns <- function(column, nocolumns, name1, name2, make_numeric) {
+  object<-str_split_fixed(column, ",", nocolumns)  %>%
+    as_tibble
+    if (make_numeric == TRUE){
+      object <- mutate(object, across(everything(), as.numeric))  }
+  colnames(object) <- c(name1, str_c(name2, seq(1:(nocolumns- 1)))) 
+  object
+}
+mutect_vcf_ad <-Split_Columns(mutect_vcf_filter$AD, mutect_vcf_ncol, "t_ref_count", "t_alt_count_", TRUE)
+mutect_vcf_af <- Split_Columns(mutect_vcf_filter$tumor_f, mutect_vcf_ncol, "tumor_f", "", TRUE)
+mutect_vcf_f2r1 <- Split_Columns(mutect_vcf_filter$F2R1, mutect_vcf_ncol, "f2r1_reference", "f2r1_alternate", TRUE)
+mutect_vcf_f1r2 <- Split_Columns(mutect_vcf_filter$F1R2, mutect_vcf_ncol, "f1r2_reference", "f1r2_alternate", TRUE)
+mutect_vcf_mbq <- Split_Columns(mutect_vcf_filter$MBQ, mutect_vcf_ncol, "mbq_reference", "mbq_alternate", TRUE)
+mutect_vcf_mmq <- Split_Columns(mutect_vcf_filter$MMQ, mutect_vcf_ncol, "mmq_reference", "mmq_alternate", TRUE)
+mutect_vcf_mfrl <- Split_Columns(mutect_vcf_filter$MFRL, mutect_vcf_ncol, "mfrl_reference", "mfrl_alternate", TRUE)
 mutect_vcf_sb <- str_split_fixed(mutect_vcf_filter$AS_SB_TABLE, "\\|", mutect_vcf_ncol) %>% as_tibble 
 colnames(mutect_vcf_sb) <- c("sb_reference", str_c("sb_alt", seq(1:(mutect_vcf_ncol - 1))))
 
