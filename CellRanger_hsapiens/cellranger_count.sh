@@ -33,11 +33,9 @@ echo "copying FASTQs..."
 rsync -PrhLtv $fastq_path ${fastq_temp} #copy data to /tmp
 echo "...done"
 
-if [ ! -d ${transcriptome_temp} ]; then
-    echo "copying reference transcriptome..."
-    rsync -PrhLtv ${transcriptome} .
-    echo "...done"
-fi
+echo "copying reference transcriptome..."
+rsync -PrhLtv ${transcriptome} .
+echo "...done"
 
 cellranger count \
     --localmem=128 \
