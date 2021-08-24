@@ -2,6 +2,22 @@ library(GenomicRanges)
 library(magrittr)
 library(tidyverse)
 
+# Function input: row of semicolon separated variant effects
+# Function goal: split the variant effects into separate columns,
+# and each effect on its own line
+MakeTibble <- function(rows) {
+    # If there is only one variant effect, only make one row. Otherwise, return
+    # a tibble of all variant effects.
+    if (is.null(dim(rows))) {
+        row_df <- set_names(rows, c("Gene", "Transcript", "Exon", "DNA_change", "Protein_change")) %>%
+            as_tibble_row
+    } else {
+        row_df <- set_colnames(rows, c("Gene", "Transcript", "Exon", "DNA_change", "Protein_change")) %>% 
+            as_tibble
+    }
+    row_df
+}
+
 command_args <- commandArgs(trailingOnly = TRUE)
 panel_coordinates <- command_args[1]
 varscan_directory <- command_args[2]
@@ -42,6 +58,13 @@ varscan_overlaps_sorted <- sort(varscan_overlaps$subjectHits)
 varscan_vcf_filter <- dplyr::slice(varscan_final, varscan_overlaps_sorted) %>% 
   dplyr::filter(is_in(Hugo_Symbol, unique(twist_panel$Gene))) %>% 
   arrange(Sample, Chromosome, Start_Position)
+
+varscan_aachange <- str_split(varscan_vcf_filter$AAChange.ensGene, ",") %>%
+    map(str_split, ":") %>% map(reduce, rbind) %>% map(MakeTibble) 
+
+varscan_vcf_filter$AAChange_split <- varscan_aachange
+# Use the unnest command to create separate rows
+varscan_vcf_filter %<>% select(-AAChange.ensGene) %>% unnest(AAChange_split)
 
 # write output into tsv file
 varscan_final_file <- str_c(varscan_directory, "/varscan_aggregated.txt")
