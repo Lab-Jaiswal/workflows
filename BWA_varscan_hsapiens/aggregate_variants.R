@@ -1,8 +1,10 @@
+library(GenomicRanges)
 library(magrittr)
 library(tidyverse)
 
 command_args <- commandArgs(trailingOnly = TRUE)
-varscan_directory <- command_args[1]
+panel_coordinates <- command_args[1]
+varscan_directory <- command_args[2]
 
 varscan_files <- list.files(varscan_directory, pattern = "*multianno.txt", full.names = TRUE)
 varscan_data_list <- map(varscan_files, read_tsv, skip = 1, col_names = F)
@@ -24,5 +26,23 @@ varscan_data_basic$VAF <- str_remove_all(varscan_info$FREQ, "%") %>% as.numeric 
 
 varscan_final <- bind_cols(varscan_data_basic, varscan_data_other, varscan_info)
 
+# Get twist panel (in same folder as aggregate variants mutect script)
+twist_panel <- read_excel(panel_coordinates, col_names = F)
+
+colnames(twist_panel) <- c("chr", "start", "end", "Transcript", "X5", "Strand", "Gene", "X8")
+twist_panel_granges <- select(twist_panel, chr:end) %>% makeGRangesFromDataFrame
+
+varscan_granges <- select(varscan_final, Chromosome:End_Position) %>% 
+  set_colnames(c("chr", "start", "end")) %>% 
+  makeGRangesFromDataFrame
+varscan_overlaps <- findOverlaps(twist_panel_granges, varscan_granges) %>% as_tibble
+varscan_overlaps_sorted <- sort(varscan_overlaps$subjectHits)
+
+# filter for all variants within the genomic ranges specified in the twist_panel
+varscan_vcf_filter <- dplyr::slice(varscan_final, varscan_overlaps_sorted) %>% 
+  dplyr::filter(is_in(Hugo_Symbol, unique(twist_panel$Gene))) %>% 
+  arrange(Sample, Chromosome, Start_Position)
+
+# write output into tsv file
 varscan_final_file <- str_c(varscan_directory, "/varscan_aggregated.txt")
-write_tsv(varscan_final, varscan_final_file)
+write_tsv(varscan_vcf_filter, varscan_final_file)
