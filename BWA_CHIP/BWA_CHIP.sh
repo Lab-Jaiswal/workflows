@@ -147,6 +147,22 @@ else
     echo "Mutect2 VCF already annotated"
 fi
 
+if [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.maf" ]; then
+    echo "Annotating VCF with Funcotator (MAF output)..."
+    module load gatk4
+    gatk Funcotator \
+         --variant "${PREFIX}_${ASSEMBLY}_mutect2_filter.vcf" \
+         --reference "${BWA_GREF}" \
+         --ref-version hg38 \
+         --data-sources-path "${FUNCOTATOR_SOURCES}" \
+         --transcript-list "${TRANSCRIPT_LIST}" \
+         --output "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.maf" \
+         --output-file-format MAF 
+         echo "...VCF annotated (MAF ouput)."
+else
+    echo "Mutect2 VCF already annotated (MAF output)"
+fi
+
 if [ ! -f "${PREFIX}_${ASSEMBLY}_haplotypecaller.gvcf" ]; then
     echo "Calling germline variants with HaplotypeCaller..."
     module load gatk4
