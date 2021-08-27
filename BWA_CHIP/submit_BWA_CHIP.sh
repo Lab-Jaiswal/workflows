@@ -16,6 +16,7 @@ else
     fastq_list="${parent_directory}/fastq_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
 
     mkdir -p $output_directory
+    mkdir -p "${output_directory}/Logs"
 
     find "${fastq_directory}/" -type f `#list all files in ${fastq_directory}` | \
         grep "fastq" `#only keep files with FASTQ in name (case insensitive)` | \
