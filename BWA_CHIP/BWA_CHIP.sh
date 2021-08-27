@@ -148,6 +148,9 @@ else
 fi
 
 if [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.maf" ]; then
+    TRANSCRIPT_LIST="/oak/stanford/groups/sjaiswal/Herra/CHIP_TWIST-PANEL_ATHEROMA/chip_transcript_list.txt" #Transcript list for Mutect
+    FUNCOTATOR_SOURCES="/labs/sjaiswal/tools/funcotator/funcotator_dataSources.v1.6.20190124s" #Reference for Funcotator
+
     echo "Annotating VCF with Funcotator (MAF output)..."
     module load gatk4
     gatk Funcotator \
