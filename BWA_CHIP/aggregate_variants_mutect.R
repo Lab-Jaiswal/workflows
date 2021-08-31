@@ -21,8 +21,8 @@ make_data = function(maf){
 # Function input: genomic content in the ref_content column
 # Function goal: Get the longest repeat for each variant/ row
 # Steps: (1) To get repeat_a: Replace all C, G, and T's with ";", split on every ";", extract and count the elements (a's) w/in the list
-    # (2) Perform the above to get repeat_c, repeat_g, and repeat_t. 
-    # (3) Find which repeat (a, t, g, or c) is the longest for every given variant.
+       # (2) Perform the above to get repeat_c, repeat_g, and repeat_t. 
+       # (3) Find which repeat (a, t, g, or c) is the longest for every given variant.
 detect_repeat <- function(ref_context) {
   repeat_a <- str_replace_all(ref_context, "C|G|T", ";") %>% str_split(";") %>% extract2(1) %>% nchar %>% max
   repeat_c <- str_replace_all(ref_context, "A|G|T", ";") %>% str_split(";") %>% extract2(1) %>% nchar %>% max
@@ -58,33 +58,33 @@ vcf_files <- list.files(mutect_directory, pattern = "*_funcotator.vcf$", full.na
 mutect_vcf_header <- read_lines(vcf_files[1]) 
 
 vcf_colnames <- str_subset(mutect_vcf_header, "^#") %>% 
-        str_subset("^##", negate = T) %>% 
-        str_split("\\t") %>% 
-        extract2(1)
+                str_subset("^##", negate = T) %>% 
+                str_split("\\t") %>% 
+                extract2(1)
 vcf_colnames[length(vcf_colnames)] <- "DATA"
 mutect_vcf_list <- map(vcf_files, read_lines) %>% 
-        map(str_subset, "^# ", negate = TRUE) %>% 
-        map(str_split_fixed, "\\t", length(vcf_colnames)) %>% 
-        map(set_colnames, vcf_colnames) %>% 
-        map(as_tibble) %>% 
-        set_names(sample_names)
+                  map(str_subset, "^# ", negate = TRUE) %>% 
+                  map(str_split_fixed, "\\t", length(vcf_colnames)) %>% 
+                  map(set_colnames, vcf_colnames) %>% 
+                  map(as_tibble) %>% 
+                  set_names(sample_names)
 mutect_vcf_all <- bind_rows(mutect_vcf_list, .id = "Sample")
 
 mutect_info_names <- str_split(mutect_vcf_all$INFO, ";") %>% map(str_remove_all, "=.*$") 
 mutect_info <- str_split(mutect_vcf_all$INFO, ";") %>% map(str_remove_all, "^.*\\=") 
 mutect_info_df <- map2(mutect_info_names, mutect_info, names_set) %>% 
-        bind_rows %>% 
-        select(-c( "DP", "ECNT", "RPA", "RU", "STR", "TLOD"))
+                  bind_rows %>% 
+                  select(-c( "DP", "ECNT", "RPA", "RU", "STR", "TLOD"))
 
 mutect_data_names <- str_split(mutect_vcf_all$FORMAT, ":")  
 mutect_data <- str_split(mutect_vcf_all$DATA, ":") 
 mutect_data_df <- map2(mutect_data_names, mutect_data, names_set) %>% 
-        bind_rows %>% 
-        select(-DP)
+                  bind_rows %>% 
+                  select(-DP)
 
 mutect_vcf_bind <- select(mutect_vcf_all, Sample:FILTER) %>% 
-         bind_cols(mutect_data_df) %>% 
-         bind_cols(mutect_info_df) 
+                   bind_cols(mutect_data_df) %>% 
+                   bind_cols(mutect_info_df) 
 
 # Extract the maf data using the make_data function and bind the resulting data into one tibble
 maf_columns <- c("Hugo_Symbol", "NCBI_Build", "Chromosome", "Start_Position", "End_Position", "Variant_Classification", "Variant_Type", "Protein_Change",
@@ -128,8 +128,8 @@ vcf <- unite(mutect_vcf_bind, "Chrom_Pos", c("#CHROM", "POS", "Sample"), remove 
 maf <- unite(Modified_maf, "Chrom_Pos", c("Chromosome", "VCF_Start_Position", "Sample"), remove = FALSE)
 vcf_pruned <- select(vcf, c(Chrom_Pos, FILTER, GT, AD, AF, F1R2, F2R1, PGT, PS, SB, PID))
 combined <- vcf_pruned %>%
-        merge(maf, by = "Chrom_Pos") %>%
-        select(-Chrom_Pos)
+            merge(maf, by = "Chrom_Pos") %>%
+            select(-Chrom_Pos)
 
 # Apply the Detect_Repeat function to every row to find the longest repeat for every variant
 combined$longest_repeat <- map_int(combined$ref_context, detect_repeat)
@@ -140,8 +140,8 @@ variant_classification <- filter(combined, is_in(Variant_Classification, c("Fram
 
 # Apply the Split_Columns function to AD, tumor_f, F2R1, F1R2, MBQ, MMQ, and MFRL columns
 mutect_vcf_ncol <- str_split(variant_classification$AD, ",") %>% 
-            map_int(length) %>% 
-            max
+                   map_int(length) %>% 
+                   max
 
 mutect_vcf_ad <- split_columns(variant_classification$AD, mutect_vcf_ncol, "t_ref_count", "t_alt_count_")
 mutect_vcf_af <- split_columns(variant_classification$tumor_f, mutect_vcf_ncol, "tumor_f", "")
@@ -180,15 +180,15 @@ colnames(twist_panel) <- c("chr", "start", "end", "Transcript", "X5", "Strand", 
 twist_panel_granges <- select(twist_panel, chr:end) %>% makeGRangesFromDataFrame
 
 mutect_vcf_granges <- select(mutect_vcf_select, Chromosome:End_Position) %>% 
-            set_colnames(c("chr", "start", "end")) %>% 
-            makeGRangesFromDataFrame
+                      set_colnames(c("chr", "start", "end")) %>% 
+                      makeGRangesFromDataFrame
 mutect_overlaps <- findOverlaps(twist_panel_granges, mutect_vcf_granges) %>% as_tibble
 mutect_overlaps_sorted <- sort(mutect_overlaps$subjectHits)
 
 # filter for all variants within the genomic ranges specified in the twist_panel
 mutect_vcf_filter <- slice(mutect_vcf_select, mutect_overlaps_sorted) %>% 
-            filter(is_in(Hugo_Symbol, unique(twist_panel$Gene))) %>% 
-            arrange(Sample, Chromosome, Start_Position)
+                     filter(is_in(Hugo_Symbol, unique(twist_panel$Gene))) %>% 
+                     arrange(Sample, Chromosome, Start_Position)
 
 mutect_basic_file <- str_c(mutect_directory, "/mutect_aggregated_simple.tsv")
 
