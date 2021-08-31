@@ -34,8 +34,9 @@ detect_repeat <- function(ref_context) {
 # Function input: one column containing values split up by ","'s, names of the new columns
 # Function goals: Split the column on each "," to create as many new columns as mutect_vcf_ncol is equal to. Then, name the new columns.
 split_columns <- function(column, nocolumns, name1, name2) {
-  object <- str_split_fixed(column, ",", nocolumns)  %>%
-    as_tibble %>%
+  object <- str_replace_all(column, "\\[|\\]", "") %>%
+    str_split_fixed(",", nocolumns)  %>%
+    as_tibble() %>%
     mutate(across(everything(), as.numeric))  
   colnames(object) <- c(name1, str_c(name2, seq(1:(nocolumns- 1)))) 
   object
@@ -86,29 +87,39 @@ mutect_vcf_bind <- select(mutect_vcf_all, Sample:FILTER) %>%
                    bind_cols(mutect_info_df) 
 
 # Extract the maf data using the make_data function and bind the resulting data into one tibble
+maf_columns <- c("Hugo_Symbol", "NCBI_Build", "Chromosome", "Start_Position", "End_Position", "Variant_Classification", "Variant_Type", "Protein_Change",
+                 "tumor_f", "Reference_Allele", "Tumor_Seq_Allele1", "Tumor_Seq_Allele2", "Transcript_Exon", "Transcript_Position", "cDNA_Change", "Codon_Change", "gc_content", "DP", "MBQ", "MFRL", "MMQ","AS_SB_TABLE", 
+                 "AS_FilterStatus", "ECNT", "GERMQ", "MPOS", "POPAF", "TLOD", "RPA", "RU", "STR", "STRQ", "OREGANNO_ID", "OREGANNO_Values", "Other_Transcripts","ref_context")
+maf_column_types <- c("character", "character", "character", "numeric", "numeric", "factor", "factor", "character", "numeric", "character", "character", "character", "integer", 
+                      "character", "character", "character", "numeric", "integer", "character", "character", "character", "character", "character", "integer", "integer", 
+                      "character", "character", "character", "character", "character", "logical", "integer", "character", "character", "character", "character") 
+
 list_of_mafs <- maf_files %>%
                 map(read.maf) %>%
                 map(make_data) %>%
                 map(as_tibble) %>%
-                set_names(sample_names)
+                set_names(sample_names) %>%
+                map(select, maf_columns) %>%
+                map(map2, paste0("as.", maf_column_types), ~ get(.y)(.x))
+
 mutect_maf_all <- bind_rows(list_of_mafs, .id = "Sample")
 
 # Remove all mitochondrial genes
 maf_noMT <- subset(mutect_maf_all, mutect_maf_all$Chromosome != "MT")
 
 # IF a gene's Reference_Allele column contains an A, T, G, or C AND their Tumor_Seq_Allele2 column is blank ("-")
-  # THEN, subtract one from the Start_Position column
+    # THEN, subtract one from the Start_Position column
 TSA_deletion <- filter(maf_noMT, Reference_Allele != "-" & Tumor_Seq_Allele2 == "-")
 Start_Position_Mutated <- mutate(TSA_deletion, Start_Position = as.integer(Start_Position)) %>%
-                          mutate(VCF_Start_Position = Start_Position - 1)
+            mutate(VCF_Start_Position = Start_Position - 1)
 # IF a gene's Reference_Allele, Tumor_Seq_Allele1, and Tumor_Seq_Allele2 columns contain an A, T, G, or C
-  # THEN, do not modify the start position column
+    # THEN, do not modify the start position column
 TSA_snp <- filter(maf_noMT, Reference_Allele != "-" & Tumor_Seq_Allele1 != "-" & Tumor_Seq_Allele2 != "-") %>%
-                 mutate(VCF_Start_Position = Start_Position)
+            mutate(VCF_Start_Position = Start_Position)
 # IF a gene's Reference_Allele column contains is blank ("-") 
-  # THEN, do not modify the start position column
+    # THEN, do not modify the start position column
 TSA_insertion <- filter(maf_noMT, Reference_Allele == "-") %>%
-                  mutate(VCF_Start_Position = Start_Position)
+            mutate(VCF_Start_Position = Start_Position)
 # Combine all partitioned dataframes
 Modified_maf <- rbind(TSA_snp, TSA_insertion, Start_Position_Mutated)
 
@@ -118,7 +129,7 @@ maf <- unite(Modified_maf, "Chrom_Pos", c("Chromosome", "VCF_Start_Position", "S
 vcf_pruned <- select(vcf, c(Chrom_Pos, FILTER, GT, AD, AF, F1R2, F2R1, PGT, PS, SB, PID))
 combined <- vcf_pruned %>%
             merge(maf, by = "Chrom_Pos") %>%
-            select(-Chrom_Pos, -t_ref_count)
+            select(-Chrom_Pos)
 
 # Apply the Detect_Repeat function to every row to find the longest repeat for every variant
 combined$longest_repeat <- map_int(combined$ref_context, detect_repeat)
@@ -139,7 +150,7 @@ mutect_vcf_f1r2 <- split_columns(variant_classification$F1R2, mutect_vcf_ncol, "
 mutect_vcf_mbq <- split_columns(variant_classification$MBQ, mutect_vcf_ncol, "mbq_reference", "mbq_alternate")
 mutect_vcf_mmq <- split_columns(variant_classification$MMQ, mutect_vcf_ncol, "mmq_reference", "mmq_alternate")
 mutect_vcf_mfrl <- split_columns(variant_classification$MFRL, mutect_vcf_ncol, "mfrl_reference", "mfrl_alternate")
-mutect_vcf_sb <- str_split_fixed(variant_classification$AS_SB_TABLE, "\\|", mutect_vcf_ncol) %>% as_tibble 
+mutect_vcf_sb <- str_replace_all(variant_classification$AS_SB_TABLE, "\\[|\\]", "") %>% str_split_fixed( "\\|", mutect_vcf_ncol) %>% as_tibble 
 colnames(mutect_vcf_sb) <- c("sb_reference", str_c("sb_alt", seq(1:(mutect_vcf_ncol - 1))))
 
 # Remove all rows with a t_ref_count == "0"
@@ -149,21 +160,18 @@ mutect_vcf_filter <- select(variant_classification, -AD, -tumor_f, -F2R1, -F1R2,
 
 # Select relevant columns for the final output
 mutect_vcf_select <- select(mutect_vcf_filter, c(Sample, Hugo_Symbol, NCBI_Build, Chromosome, Start_Position,
-                                                  End_Position, Variant_Classification, Variant_Type, Protein_Change,
-                                                  FILTER, tumor_f, t_ref_count, t_alt_count_1, t_alt_count_2,
-                                                  Reference_Allele, Tumor_Seq_Allele1, Transcript_Exon, Transcript_Position,
-                                                  cDNA_Change, Codon_Change, gc_content, longest_repeat, DP, f1r2_reference,
-                                                  gc_content, longest_repeat, DP, f1r2_reference,
-                                                  f1r2_alternate1, f1r2_alternate2,f2r1_reference,f2r1_alternate1,      
-                                                  f2r1_alternate2,mbq_reference,mbq_alternate1,mbq_alternate2,  
-                                                  mfrl_reference, mfrl_alternate1, mfrl_alternate2, mmq_reference,        
-                                                  mmq_alternate1, mmq_alternate2,sb_reference,sb_alt1,               
-                                                  sb_alt2, AS_FilterStatus,ECNT,GERMQ,                
-                                                  MPOS,POPAF,TLOD, RPA,                 
-                                                  RU,STR,STRQ,GT,                  
-                                                  PGT,PID,PS,OREGANNO_ID,          
-                                                  OREGANNO_Values,Other_Transcripts,ref_context           
-                                                  ))
+                                                 End_Position, Variant_Classification, Variant_Type, Protein_Change,
+                                                 FILTER, tumor_f, t_ref_count, t_alt_count_1, t_alt_count_2,
+                                                 Reference_Allele, Tumor_Seq_Allele1, Transcript_Exon, Transcript_Position,
+                                                 cDNA_Change, Codon_Change, gc_content, longest_repeat, DP, f1r2_reference,
+                                                 gc_content, longest_repeat, f1r2_reference,
+                                                 f1r2_alternate1, f1r2_alternate2,f2r1_reference,f2r1_alternate1,      
+                                                 f2r1_alternate2,mbq_reference,mbq_alternate1,mbq_alternate2,  
+                                                 mfrl_reference, mfrl_alternate1, mfrl_alternate2, mmq_reference,        
+                                                 mmq_alternate1, mmq_alternate2, sb_reference,sb_alt1,               
+                                                 sb_alt2, AS_FilterStatus,ECNT,GERMQ, MPOS,POPAF,TLOD, RPA, RU,STR,STRQ,GT,                  
+                                                 PGT,PID,PS,OREGANNO_ID, OREGANNO_Values,Other_Transcripts,ref_context           
+))
 
 # Get twist panel (in same folder as aggregate variants mutect script)
 twist_panel <- read_excel(panel_coordinates, col_names = F)
@@ -179,8 +187,8 @@ mutect_overlaps_sorted <- sort(mutect_overlaps$subjectHits)
 
 # filter for all variants within the genomic ranges specified in the twist_panel
 mutect_vcf_filter <- slice(mutect_vcf_select, mutect_overlaps_sorted) %>% 
-                      filter(is_in(Hugo_Symbol, unique(twist_panel$Gene))) %>% 
-                      arrange(Sample, Chromosome, Start_Position)
+                     filter(is_in(Hugo_Symbol, unique(twist_panel$Gene))) %>% 
+                     arrange(Sample, Chromosome, Start_Position)
 
 mutect_basic_file <- str_c(mutect_directory, "/mutect_aggregated_simple.tsv")
 
