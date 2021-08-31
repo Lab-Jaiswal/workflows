@@ -3,6 +3,13 @@ library(readxl)
 library(magrittr)
 library(tidyverse)
 
+# Function input: col_names and col_values as arguments
+# Function goal: assigns the names of the col_values to be the col_names
+names_set <- function(col_names, col_values) {
+  names(col_values) <- col_names
+  col_values
+}
+
 # This function is not very elegant - each row of the INFO, FORMAT columns can have a different number of fields 
 # We parse each row separately as a vector which we assign names to.  Then we use bind_rows to automatically figure out the right column names
 # In subject with homozygous reference genotypes, most of the columns will be empty because they have no meaning when no variant is present
@@ -10,13 +17,13 @@ ParseHaplotypeCallerVCF <- function(haplotypecaller_vcf) {
 
   haplotypecaller_info_names <- str_split(haplotypecaller_vcf$INFO, ";") %>% map(str_remove_all, "=.*$") 
   haplotypecaller_info <- str_split(haplotypecaller_vcf$INFO, ";") %>% map(str_remove_all, "^.*\\=") 
-  haplotypecaller_info_df <- map2(haplotypecaller_info_names, haplotypecaller_info, SetNames) %>% bind_rows
+  haplotypecaller_info_df <- map2(haplotypecaller_info_names, haplotypecaller_info, names_set) %>% bind_rows
   
   haplotypecaller_info_nums <- mutate(haplotypecaller_info_df, across(everything(), as.numeric)) %>% select(-DP)
   
   haplotypecaller_data_names <- str_split(haplotypecaller_vcf$FORMAT, ":")  
   haplotypecaller_data <- str_split(haplotypecaller_vcf$DATA, ":") 
-  haplotypecaller_data_df <- map2(haplotypecaller_data_names, haplotypecaller_data, SetNames) %>% bind_rows
+  haplotypecaller_data_df <- map2(haplotypecaller_data_names, haplotypecaller_data, names_set) %>% bind_rows
   
   haplotypecaller_vcf_bind <- select(haplotypecaller_vcf, `#CHROM`:FILTER) %>% bind_cols(haplotypecaller_data_df) %>% bind_cols(haplotypecaller_info_nums)
   haplotypecaller_vcf_bind
@@ -26,6 +33,8 @@ ParseHaplotypeCallerVCF <- function(haplotypecaller_vcf) {
 command_args <- commandArgs(trailingOnly = TRUE)
 panel_coordinates <- command_args[1]
 mutect_directory <- command_args[2]
+
+sample_names <- list.files(mutect_directory, pattern = "*_funcotator.vcf$") %>% str_remove_all("_.*$")
 
 # Parse germline genotype VCFs from HaplotypeCaller
 haplotypecaller_vcf_files <- list.files(mutect_directory, pattern = "*_haplotypecaller_genotypes.vcf$", full.names = TRUE)
@@ -45,6 +54,9 @@ haplotypecaller_vcf_parsed$AN %<>% replace_na(1)
 
 haplotypecaller_vcf_granges <- select(haplotypecaller_vcf_parsed, `#CHROM`:POS) %>% set_colnames(c("chr", "start")) %>% mutate(end = start) %>% makeGRangesFromDataFrame
 mcols(haplotypecaller_vcf_granges) <- select(haplotypecaller_vcf_parsed, -`#CHROM`, -POS)
+
+twist_panel <- read_excel(panel_coordinates, col_names = F)
+colnames(twist_panel) <- c("chr", "start", "end", "Transcript", "X5", "Strand", "Gene", "X8")
 
 twist_snps <- filter(twist_panel, str_detect(Gene, "^rs"))  
 colnames(twist_snps)[7] <- "rsID"
