@@ -1,22 +1,21 @@
 library(GenomicRanges)
 library(magrittr)
 library(tidyverse)
-library(readxl)
 
 # Function input: row of semicolon separated variant effects
 # Function goal: split the variant effects into separate columns,
 # and each effect on its own line
 MakeTibble <- function(rows) {
-  # If there is only one variant effect, only make one row. Otherwise, return
-  # a tibble of all variant effects.
-  if (is.null(dim(rows))) {
-    row_df <- data.frame("Gene" = NA, "Transcript" = NA, "Exon" = NA, "DNA_Change" = NA, "Protein_change" = NA)
-    as_tibble_row(row_df, .name_repair = "minimal")
-  } else {
-    row_df <- set_colnames(rows, c("Gene", "Transcript", "Exon", "DNA_change", "Protein_change")) %>% 
-      as_tibble
-  }
-  row_df
+    # If there is only one variant effect, only make one row. Otherwise, return
+    # a tibble of all variant effects.
+    if (is.null(dim(rows))) {
+        row_df <- set_names(rows, c("Gene", "Transcript", "Exon", "DNA_change", "Protein_change")) %>%
+            as_tibble_row
+    } else {
+        row_df <- set_colnames(rows, c("Gene", "Transcript", "Exon", "DNA_change", "Protein_change")) %>% 
+            as_tibble
+    }
+    row_df
 }
 
 command_args <- commandArgs(trailingOnly = TRUE)
@@ -49,7 +48,7 @@ twist_panel <- read_excel(panel_coordinates, col_names = F)
 colnames(twist_panel) <- c("chr", "start", "end", "Transcript", "X5", "Strand", "Gene", "X8")
 twist_panel_granges <- select(twist_panel, chr:end) %>% makeGRangesFromDataFrame
 
-varscan_granges <- select(varscan_final, Chr:End) %>% 
+varscan_granges <- select(varscan_final, Chromosome:End_Position) %>% 
   set_colnames(c("chr", "start", "end")) %>% 
   makeGRangesFromDataFrame
 varscan_overlaps <- findOverlaps(twist_panel_granges, varscan_granges) %>% as_tibble
@@ -57,16 +56,16 @@ varscan_overlaps_sorted <- sort(varscan_overlaps$subjectHits)
 
 # filter for all variants within the genomic ranges specified in the twist_panel
 varscan_vcf_filter <- dplyr::slice(varscan_final, varscan_overlaps_sorted) %>% 
-  dplyr::filter(is_in(Gene.ensGene, unique(twist_panel$Gene))) %>% 
-  arrange(Sample, Chr, Start)
+  dplyr::filter(is_in(Hugo_Symbol, unique(twist_panel$Gene))) %>% 
+  arrange(Sample, Chromosome, Start_Position)
 
 varscan_aachange <- str_split(varscan_vcf_filter$AAChange.ensGene, ",") %>%
-map(str_split, ":") %>% map(reduce, rbind) %>% map(MakeTibble) 
+    map(str_split, ":") %>% map(reduce, rbind) %>% map(MakeTibble) 
 
 varscan_vcf_filter$AAChange_split <- varscan_aachange
 # Use the unnest command to create separate rows
 varscan_vcf_filter %<>% select(-AAChange.ensGene) %>% unnest(AAChange_split)
 
 # write output into tsv file
-varscan_final_file <- str_c(varscan_directory, "/varscan_aggregated.tsv")
+varscan_final_file <- str_c(varscan_directory, "/varscan_aggregated.txt")
 write_tsv(varscan_vcf_filter, varscan_final_file)
