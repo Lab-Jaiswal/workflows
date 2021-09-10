@@ -22,7 +22,7 @@ PREFIX=$FILENAME
 
 R1="${fastq_prefix}_R1_001.fastq.gz"
 R2="${fastq_prefix}_R2_001.fastq.gz"
-READGROUP="@RG\tID:${PREFIX}\tLB:${PREFIX}\tPL:illumi\tSM:${PREFIX}"
+READGROUP="@RG\tID:${PREFIX}\tLB:${PREFIX}\tPL:illumina\tSM:${PREFIX}"
 
 BWA_GREF="/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa" #reference genome
 TWIST_SNPS="/labs/sjaiswal/workflows/BWA_mutect_twist/twist_snps.bed" #SNPs for germline calling
