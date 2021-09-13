@@ -3,6 +3,7 @@
 min_coverage="10"
 min_var_freq="0.001"
 p_value="0.1"
+requested="$3"
 
 if [ -z "$1" ] || [ -z "$2" ]; then
     echo "run_BWA_mutect [fastq_directory] [output_directory]"
@@ -12,7 +13,7 @@ else
     fastq_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
     output_directory=$2
     parent_directory=$(dirname $fastq_directory) #get parent directory of $fastq_directory
-    code_directory="/labs/sjaiswal/workflows/BWA_CHIP" #specify location of star_align_and_qc.sh
+    code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P ) #specify location of star_align_and_qc.sh
     fastq_list="${parent_directory}/fastq_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
 
     mkdir -p $output_directory
@@ -32,5 +33,6 @@ else
             ${output_directory} \
             ${min_coverage} \
             ${min_var_freq} \
-            ${p_value}
+            ${p_value}\
+            ${requested}
 fi
