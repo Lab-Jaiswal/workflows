@@ -3,6 +3,7 @@
 min_coverage="10"
 min_var_freq="0.001"
 p_value="0.1"
+requested="$3"
 
 if [ -z "$1" ] || [ -z "$2" ]; then
     echo "run_BWA_mutect [fastq_directory] [output_directory]"
@@ -12,7 +13,7 @@ else
     fastq_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
     output_directory=$2
     parent_directory=$(dirname $fastq_directory) #get parent directory of $fastq_directory
-    code_directory="/labs/sjaiswal/workflows/BWA_CHIP" #specify location of star_align_and_qc.sh
+    code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P ) #specify location of star_align_and_qc.sh
     fastq_list="${parent_directory}/fastq_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
 
     mkdir -p $output_directory
@@ -27,10 +28,32 @@ else
 
     sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
         -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
+        -W `#indicates to the script not to move on until the sbatch operation is complete` \
         "${code_directory}/BWA_CHIP.sh" \
             ${parent_directory} \
             ${output_directory} \
             ${min_coverage} \
             ${min_var_freq} \
-            ${p_value}
+            ${p_value} \
+            $requested
+fi
+
+wait
+
+if [[ $3 =~ mutect ]]; then
+    Rscript aggregate_variants_mutect.R /labs/sjaiswal/chip_submitted_targets_Twist.xls "$output_directory"
+else 
+    echo "no mutect analysis requested"
+fi 
+
+if [[ $3 =~ varscan ]]; then
+    Rscript aggregate_variants_varscan.R /labs/sjaiswal/chip_submitted_targets_Twist.xls "$output_directory"
+else 
+    echo "no varscan analysis requested"
+fi 
+
+if [[ $3 =~ haplotype ]]; then
+    Rscript aggregate_variants_haplotypecaller.R /labs/sjaiswal/chip_submitted_targets_Twist.xls "$output_directory"
+else
+    echo "no haplotypecaller analysis requested"
 fi
