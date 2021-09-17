@@ -11,6 +11,9 @@ output_directory="$2"
 min_coverage="$3"
 min_var_freq="$4"
 p_value="$5"
+get_mutect="$6"
+get_varscan="$7"
+get_haplotype="$8"
 
 line_number=$SLURM_ARRAY_TASK_ID #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
 fastq_file="${parent_directory}/fastq_files" #provide path to file containing list of fastq files
@@ -97,7 +100,7 @@ fi
     #echo "Average amplicon depth already generated"
 #fi
 
-if [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2.vcf" ]; then
+if [ $get_mutect = true ] && [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2.vcf" ]; then
     echo "Calling somatic variants with Mutect2..."
     module load gatk4
     gatk Mutect2 \
@@ -116,7 +119,7 @@ else
     echo "Mutect2 somatic variants already called"
 fi
 
-if [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter.vcf" ]; then
+if [ $get_mutect = true ] && [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter.vcf" ]; then
     echo "Filtering somatic variants with FilterMutectCalls..."
     module load gatk4
     gatk FilterMutectCalls \
@@ -128,7 +131,7 @@ else
     echo "Mutect2 somatic variants already filtered"
 fi
 
-if [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.vcf" ]; then
+if [ $get_mutect = true ] && [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.vcf" ]; then
     TRANSCRIPT_LIST="/oak/stanford/groups/sjaiswal/Herra/CHIP_TWIST-PANEL_ATHEROMA/chip_transcript_list.txt" #Transcript list for Mutect
     FUNCOTATOR_SOURCES="/labs/sjaiswal/tools/funcotator/funcotator_dataSources.v1.6.20190124s" #Reference for Funcotator
 
@@ -147,7 +150,7 @@ else
     echo "Mutect2 VCF already annotated"
 fi
 
-if [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.maf" ]; then
+if [ $get_mutect = true ] && [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.maf" ]; then
     TRANSCRIPT_LIST="/oak/stanford/groups/sjaiswal/Herra/CHIP_TWIST-PANEL_ATHEROMA/chip_transcript_list.txt" #Transcript list for Mutect
     FUNCOTATOR_SOURCES="/labs/sjaiswal/tools/funcotator/funcotator_dataSources.v1.6.20190124s" #Reference for Funcotator
 
@@ -166,7 +169,8 @@ else
     echo "Mutect2 VCF already annotated (MAF output)"
 fi
 
-if [ ! -f "${PREFIX}_${ASSEMBLY}_haplotypecaller.gvcf" ]; then
+
+if [ $get_haplotype = true ] && [ ! -f "${PREFIX}_${ASSEMBLY}_haplotypecaller.gvcf" ]; then
     echo "Calling germline variants with HaplotypeCaller..."
     module load gatk4
     gatk HaplotypeCaller \
@@ -185,7 +189,7 @@ else
     echo "HaplotypeCaller gVCF already exists"
 fi
 
-if [ ! -f "${PREFIX}_${ASSEMBLY}_haplotypecaller_genotypes.vcf" ]; then
+if [ $get_haplotype = true ] && [ ! -f "${PREFIX}_${ASSEMBLY}_haplotypecaller_genotypes.vcf" ]; then
     echo "Genotyping germline variants in gVCF with GenotypeGVCF..."
     module load gatk4
     gatk GenotypeGVCFs \
@@ -201,7 +205,7 @@ else
 fi
 
 
-if [ ! -f "${PREFIX}_${ASSEMBLY}.pileup" ]; then
+if [ $get_varscan = true ] && [ ! -f "${PREFIX}_${ASSEMBLY}.pileup" ]; then
     module load samtools
     echo "Generating pileup from BAM..."
     samtools mpileup \
@@ -215,7 +219,7 @@ else
     echo "Pileup already generated"
 fi
 
-if [ ! -f "${PREFIX}_${ASSEMBLY}_varscan2.vcf" ]; then
+if [ $get_varscan = true ] && [ ! -f "${PREFIX}_${ASSEMBLY}_varscan2.vcf" ]; then
     echo "Calling variants from pileup..."
     module load varscan
     varscan mpileup2cns \
@@ -229,7 +233,7 @@ else
     echo "Variants already called"
 fi
 
-if [ ! -f "${PREFIX}_${ASSEMBLY}_varscan2_filter.vcf" ]; then
+if [ $get_varscan = true ] && [ ! -f "${PREFIX}_${ASSEMBLY}_varscan2_filter.vcf" ]; then
     echo "Filtering variants in VCF..."
     varscan filter \
         "${PREFIX}_${ASSEMBLY}_varscan2.vcf" \
@@ -243,7 +247,7 @@ else
 fi
 
 
-if [ ! -f "${PREFIX}_${ASSEMBLY}_varscan2_filter_annovar.hg38_multianno.vcf" ]; then
+if [ $get_varscan = true ] && [ ! -f "${PREFIX}_${ASSEMBLY}_varscan2_filter_annovar.hg38_multianno.vcf" ]; then
     echo "Annotating VCF with Annovar..."
     ASSEMBLY_REFGENE="hg38"
     ANNOVARROOT="/labs/sjaiswal/tools/annovar"
