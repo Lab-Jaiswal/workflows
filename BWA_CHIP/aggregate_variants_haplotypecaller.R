@@ -34,7 +34,7 @@ command_args <- commandArgs(trailingOnly = TRUE)
 panel_coordinates <- command_args[1]
 mutect_directory <- command_args[2]
 
-sample_names <- list.files(mutect_directory, pattern = "*_funcotator.vcf$") %>% str_remove_all("_.*$")
+sample_names <- list.files(mutect_directory, pattern = "*_haplotypecaller_genotypes.vcf$") %>% str_remove_all("_.*$")
 
 # Parse germline genotype VCFs from HaplotypeCaller
 haplotypecaller_vcf_files <- list.files(mutect_directory, pattern = "*_haplotypecaller_genotypes.vcf$", full.names = TRUE)
