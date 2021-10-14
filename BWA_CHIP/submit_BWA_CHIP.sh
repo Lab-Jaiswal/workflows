@@ -51,7 +51,7 @@ else
     sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
         -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
         -W `#indicates to the script not to move on until the sbatch operation is complete` \
-        "${code_directory}/inif2.sh" \
+        "${code_directory}/BWA_CHIP.sh" \
         ${parent_directory} \
         ${output_directory} \
         ${min_coverage} \
