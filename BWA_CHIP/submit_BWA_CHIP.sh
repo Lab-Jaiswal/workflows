@@ -7,8 +7,10 @@ else
     TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,mutect,varscan,haplotypecaller,all \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
 
-    if [ $? != 0 ] ; then echo "Unrecognized argument. Possible arguments: mutect, varscan, haplotypecaller, all, min_coverage, min_var_freq, and p_value." >&2 ; exit 1 ; fi
-        eval set -- "$TEMP"
+   if [ $? != 0 ]; then
+       echo "Unrecognized argument. Possible arguments: mutect, varscan, haplotypecaller, all, min_coverage, min_var_freq, and p_value." >&2 ; exit 1 ; 
+   fi
+       eval set -- "$TEMP"
 
         get_mutect=false
         get_varscan=false
@@ -31,6 +33,11 @@ else
             * ) break ;;
         esac
     done
+
+    if ( [[ $min_coverage != "10" ]] || [[ $min_var_freq != "0.001" ]] || [[ $p_value != "0.1" ]] ) && \
+        ( [[ $varscan = false ]] || [[ $all = false ]] ); then
+        echo "The p_value, min_coverage, and min_var_freq arguments are not used in the mutect and haplotypecaller workflows"; exit 1
+    fi
 
     fastq_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
     output_directory=$2
