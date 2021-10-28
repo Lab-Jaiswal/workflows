@@ -17,8 +17,19 @@ line_number=$SLURM_ARRAY_TASK_ID
 fastq_file="${parent_directory}/fastq_files" #provide path to file containing list of fastq files
 fastq_path="$(sed "${line_number}q; d" $fastq_file)" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
 
+get_human=$3
+get_human_nuclei=$4
+get_mouse=$5
+
 module load cellranger
-transcriptome="/labs/sjaiswal/genomes/CellRanger_GRCh38/refdata-gex-GRCh38-2020-A"
+if [ get_human = true ]; then
+    transcriptome="/labs/sjaiswal/genomes/CellRanger_GRCh38/refdata-gex-GRCh38-2020-A"
+elif [ get_human_nuclei = true ]; then
+    transcriptome="/labs/sjaiswal/jk/snRNAseq/CellRanger/GRCh38.93.premrna" #revist if we need to keep this option
+elif [ get_mouse = true ]; then
+     transcriptome="/scg/apps/software/cellranger/reference/refdata-cellranger-mm10-3.0.0"
+fi
+
 transcriptome_temp="$(basename ${transcriptome})"
 
 sample_prefix=$(ls $fastq_path | grep fastq | head -n 1 | sed -e 's/_S[0-9]*_L[0-9]*_[IR][0-9]_[0-9]*.fastq.gz//g')

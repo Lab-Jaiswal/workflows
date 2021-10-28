@@ -8,4 +8,4 @@ reference_genome="/labs/sjaiswal/genomes/GRCh38/GRCh38.p13.genome.fa" #location 
 
 annotation_refFlat="/labs/sjaiswal/genomes/GRCh38/gencode.v35.annotation.fixed.refFlat.txt" ## Created from ensembl GTF using gtfToGenePred -genePredExt -geneNameAsName2 from bioconda
 
-gene_key="/labs/sjaiswal/genomes/mm10/gencode.vM20.primary_assembly.annotation.genekey.txt" #path to annotation GTF
+gene_key="/labs/sjaiswal/genomes/mm10/gencode_vM20/gencode.vM20.primary_assembly.annotation.genekey.txt" #path to annotation GTF
