@@ -48,7 +48,12 @@ command_args <- commandArgs(trailingOnly = TRUE)
 panel_coordinates <- command_args[1]
 mutect_directory <- command_args[2]
 
-sample_names <- list.files(mutect_directory, pattern = "*_funcotator.vcf$") %>% str_remove_all("_.*$")
+split_names <- list.files(mutect_directory, pattern = "*_funcotator.vcf$") %>% str_remove_all("_.*$")
+if (length(unique(split_names))){
+    sample_names <- list.files(mutect_directory, pattern = "*_funcotator.vcf$") %>% str_remove_all("_S.*$")
+    } else {
+        sample_names <- split_names
+    }
 
 maf_files <- list.files(mutect_directory, pattern = "*_funcotator.maf$", full.names = TRUE)
 vcf_files <- list.files(mutect_directory, pattern = "*_funcotator.vcf$", full.names = TRUE)
@@ -98,7 +103,9 @@ list_of_mafs <- maf_files %>%
   set_names(sample_names) %>%
   map(select, maf_columns)
 
-mutect_maf_all <- bind_rows(list_of_mafs, .id = "Sample")
+list_of_mafs_edited <- lapply(list_of_mafs, function(df) mutate_at(df, .vars = c("Transcript_Position"), as.character))
+
+mutect_maf_all <- bind_rows(list_of_mafs_edited, .id = "Sample")
 
 # Remove all mitochondrial genes
 maf_noMT <- subset(mutect_maf_all, mutect_maf_all$Chromosome != "MT")
@@ -157,16 +164,16 @@ mutect_vcf_filter <- select(variant_classification, -AD, -tumor_f, -F2R1, -F1R2,
 # Select relevant columns for the final output
 mutect_vcf_select <- select(mutect_vcf_filter, c(Sample, Hugo_Symbol, NCBI_Build, Chromosome, Start_Position,
                                                  End_Position, Variant_Classification, Variant_Type, Protein_Change,
-                                                 FILTER, tumor_f, t_ref_count, t_alt_count_1, t_alt_count_2,
+                                                 FILTER, tumor_f, t_ref_count, contains("t_alt_count"),
                                                  Reference_Allele, Tumor_Seq_Allele1, Transcript_Exon, Transcript_Position,
                                                  cDNA_Change, Codon_Change, gc_content, longest_repeat, DP, f1r2_reference,
                                                  gc_content, longest_repeat, f1r2_reference,
-                                                 f1r2_alternate1, f1r2_alternate2,f2r1_reference,f2r1_alternate1,      
-                                                 f2r1_alternate2,mbq_reference,mbq_alternate1,mbq_alternate2,  
-                                                 mfrl_reference, mfrl_alternate1, mfrl_alternate2, mmq_reference,        
-                                                 mmq_alternate1, mmq_alternate2, sb_reference,sb_alt1,               
-                                                 sb_alt2, AS_FilterStatus,ECNT,GERMQ, MPOS,POPAF,TLOD, RPA, RU,STR,STRQ,GT,                  
-                                                 PGT,PID,PS,OREGANNO_ID, OREGANNO_Values,Other_Transcripts,ref_context           
+                                                 contains("f1r2_alternate"), f2r1_reference, contains("f2r1_alternate"),      
+                                                 mbq_reference, contains("mbq_alternate"),  
+                                                 mfrl_reference, contains("mfrl_alternate"), mmq_reference,        
+                                                 contains("mmq_alternate" ), sb_reference, contains("sb_alt"),               
+                                                 AS_FilterStatus, ECNT, GERMQ, MPOS, POPAF, TLOD, RPA, RU, STR, STRQ, GT,                  
+                                                 PGT, PID, PS, OREGANNO_ID, OREGANNO_Values, Other_Transcripts, ref_context           
 ))
 
 # Get twist panel (in same folder as aggregate variants mutect script)
