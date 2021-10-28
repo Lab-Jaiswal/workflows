@@ -1,7 +1,9 @@
-if [ -z "$1" ] || [ -z "$2" ]; then
-    echo "submit_star_align_and_qc [fastq_directory] [max_jobs]"
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+    echo "Format: ./submit_star_align_and_qc.sh [fastq_directory] [output_directory] --argument"
     echo "fastq_directory: path to raw .fastq or .fastq.gz files"
     echo "output_directory: path for BWA and mutect output"
+    echo "argument: indicates which reference genome you would like your data aligned to (--human or --mouse)"
+    exit 1
 else
     TEMP=`getopt -o vdm: --long human,mouse,hsapiens,sapiens,mmusculus,musculus \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
