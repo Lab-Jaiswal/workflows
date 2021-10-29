@@ -31,18 +31,18 @@ Unrec_RNASeq=$?
 Unrec_CellRanger=$?
 
 if [[ $Unrec_BWA -eq 1 ]]; then
-    echo "Unrecognized BWA argument test case: pass" >> test_case_summary.txt; else 
-    echo "Unrecognized BWA argument test case: fail" >> test_case_summary.txt
+    echo "Unrecognized BWA argument test case: pass" >> $output_directory/test_case_summary.txt; else 
+    echo "Unrecognized BWA argument test case: fail" >> $output_directory/test_case_summary.txt
 fi
 
 if [[ $Unrec_RNASeq -eq 1 ]]; then
-    echo "Unrecognized RNA_Seq argument test case: pass" >> test_case_summary.txt; else
-    echo "Unrecognized RNA_Seq argument test case: fail" >> test_case_summary.txt
+    echo "Unrecognized RNA_Seq argument test case: pass" >> $output_directory/test_case_summary.txt; else
+    echo "Unrecognized RNA_Seq argument test case: fail" >> $output_directory/test_case_summary.txt
 fi
 
 if [[ $Unrec_CellRanger -eq 1 ]]; then
-    echo "Unrecognized CellRanger argument test case: pass" >> test_case_summary.txt; else
-    echo "Unrecognized CellRanger argument test case: fail" >> test_case_summary.txt
+    echo "Unrecognized CellRanger argument test case: pass" >> $output_directory/test_case_summary.txt; else
+    echo "Unrecognized CellRanger argument test case: fail" >> $output_directory/test_case_summary.txt
 fi
 
 ./BWA_CHIP/submit_BWA_CHIP.sh /home/maurertm/labs/maurertm/mutectvarscanhaplotype $output_directory/BWA_CHIP >/dev/null 2>&1
@@ -53,18 +53,18 @@ NoArg_RNASeq=$?
 NoArg_CellRanger=$?
 
 if [[ $NoArg_BWA -eq 1 ]]; then
-    echo "Missing BWA argument test case: pass" >> test_case_summary.txt; else
-    echo "Missing BWA argument test case: fail" >> test_case_summary.txt
+    echo "Missing BWA argument test case: pass" >> $output_directory/test_case_summary.txt; else
+    echo "Missing BWA argument test case: fail" >> $output_directory/test_case_summary.txt
 fi
 
 if [[ $NoArg_RNASeq -eq 1 ]]; then
-    echo "Missing RNA_Seq argument test case: pass" >> test_case_summary.txt; else
-    echo "Missing RNA_Seq argument test case: fail" >> test_case_summary.txt
+    echo "Missing RNA_Seq argument test case: pass" >> $output_directory/test_case_summary.txt; else
+    echo "Missing RNA_Seq argument test case: fail" >> $output_directory/test_case_summary.txt
 fi
 
 if [[ $NoArg_CellRanger -eq 1 ]] ; then
-    echo "Missing CellRanger argument test case: pass" >> test_case_summary.txt; else
-    echo "Missing CellRanger argument test case: fail" >> test_case_summary.txt
+    echo "Missing CellRanger argument test case: pass" >> $output_directory/test_case_summary.txt; else
+    echo "Missing CellRanger argument test case: fail" >> $output_directory/test_case_summary.txt
 fi
 
 ./BWA_CHIP/submit_BWA_CHIP.sh /home/maurertm/labs/maurertm/mutectvarscanhaplotype $output_directory/BWA_CHIP --mutect --p_value=2 >/dev/null 2>&1
@@ -86,8 +86,8 @@ if ( [[ $Mutect_Pval -eq 1 ]] && \
     [[ $Haplotype_Mincov -eq 1 ]] && \
     [[ $Mutect_MVF -eq 1 ]] && \
     [[ $Haplotype_MVF -eq 1 ]] ); then
-    echo "BWA_CHIP test case where user selects --mutect or --haplotypecaller and a varscan only argument (p_value, min_coverage, or min_var_freq): pass" >> test_case_summary.txt; else
-    echo "BWA_CHIP test case where user selects --mutect or --haplotypecaller and a varscan only argument (p_value, min_coverage, or min_var_freq): fail" >> test_case_summary.txt
+    echo "BWA_CHIP test case where user selects --mutect or --haplotypecaller and a varscan only argument (p_value, min_coverage, or min_var_freq): pass" >> $output_directory/test_case_summary.txt; else
+    echo "BWA_CHIP test case where user selects --mutect or --haplotypecaller and a varscan only argument (p_value, min_coverage, or min_var_freq): fail" >> $output_directory/test_case_summary.txt
 fi
 
 ./RNA_Seq/submit_star_align_and_qc.sh /labs/sjaiswal/maurertm/output/FASTQ $output_directory/RNA_Seq --human --mouse >/dev/null 2>&1
@@ -102,16 +102,16 @@ MouseNuclei_CellRanger=$?
 All_CellRanger=$?
 
 if [[ $HumanMouse_RNASeq -eq 1 ]]; then
-    echo "RNA_Seq test case where user selects both Mouse AND Human genomes: pass" >> test_case_summary.txt; else
-    echo "RNA_Seq test case where user selects both Mouse AND Human genomes: fail" >> test_case_summary.txt
+    echo "RNA_Seq test case where user selects both Mouse AND Human genomes: pass" >> $output_directory/test_case_summary.txt; else
+    echo "RNA_Seq test case where user selects both Mouse AND Human genomes: fail" >> $output_directory/test_case_summary.txt
 fi
 
 if ( [[ $HumanMouse_CellRanger -eq 1 ]] && \
     [[ $HumanNuclei_CellRanger -eq 1 ]] && \
     [[ $MouseNuclei_CellRanger -eq 1 ]] && \
     [[ $All_CellRanger -eq 1 ]] ); then
-    echo "CellRanger test case where user selects multiple genome types: pass" >> test_case_summary.txt; else
-    echo "CellRanger test case where user selects multiple genome types: fail" >> test_case_summary.txt
+    echo "CellRanger test case where user selects multiple genome types: pass" >> $output_directory/test_case_summary.txt; else
+    echo "CellRanger test case where user selects multiple genome types: fail" >> $output_directory/test_case_summary.txt
 fi
 
 cd "$code_directory/BWA_CHIP"
