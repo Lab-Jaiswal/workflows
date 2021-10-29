@@ -80,7 +80,8 @@ module load R/4.0
 if [ $get_mutect = true ]; then
     Rscript aggregate_variants_mutect.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
         "$output_directory" > "$output_directory/Logs/mutectOutFile.Rout" 2>&1
-fi 
+fi
+
 
 if [ $get_varscan = true ]; then
     Rscript aggregate_variants_varscan.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
@@ -91,3 +92,9 @@ if [ $get_haplotype = true ]; then
     Rscript aggregate_variants_haplotypecaller.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
         "$output_directory" > "$output_directory/Logs/haplotypeOutFile.Rout" 2>&1
 fi
+
+mutectRout="$output_directory/Logs/mutectOutFile.Rout"
+if grep -q "Can't combine" "$mutectRout"; then
+    echo "There is an issue with the list containing maf dataframes. The column type varies from data frame to dataframe within list_of_mafs. Check mutectOutFile.Rout to determine which column(s) are causing this error. All columns sharing the same name must share the same type in order for the bind_rows function line 108 to work."
+fi
+
