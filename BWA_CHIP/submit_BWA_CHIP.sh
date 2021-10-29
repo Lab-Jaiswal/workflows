@@ -82,7 +82,6 @@ if [ $get_mutect = true ]; then
         "$output_directory" > "$output_directory/Logs/mutectOutFile.Rout" 2>&1
 fi
 
-
 if [ $get_varscan = true ]; then
     Rscript aggregate_variants_varscan.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
         "$output_directory" > "$output_directory/Logs/mutectOutFile.Rout" 2>&1
