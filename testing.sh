@@ -114,19 +114,19 @@ if ( [[ $HumanMouse_CellRanger -eq 1 ]] && \
     echo "CellRanger test case where user selects multiple genome types: fail" >> test_case_summary.txt
 fi
 
-
-#./submit_BWA_CHIP.sh /labs/sjaiswal/Herra/199011828_R6/FASTQ/ $output_directory/BWA_CHIP/Mutect --mutect
-#./submit_BWA_CHIP.sh /labs/sjaiswal/Herra/199011828_R6/FASTQ/ $output_directory/BWA_CHIP/Varscan --varscan
-#./submit_BWA_CHIP.sh /labs/sjaiswal/Herra/199011828_R6/FASTQ/ $output_directory/BWA_CHIP/Haplotype --haplotypecaller
-#./submit_BWA_CHIP.sh /labs/sjaiswal/Herra/199011828_R6/FASTQ/ $output_directory/BWA_CHIP/All --all
-#./submit_BWA_CHIP.sh /labs/sjaiswal/Herra/199011828_R6/FASTQ/ $output_directory/BWA_CHIP/Varscan_Edited_Fields --varscan --p_value=0.05, --Min_var_freq=0.002, --min_coverage=20
+cd "$code_directory/BWA_CHIP"
+./submit_BWA_CHIP.sh /labs/sjaiswal/Herra/199011828_R6/FASTQ/ $output_directory/BWA_CHIP/Mutect --mutect
+./submit_BWA_CHIP.sh /labs/sjaiswal/Herra/199011828_R6/FASTQ/ $output_directory/BWA_CHIP/Varscan --varscan
+./submit_BWA_CHIP.sh /labs/sjaiswal/Herra/199011828_R6/FASTQ/ $output_directory/BWA_CHIP/Haplotype --haplotypecaller
+./submit_BWA_CHIP.sh /labs/sjaiswal/Herra/199011828_R6/FASTQ/ $output_directory/BWA_CHIP/All --all
+./submit_BWA_CHIP.sh /labs/sjaiswal/Herra/199011828_R6/FASTQ/ $output_directory/BWA_CHIP/Varscan_Edited_Fields --varscan --p_value=0.05, --Min_var_freq=0.002, --min_coverage=20
 
 cd "$code_directory/RNA_Seq"
-#./submit_star_align_and_qc.sh /labs/sjaiswal/maurertm/output/FASTQ $output_directory/RNA_Seq/Human --human
-#./submit_star_align_and_qc.sh /labs/sjaiswal/maurertm/output/FASTQ $output_directory/RNA_Seq/Mouse --mouse
+./submit_star_align_and_qc.sh /labs/sjaiswal/maurertm/output/FASTQ $output_directory/RNA_Seq/Human --human
+./submit_star_align_and_qc.sh /labs/sjaiswal/maurertm/output/FASTQ $output_directory/RNA_Seq/Mouse --mouse
 
 cd "$code_directory/CellRanger"
-#./submit_cellranger.sh /oak/stanford/groups/sjaiswal/jk/JG136/day5_10X_deepseq/raw_data $output_directory/CellRanger/Human --human
-#./submit_cellranger.sh /oak/stanford/groups/sjaiswal/jk/JG136/day5_10X_deepseq/raw_data $output_directory/CellRanger/Mouse --mouse
-#./submit_cellranger.sh /oak/stanford/groups/sjaiswal/jk/JG136/day5_10X_deepseq/raw_data $output_directory/CellRanger/Human_Nuclei --human_nuclei
+./submit_cellranger.sh /oak/stanford/groups/sjaiswal/jk/JG136/day5_10X_deepseq/raw_data $output_directory/CellRanger/Human --human
+./submit_cellranger.sh /oak/stanford/groups/sjaiswal/jk/JG136/day5_10X_deepseq/raw_data $output_directory/CellRanger/Mouse --mouse
+./submit_cellranger.sh /oak/stanford/groups/sjaiswal/jk/JG136/day5_10X_deepseq/raw_data $output_directory/CellRanger/Human_Nuclei --human_nuclei
 
