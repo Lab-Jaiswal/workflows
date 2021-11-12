@@ -1,9 +1,11 @@
 #!/bin/bash
 
-if [ -z $1 ] || [ -z $2 ]; then
-    echo "submit_cellranger [fastq_directory] [max_jobs]"
+if [ -z $1 ] || [ -z $2 ] || [ -z $3 ]; then
+    echo "Format: ./submit_cellranger.sh [fastq_directory] [output_directory] --argument"
     echo "fastq_directory: path to raw .fastq or .fastq.gz files"
     echo "output_directory: path for CellRanger output"
+    echo "argument: indicates desired reference genome (--human, --mouse, or --human_nuclei)"
+    exit 1
 else
     TEMP=`getopt -o vdm: --long human,hsapiens,hsapien,mouse,mmusculus,musculus,human_nuclei,hsapiens_nuclei,hsapien_nuclei,nuclei \
     -n 'submit_cellranger.sh' -- "$@"`
@@ -24,6 +26,10 @@ else
             * ) break ;;
         esac
     done
+    
+    if ( [ $get_human = true ] && [ $get_mouse = true ] ) || ( [ $get_human = true ] && [ $get_human_nuclei = true ] ) || ( [ $get_mouse = true ] && [ $get_human_nuclei = true ] ); then
+        echo "Please select one genome to align to. Your options are human, mouse, or human_nuclei"; exit 1
+    fi
 
     fastq_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
     parent_directory=$(dirname ${fastq_directory}) #get parent directory of $fastq_directory
