@@ -16,15 +16,14 @@ genome_path=$6
 phix_path=$7
 cores=$8
 
-    #${1:-$temp_path}
-    temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
-    echo "temp_path is: " $temp_path
-    mkdir $temp_path
-    #copy fastq files to temp_path
-    rsync -vur $data_path/fastq/ $temp_path
+temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
+echo "temp_path is: " $temp_path
+mkdir $temp_path
+#copy fastq files to temp_path
+rsync -vur $data_path/fastq/ $temp_path
 
-    temp_genomes_path=/tmp/genomes
-    rsync -vur $genome_path $temp_genomes_path
+temp_genomes_path=/tmp/genomes
+rsync -vur $genome_path $temp_genomes_path
 
 echo this is temp_path = $temp_path
 
