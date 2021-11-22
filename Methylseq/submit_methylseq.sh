@@ -10,22 +10,6 @@ genome_path=$6
 phix_path=$7
 temp_path=$8
 
-if ! [ -d "$temp_path" ]; then
-    #${1:-$temp_path}
-    temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
-    echo "temp_path is: " $temp_path
-    mkdir $temp_path
-    #copy fastq files to temp_path
-    rsync -vur $data_path/fastq/ $temp_path
-
-    temp_genomes_path=/tmp/genomes
-    rsync -vur $genome_path $temp_genomes_path
-fi
-
-echo this is temp_path = $temp_path
-
-
-
 code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
 #cores=$(expr ${SLURM_CPUS_PER_TASK}/2)
@@ -73,7 +57,7 @@ sbatch -o "${data_path}/Logs/%A_%a.log" `#put into log` \
         -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
         -W `#indicates to the script not to move on until the sbatch operation is complete` \
         "${code_directory}/methylseq.sh" \
-        $data_path $unmethyl_control_fasta $unmethyl_control $hydroxymethyl_control_fasta $hydroxymethyl_control $genome_path $phix_path $temp_path $cores
+        $data_path $unmethyl_control_fasta $unmethyl_control $hydroxymethyl_control_fasta $hydroxymethyl_control $genome_path $phix_path $cores
         
     wait
 
