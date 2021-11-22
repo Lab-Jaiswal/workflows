@@ -14,10 +14,8 @@ hydroxymethyl_control_fasta=$4
 hydroxymethyl_control=$5
 genome_path=$6
 phix_path=$7
-temp_path=$8
-cores=$9
+cores=$8
 
-if ! [ -d "$temp_path" ]; then
     #${1:-$temp_path}
     temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
     echo "temp_path is: " $temp_path
@@ -27,7 +25,6 @@ if ! [ -d "$temp_path" ]; then
 
     temp_genomes_path=/tmp/genomes
     rsync -vur $genome_path $temp_genomes_path
-fi
 
 echo this is temp_path = $temp_path
 
@@ -99,6 +96,9 @@ echo "map_to_control_seqs.sh complete"
 hydroxymethyl_control_count=$(find "$data_path/fastq/$unmethyl_control" -type d | grep "$hydroxymethyl_control" | wc -l)
 
 if [ $hydroxymethyl_control_count -lt 1 ]; then  
+
+    module load bismark/0.22.3
+
     #temp_genomes_path=/tmp/genomes
     #WHAT IS RIGHT HERE?
     #rsync -vur "$genome_path/$unmethyl_control_fasta" $temp_genomes_path
@@ -129,6 +129,9 @@ echo "extract_methylation_controls complete"
 report_controls_count=$(find "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control" -type f | grep "bismark_summary_report" | wc -l)
 
 if [ $report_controls_count -le 1 ]; then 
+
+    module load bismark/0.22.3
+
     cd $temp_path/$unmethyl_control
     
     #http://felixkrueger.github.io/Bismark/Docs/
@@ -160,6 +163,9 @@ echo "report_controls complete"
 ################################################################################
 genome_alignment_count=$(find "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control" -type d | grep "genome_alignment" | wc -l)
 if [ $genome_alignment_count -lt 1 ]; then
+
+    module load bismark/0.22.3
+
     temp_genomes_path=/tmp/genomes
     genome_name=$(basename $genome_path)
     
@@ -188,6 +194,9 @@ echo "map_to_genome_seqs complete"
 ################################################################################
 genome_clean_count=$(find "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/genome_alignment" -type f | grep "gz_unmapped_reads_1_bismark_bt2_pe.bam" | wc -l)
 if [ $genome_clean_count -le 1 ]; then
+
+    module load bismark/0.22.3
+
     cd $temp_path/$unmethyl_control/$hydroxymethyl_control/genome_alignment
         
     for sample in *gz_unmapped_reads_1_bismark_bt2_pe.bam
@@ -246,6 +255,9 @@ echo "insert_size_analysis complete"
 report_count=$(find "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/genome_alignment" -type f | grep "bismark_summary_report" | wc -l)
 
 if [ $report_count -le 1 ]; then
+
+    module load bismark/0.22.3
+
     #https://rawgit.com/FelixKrueger/Bismark/master/Docs/Bismark_User_Guide.html
     
     cd $temp_path/$unmethyl_control/$hydroxymethyl_control/genome_alignment
