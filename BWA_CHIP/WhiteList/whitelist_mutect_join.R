@@ -1,5 +1,3 @@
-library(maftools)
-library(GenomicRanges)
 library(readxl)
 library(magrittr)
 library(tidyverse)
