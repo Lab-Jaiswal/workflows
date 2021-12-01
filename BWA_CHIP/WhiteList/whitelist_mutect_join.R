@@ -16,7 +16,7 @@ mutect_coordinates <- command_args[2]
 output <- command_args[3]
 
 white_list <- read_excel(whitelist_coordinates, col_names=T)
-mutect <- read_excel(mutect_coordinates, col_names=T)
+mutect <- read_table(mutect_coordinates)
 
 mutect$Variant_Classification <- gsub('MISSENSE', 'missense', mutect$Variant_Classification)
 mutect$Variant_Classification <- gsub("FRAME_SHIFT_DEL", "Frameshift", mutect$Variant_Classification)
@@ -24,8 +24,6 @@ mutect$Variant_Classification <- gsub("SPLICE_SITE", "Splicesite", mutect$Varian
 mutect$Variant_Classification <- gsub("NONSENSE", "nonsense", mutect$Variant_Classification)
 white_list$Variant_types <- gsub("splice-site", "Splicesite", white_list$Variant_types)
 
-manual_review <- white_list %>% filter(manual_review == 1)
-white_listed <- white_list %>% filter(whitelist == 1)
 #Get Initial_Protein, Protein_Position, and Final_Protein column from mutect
 no_p <- do.call('rbind', strsplit(mutect$Protein_Change, split = "p.", perl = TRUE)) %>% as_tibble()
 mutect <- bind_cols(mutect, no_p)
