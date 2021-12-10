@@ -50,7 +50,7 @@ mutect_directory <- command_args[2]
 
 split_names <- list.files(mutect_directory, pattern = "*_funcotator.vcf$") %>% str_remove_all("_.*$")
 if (length(unique(split_names))){
-    sample_names <- list.files(mutect_directory, pattern = "*_funcotator.vcf$") %>% str_remove_all("_S.*$")
+    sample_names <- list.files(mutect_directory, pattern = "*_funcotator.vcf$") %>% str_remove_all("_G.*$")
     } else {
         sample_names <- split_names
     }
@@ -67,13 +67,13 @@ vcf_colnames <- str_subset(mutect_vcf_header, "^#") %>%
   str_split("\\t") %>% 
   extract2(1)
 vcf_colnames[length(vcf_colnames)] <- "DATA"
-mutect_vcf_list <- map(vcf_files, read_lines) %>% 
-  map(str_subset, "^# ", negate = TRUE) %>% 
-  map(str_split_fixed, "\\t", length(vcf_colnames)) %>% 
+mutect_vcf_list <- map(vcf_files, read_lines) %>%
+  map(str_subset, pattern = "^#", negate = TRUE) %>%
+  map(mutect_vcf_list2, str_split_fixed, "\\t", length(vcf_colnames)) %>% 
   map(set_colnames, vcf_colnames) %>% 
   map(as_tibble) %>% 
   set_names(sample_names)
-mutect_vcf_all <- bind_rows(mutect_vcf_list, .id = "Sample")
+mutect_vcf_all <- bind_rows(mutect_vcf_list2, .id = "Sample")
 
 mutect_info_names <- str_split(mutect_vcf_all$INFO, ";") %>% map(str_remove_all, "=.*$") 
 mutect_info <- str_split(mutect_vcf_all$INFO, ";") %>% map(str_remove_all, "^.*\\=") 
