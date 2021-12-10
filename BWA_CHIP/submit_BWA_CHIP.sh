@@ -42,25 +42,58 @@ else
         echo "The p_value, min_coverage, and min_var_freq arguments are not used in the mutect and haplotypecaller workflows"; exit 1
     fi
 
-    fastq_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
+    data_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
+    #find "${data_directory}/" -type f | grep "bam" | grep -v ".bam.bai" | sed -e 's/\.bam$//g'
     output_directory=$2
-    parent_directory=$(dirname $fastq_directory) #get parent directory of $fastq_directory
+    parent_directory=$(dirname $data_directory) #get parent directory of $fastq_directory
     code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P ) #specify location of star_align_and_qc.sh
     fastq_list="${parent_directory}/fastq_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
+    bam_list="${parent_directory}/bam_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
+
 
     mkdir -p $output_directory
     mkdir -p "${output_directory}/Logs"
 
-    find "${fastq_directory}/" -type f `#list all files in ${fastq_directory}` | \
-        grep "fastq" `#only keep files with FASTQ in name (case insensitive)` | \
+
+    find "${data_directory}/" -type f `#list all files in ${fastq_directory}` | \
+        grep ".*\.bam$" `#only keep files with FASTQ in name (case insensitive)` | \
+        grep -v ".bam.bai" `#remove Undetermined FASTQs` | \
+        sed -e 's/\.bam$//g' `#remove _R1/2_fastq.gz file extension` | \
+        sort -u  `#sort and remove duplicate names` > ${bam_list}
+            #| \
+        #head -n -1 > ${bam_list} `#remove the last line and generate a list of unique FASTQs`
+    bam_array_length=$(wc -l < ${bam_list}) #get the number of FASTQs 
+    echo "$bam_array_length"
+
+
+    find "${data_directory}/" -type f `#list all files in ${fastq_directory}` | \
+        grep ".*\.fastq.gz$" `#only keep files with FASTQ in name (case insensitive)` | \
         grep -v "Undetermined" `#remove Undetermined FASTQs` | \
         sed -e 's/_R1.*$//g' | sed -e 's/_R2.*$//g' `#remove _R1/2_fastq.gz file extension`| \
-        sort -u  `#sort and remove duplicate names`| \
-        head -n -1 > ${fastq_list} `#remove the last line and generate a list of unique FASTQs`
-    array_length=$(wc -l < ${fastq_list}) #get the number of FASTQs 
-    
+        sort -u  `#sort and remove duplicate names` > ${fastq_list} 
+            #| \
+        #head -n -1 > ${fastq_list} `#remove the last line and generate a list of unique FASTQs`
+    fastq_array_length=$(wc -l < ${fastq_list}) #get the number of FASTQs 
+    echo "$fastq_array_length"
+
+    if [ $bam_array_length -ge 1 ] && [ $fastq_array_length -eq 0 ]; then
+        sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
+            -a "1-${bam_array_length}" `#initiate job array equal to the number of fastq files` \
+            -W `#indicates to the script not to move on until the sbatch operation is complete` \
+            "${code_directory}/bam_to_fastq_test.sh" \
+            "$data_directory" \
+            "$code_directory"
+
+        cp $bam_list $fastq_list
+        fastq_array_length=$(wc -l < ${fastq_list}) #get the number of FASTQs 
+        echo "$fastq_array_length"
+            wait
+        
+    fi
+
+
     sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
-        -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
+        -a "1-${fastq_array_length}" `#initiate job array equal to the number of fastq files` \
         -W `#indicates to the script not to move on until the sbatch operation is complete` \
         "${code_directory}/BWA_CHIP.sh" \
         ${parent_directory} \
@@ -96,4 +129,3 @@ mutectRout="$output_directory/Logs/mutectOutFile.Rout"
 if grep -q "Can't combine" "$mutectRout"; then
     echo "There is an issue with the list containing maf dataframes. The column type varies from data frame to dataframe within list_of_mafs. Check mutectOutFile.Rout to determine which column(s) are causing this error. All columns sharing the same name must share the same type in order for the bind_rows function line 108 to work."
 fi
-
