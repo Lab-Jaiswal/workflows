@@ -1,9 +1,9 @@
 #!/bin/bash
 
-#SBATCH --time=3:00:00
+#SBATCH --time=24:00:00
 #SBATCH --account=sjaiswal
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=32GB
+#SBATCH --cpus-per-task=24
+#SBATCH --mem=500GB
 #SBATCH --job-name=CHIP_variant_call
 
 parent_directory=$1
