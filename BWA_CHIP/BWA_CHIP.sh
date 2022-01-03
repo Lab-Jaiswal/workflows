@@ -3,7 +3,7 @@
 #SBATCH --time=24:00:00
 #SBATCH --account=sjaiswal
 #SBATCH --cpus-per-task=24
-#SBATCH --mem=500GB
+#SBATCH --mem=32GB
 #SBATCH --job-name=CHIP_variant_call
 
 parent_directory=$1
@@ -151,6 +151,15 @@ if [ $get_mutect = true ]; then
         echo "Mutect2 VCF already annotated"
     fi
 
+    if  [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.vcf" ]; then
+        grep -E "^#|FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" <  "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.vcf" > "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.vcf"
+        number_nonsyn_vcf=$(grep -E "FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" < "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.vcf" | wc -l)        
+        if [ $number_nonsyn_vcf -lt 1 ]; then
+            mv "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.vcf" "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding_null.vcf"
+        fi
+
+    fi
+    
     if  [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.maf" ]; then
         TRANSCRIPT_LIST="/oak/stanford/groups/sjaiswal/Herra/CHIP_TWIST-PANEL_ATHEROMA/chip_transcript_list.txt" #Transcript list for Mutect
         FUNCOTATOR_SOURCES="/labs/sjaiswal/tools/funcotator/funcotator_dataSources.v1.6.20190124s" #Reference for Funcotator
@@ -169,6 +178,15 @@ if [ $get_mutect = true ]; then
     else
         echo "Mutect2 VCF already annotated (MAF output)"
     fi
+
+    if  [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.maf" ]; then
+        grep -E "^#|^Hugo_Symbol|Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" <  "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.maf" > "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.maf" 
+        number_nonsyn_maf=$(grep -E "Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" < "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.maf" | wc -l)        
+        if [ $number_nonsyn_maf -lt 1 ]; then
+            mv"${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.maf" "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding_null.maf"
+        fi
+    fi
+    
 else 
     echo "No Mutect analysis requested"
 fi
