@@ -5,13 +5,14 @@ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
     echo "output_directory: path for BWA and mutect output"
     echo "argument: indicates requested analysis technique(s) (--mutect, --varscan, --haplotypecaller, or --all)."
     echo "If --varscan is selected, you may use the optional arguments --p_value, --min_var_freq, and --min_coverage (if so desired)." 
+    echo "If --mutect is selected, you may use --twist to indicate you would like your results filtered by the Twist panel"
     exit 1
 else
-    TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,mutect,varscan,haplotypecaller,all \
+    TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,twist,mutect,varscan,haplotypecaller,all \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
 
    if [ $? != 0 ]; then
-       echo "Unrecognized argument. Possible arguments: mutect, varscan, haplotypecaller, all, min_coverage, min_var_freq, and p_value." >&2 ; exit 1 ; 
+       echo "Unrecognized argument. Possible arguments: mutect, varscan, haplotypecaller, all, min_coverage, min_var_freq, p_value, and twist." >&2 ; exit 1 ; 
    fi
        eval set -- "$TEMP"
 
@@ -19,15 +20,17 @@ else
         get_varscan=false
         get_haplotype=false
         all=false
+        twist="0"
         min_coverage="10"
         min_var_freq="0.001"
         p_value="0.1"
-
+        
     while true; do
         case "$1" in
             --min_coverage ) min_coverage="$2"; shift 2 ;;
             --min_var_freq ) min_var_freq="$2"; shift 2 ;;
             --p_value ) p_value="$2"; shift 2;;
+            --twist ) twist="1"; shift ;;
             -m | --mutect ) get_mutect=true; shift ;;
             -v | --varscan ) get_varscan=true; shift ;;
             -h | --haplotypecaller ) get_haplotype=true; shift ;;
@@ -41,6 +44,12 @@ else
         ( [[ $varscan = false ]] || [[ $all = false ]] ); then
         echo "The p_value, min_coverage, and min_var_freq arguments are not used in the mutect and haplotypecaller workflows"; exit 1
     fi
+
+    if ( [[ twist = true ]] ) && \
+        ( [[ $mutect = false ]] || [[ $all = false ]] ); then
+        echo "The --twist argument is not applicable to the varscan and haplotypecaller workflows"; exit 1
+    fi
+
 
     data_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
     #find "${data_directory}/" -type f | grep "bam" | grep -v ".bam.bai" | sed -e 's/\.bam$//g'
@@ -80,7 +89,7 @@ else
         sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
             -a "1-${bam_array_length}" `#initiate job array equal to the number of fastq files` \
             -W `#indicates to the script not to move on until the sbatch operation is complete` \
-            "${code_directory}/bam_to_fastq_test.sh" \
+            "${code_directory}/bam_to_fastq.sh" \
             "$data_directory" \
             "$code_directory"
 
@@ -112,7 +121,7 @@ module load R/4.0
 
 if [ $get_mutect = true ]; then
     Rscript aggregate_variants_mutect.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
-        "$output_directory" > "$output_directory/Logs/mutectOutFile.Rout" 2>&1
+        "$output_directory" "$twist" > "$output_directory/Logs/mutectOutFile.Rout" 2>&1
 fi
 
 if [ $get_varscan = true ]; then
