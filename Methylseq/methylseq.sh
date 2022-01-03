@@ -12,9 +12,11 @@ unmethyl_control_fasta=$2
 unmethyl_control=$3
 hydroxymethyl_control_fasta=$4
 hydroxymethyl_control=$5
-genome_path=$6
-phix_path=$7
-cores=$8
+methyl_control_fasta=$6
+methyl_control=$7
+genome_path=$8
+phix_path=$9
+cores=$10
 
 temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
 echo "temp_path is: " $temp_path
