@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ -z $1 ] || [ -z $2 ] || [ -z $3 ] || [ -z $4 ] || [ -z $5 ] || [ -z $6 ] || [ -z $7 ]; then
-    echo "Format: ./submit_methylseq.sh [data_directory] [unmethyl_control] [unmethyl_control_fasta] [hydroxymethyl_control] [hydroxymethyl_control_fasta] [genome_path] [phix_path]"
+    echo "Format: ./submit_methylseq.sh [data_directory] [unmethyl_control] [unmethyl_control_fasta] [hydroxymethyl_control] [hydroxymethyl_control_fasta] [methyl_control] [methyl_control_fasta] [genome_path] [phix_path]"
     exit 1
 else
 
@@ -25,9 +25,11 @@ else
     unmethyl_control_fasta=$3
     hydroxymethyl_control=$4
     hydroxymethyl_control_fasta=$5
-    genome_path=$6
-    phix_path=$7
-    temp_path=$8
+    methyl_control=$6
+    methyl_control_fasta=$7
+    genome_path=$8
+    phix_path=$9
+    temp_path=$10
 
     code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
@@ -51,6 +53,10 @@ else
 
     if [ -d "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control" ]; then
         mkdir "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control"
+    fi
+
+    if [ -d "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/$hydroxymethyl_control" ]; then
+        mkdir "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/$methyl_control"
     fi
 
     if ! [ -d "$data_path/fastq" ]; then
@@ -80,7 +86,7 @@ else
             echo "trimmed files found"
     fi
 
-    picard=$(find "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/genome_alignment" -type f | grep ".*\.bam_picard_insert_size_plot.pdf$" | sort -u | wc -l)
+    picard=$(find "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment" -type f | grep ".*\.bam_picard_insert_size_plot.pdf$" | sort -u | wc -l)
     echo "picard: $picard"
 
     if [[ $picard -lt 1 ]]; then
@@ -89,20 +95,20 @@ else
                     -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
                    -W `#indicates to the script not to move on until the sbatch operation is complete` \
                     "${code_directory}/methylseq.sh" \
-                    $data_path $unmethyl_control_fasta $unmethyl_control $hydroxymethyl_control_fasta $hydroxymethyl_control $genome_path $phix_path $cores $temp_path
+                    $data_path $unmethyl_control_fasta $unmethyl_control $hydroxymethyl_control_fasta $hydroxymethyl_control $methyl_control_fasta $methyl_control $genome_path $phix_path $cores $temp_path
             wait
         else
             echo "picard files found"
     fi
 
 
-    bam_file="$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/genome_alignment/bam_files" 
-    find "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/genome_alignment/split_bams" -type f | grep ".*\.bam$" | sort -u > "${bam_file}" #generate list of full paths to fastq files and save to the file in $fastq_list
+    bam_file="$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/bam_files" 
+    find "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/split_bams" -type f | grep ".*\.bam$" | sort -u > "${bam_file}" #generate list of full paths to fastq files and save to the file in $fastq_list
     #tail -n +2 "$fastq_file" > "$fastq_file.tmp" && mv "$fastq_file.tmp" "$fastq_file"
     number_bam=$(wc -l < "${bam_file}") #get the number of files
     echo "number_bam: $number_bam"
 
-    bedgraph=$(find "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/genome_alignment/split_bams" -type f | grep ".*\.bedGraph.gz$" | sort -u | wc -l)
+    bedgraph=$(find "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/split_bams" -type f | grep ".*\.bedGraph.gz$" | sort -u | wc -l)
     echo "bedgraph: $bedgraph"
 
     if [[ $bedgraph -lt 2 ]] || [[ $force = true ]]; then
@@ -110,13 +116,13 @@ else
                     -a "1-${number_bam}" `#initiate job array equal to the number of fastq files` \
                     -W `#indicates to the script not to move on until the sbatch operation is complete` \
                     "${code_directory}/extract_methylation.sh" \
-                    $data_path $unmethyl_control_fasta $unmethyl_control $hydroxymethyl_control_fasta $hydroxymethyl_control $genome_path $phix_path $cores $temp_path
+                    $data_path $unmethyl_control_fasta $unmethyl_control $hydroxymethyl_control_fasta $hydroxymethyl_control $methyl_control_fasta $methyl_control $genome_path $phix_path $cores $temp_path
                 wait
             else
                 echo "split coverage files and bed graphs have already been created for the genome alignemnt"
     fi
 
-    bedgraph=$(find "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/genome_alignment" -maxdepth 1 -type f  | grep ".*\.bedGraph.gz$" | sort -u | wc -l)
+    bedgraph=$(find "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment" -maxdepth 1 -type f  | grep ".*\.bedGraph.gz$" | sort -u | wc -l)
     echo "bedgraph: $bedgraph"
 
     if [[ $bedgraph -lt 1 ]] || [[ $force = true ]] ; then
@@ -125,7 +131,7 @@ else
                     -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
                     -W `#indicates to the script not to move on until the sbatch operation is complete` \
                     "${code_directory}/join_coverage.sh" \
-                    $data_path  $unmethyl_control  $hydroxymethyl_control  $cores $temp_path
+                    $data_path  $unmethyl_control  $hydroxymethyl_control $methyl_control  $cores $temp_path
                 wait
         else
             echo "combined bed graphs and coverage files have already been created for the genome alignemnt"
