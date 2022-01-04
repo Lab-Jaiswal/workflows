@@ -77,7 +77,7 @@ mutect_vcf_list <- map(vcf_files, read_lines) %>%
   map(str_split_fixed, "\\t", length(vcf_colnames)) %>% 
   map(set_colnames, vcf_colnames) %>% 
   map(as_tibble) %>% 
-  set_names(sample_names_maf)
+  set_names(sample_names_vcf)
 mutect_vcf_all <- bind_rows(mutect_vcf_list, .id = "Sample")
 
 mutect_info_names <- str_split(mutect_vcf_all$INFO, ";") %>% map(str_remove_all, "=.*$") 
