@@ -122,11 +122,17 @@ module load R/4.0
 if [ $get_mutect = true ]; then
     Rscript aggregate_variants_mutect.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
         "$output_directory" "$twist" > "$output_directory/Logs/mutectOutFile.Rout" 2>&1
+        
+    #Rscript WhiteList/whitelist_mutect_join.R "/labs/sjaiswal/variant_whitelist.xlsx" \
+      #  "$output_directory/mutect_aggregated_simple.tsv" "$output_directory" > "$output_directory/Logs/annotationOutFile.Rout" 2>&1
+
 fi
 
 if [ $get_varscan = true ]; then
     Rscript aggregate_variants_varscan.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
         "$output_directory" > "$output_directory/Logs/mutectOutFile.Rout" 2>&1
+    Rscript WhiteList/whitelist_varscan_join.R "/labs/sjaiswal/variant_whitelist.xlsx" \
+        "$output_directory/varscan_aggregated.tsv" "$output_directory" > "$output_directory/Logs/annotationOutFile.Rout" 2>&1
 fi 
 
 if [ $get_haplotype = true ]; then
