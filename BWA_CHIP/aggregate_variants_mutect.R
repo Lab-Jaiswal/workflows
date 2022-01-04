@@ -47,16 +47,21 @@ split_columns <- function(column, nocolumns, name1, name2) {
 command_args <- commandArgs(trailingOnly = TRUE)
 panel_coordinates <- command_args[1]
 mutect_directory <- command_args[2]
+twist <- command_args[3]
 
-split_names <- list.files(mutect_directory, pattern = "*_funcotator.vcf$") %>% str_remove_all("_.*$")
-if (length(unique(split_names))){
-    sample_names <- list.files(mutect_directory, pattern = "*_funcotator.vcf$") %>% str_remove_all("_S.*$")
+split_names_vcf <- list.files(mutect_directory, pattern = "*_funcotator_coding.vcf$") %>% str_remove_all("_.*$")
+split_names_maf <- list.files(mutect_directory, pattern = "*_funcotator_coding.maf$") %>% str_remove_all("_.*$")
+if (length(unique(split_names_vcf)) >= 1){
+    sample_names_vcf <- list.files(mutect_directory, pattern = "*_funcotator_coding.vcf$") %>% str_remove_all("_G.*$")
+    sample_names_maf <- list.files(mutect_directory, pattern = "*_funcotator_coding.maf$") %>% str_remove_all("_G.*$")
+
     } else {
-        sample_names <- split_names
+        sample_names_vcf <- split_names_vcf
+        sample_names_maf <- split_names_maf
     }
 
-maf_files <- list.files(mutect_directory, pattern = "*_funcotator.maf$", full.names = TRUE)
-vcf_files <- list.files(mutect_directory, pattern = "*_funcotator.vcf$", full.names = TRUE)
+maf_files <- list.files(mutect_directory, pattern = "*_funcotator_coding.maf$", full.names = TRUE)
+vcf_files <- list.files(mutect_directory, pattern = "*_funcotator_coding.vcf$", full.names = TRUE)
 
 # Extract the vcf files, as well as the information in the INFO, FORMAT, and DATA columns
 # Bind all of the newly formatted vcf files together horizontally
@@ -67,12 +72,12 @@ vcf_colnames <- str_subset(mutect_vcf_header, "^#") %>%
   str_split("\\t") %>% 
   extract2(1)
 vcf_colnames[length(vcf_colnames)] <- "DATA"
-mutect_vcf_list <- map(vcf_files, read_lines) %>% 
-  map(str_subset, "^# ", negate = TRUE) %>% 
+mutect_vcf_list <- map(vcf_files, read_lines) %>%
+  map(str_subset, pattern = "^#", negate = TRUE) %>%
   map(str_split_fixed, "\\t", length(vcf_colnames)) %>% 
   map(set_colnames, vcf_colnames) %>% 
   map(as_tibble) %>% 
-  set_names(sample_names)
+  set_names(sample_names_maf)
 mutect_vcf_all <- bind_rows(mutect_vcf_list, .id = "Sample")
 
 mutect_info_names <- str_split(mutect_vcf_all$INFO, ";") %>% map(str_remove_all, "=.*$") 
@@ -100,10 +105,10 @@ list_of_mafs <- maf_files %>%
   map(read.maf) %>%
   map(make_data) %>%
   map(as_tibble) %>%
-  set_names(sample_names) %>%
+  set_names(sample_names_maf) %>%
   map(select, maf_columns)
 
-list_of_mafs_edited <- lapply(list_of_mafs, function(df) mutate_at(df, .vars = c("Transcript_Position"), as.character))
+list_of_mafs_edited <- lapply(list_of_mafs, function(df) mutate_at(df, .vars = c("Transcript_Position", "MPOS", "POPAF", "TLOD"), as.character))
 
 mutect_maf_all <- bind_rows(list_of_mafs_edited, .id = "Sample")
 
@@ -176,7 +181,15 @@ mutect_vcf_select <- select(mutect_vcf_filter, c(Sample, Hugo_Symbol, NCBI_Build
                                                  PGT, PID, PS, OREGANNO_ID, OREGANNO_Values, Other_Transcripts, ref_context           
 ))
 
+
+mutect_simple_file <- str_c(mutect_directory, "/mutect_aggregated_simple.tsv")
+
+# write output into tsv file
+write_tsv(mutect_vcf_select, mutect_simple_file)
+
 # Get twist panel (in same folder as aggregate variants mutect script)
+if (twist == 1) {
+
 twist_panel <- read_excel(panel_coordinates, col_names = F)
 
 colnames(twist_panel) <- c("chr", "start", "end", "Transcript", "X5", "Strand", "Gene", "X8")
@@ -188,12 +201,16 @@ mutect_vcf_granges <- select(mutect_vcf_select, Chromosome:End_Position) %>%
 mutect_overlaps <- findOverlaps(twist_panel_granges, mutect_vcf_granges) %>% as_tibble
 mutect_overlaps_sorted <- sort(mutect_overlaps$subjectHits)
 
-# filter for all variants within the genomic ranges specified in the twist_panel
+## filter for all variants within the genomic ranges specified in the twist_panel
 mutect_vcf_filter <- slice(mutect_vcf_select, mutect_overlaps_sorted) %>% 
   filter(is_in(Hugo_Symbol, unique(twist_panel$Gene))) %>% 
   arrange(Sample, Chromosome, Start_Position)
 
-mutect_basic_file <- str_c(mutect_directory, "/mutect_aggregated_simple.tsv")
+mutect_twist_file <- str_c(mutect_directory, "/mutect_aggregated_twist.tsv")
 
-# write output into tsv file
-write_tsv(mutect_vcf_filter, mutect_basic_file)
+## write output into tsv file
+write_tsv(mutect_vcf_filter, mutect_twist_file)
+
+} else {
+    print("Twist analysis not requested. Please add --twist to your ./submit_BWA_CHIP command to filter your results by the Twist panel.")
+}
