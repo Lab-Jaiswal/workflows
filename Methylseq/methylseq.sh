@@ -37,14 +37,14 @@ mkdir $temp_path
 rsync -vur "$data_path/fastq/" $temp_path
 echo "FASTQs have been copied to the temporary file"
 
-#echo "copying reference transcriptome..."
-#temp_genomes_path=/tmp/genomes
-#rsync -vur $genome_path $temp_genomes_path
-#genomes_path=$(dirname $genome_path)
-#genome_name=$(basename $genome_path)
-#echo $genomes_path
-#rsync -vur "$genomes_path/$unmethyl_control_fasta" $temp_genomes_path
-#rsync -vur "$genomes_path/$hydroxymethyl_control_fasta" $temp_genomes_path
+echo "copying reference transcriptome..."
+temp_genomes_path=/tmp/genomes
+rsync -vur $genome_path $temp_genomes_path
+genomes_path=$(dirname $genome_path)
+genome_name=$(basename $genome_path)
+echo $genomes_path
+rsync -vur "$genomes_path/$unmethyl_control_fasta" $temp_genomes_path
+rsync -vur "$genomes_path/$hydroxymethyl_control_fasta" $temp_genomes_path
 
 echo "Transcriptomes have been copied to the temporary file"
 
@@ -66,7 +66,7 @@ trimmed_R2_file_name="${trimmed_R2_file_path##*/}"
 R1_trimmed_bismark_PE_report="${trimmed_R1_file_name}_bismark_bt2_PE_report.txt"
 echo "R1_trimmed_bismark_PE_report: $R1_trimmed_bismark_PE_report"
 
-R1_unmapped="${temp_path}/$unmethyl_control/$hydroxymethyl_control/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz"
+R1_unmapped="${temp_path}/$unmethyl_control/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz"
 echo "R1_unmapped: $R1_unmapped"
 R2_unmapped="${temp_path}/$unmethyl_control/${trimmed_R2_file_name}.fastq.gz_unmapped_reads_2.fq.gz"
 unmapped_R1_file_path=$(echo $R1_unmapped| sed 's/.fq.gz//')
