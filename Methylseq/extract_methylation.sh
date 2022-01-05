@@ -36,7 +36,7 @@ temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
 echo "temp_path is: " $temp_path
 mkdir $temp_path
 #copy fastq files to temp_path
-rsync -vur "$data_path/fastq/$unmethyl_control/$hydroxymethyl_control/genome_alignment/split_bams" "$temp_path/$unmethyl_control/$hydroxymethyl_control/genome_alignment/split_bams"
+rsync -vur "$data_path/fastq/" $temp_path
 
 echo "bams have been copied to the temporary file"
 
