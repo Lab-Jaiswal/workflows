@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -z $1 ] || [ -z $2 ] || [ -z $3 ] || [ -z $4 ] || [ -z $5 ] || [ -z $6 ] || [ -z $7 ]; then
+if [ -z $1 ] || [ -z $2 ] || [ -z $3 ] || [ -z $4 ] || [ -z $5 ] || [ -z $6 ] || [ -z $7 ] || [ -z $8 ] || [ -z $9 ]; then
     echo "Format: ./submit_methylseq.sh [data_directory] [unmethyl_control] [unmethyl_control_fasta] [hydroxymethyl_control] [hydroxymethyl_control_fasta] [methyl_control] [methyl_control_fasta] [genome_path] [phix_path]"
     exit 1
 else
