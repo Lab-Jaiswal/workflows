@@ -34,11 +34,20 @@ module load samtools/1.9
 
 #Step 1. Combine bam files of replicate samples
 #1a. sort each bam file
+
 bams=$bam_dir/.*
+bam_file="$bam_path/BAMs" #give a path to a file to store the paths to the bams files in $bam_directory
 
-bam_file="$bam_directory/BAMs" #give a path to a file to store the paths to the bams files in $bam_directory
-
-find "$bam_directory" -type f | grep ".*\.bam$" | grep -v ".*\.sorted.bam$" > "${bam_file}" #generate list of full paths to bam files and save to the file in $bam_list
+find "${bam_path}/" -type f `#list all files in ${fastq_directory}` | \
+        grep ".*\.bam$" `#only keep files with bams in name (case insensitive)` | \
+        grep -v ".sorted.bam" `#remove sorted bams` | \
+        sed -e 's/\_Rep.*//g' `#remove everything from _Rep onward` | \
+        sort -u  `#sort and remove duplicate names` > ${bam_file}
+            #| \
+        #head -n -1 > ${bam_list} `#remove the last line and generate a list of unique FASTQs`
+    bam_array_length=$(wc -l < ${bam_file}) #get the number of FASTQs 
+    echo "$bam_array_length"
+exit 1
 
 number_bams=$(wc -l < "${bam_file}") #get the number of files
 array_length="$number_bams"
