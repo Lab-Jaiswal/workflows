@@ -1,4 +1,8 @@
+#!/bin/bash
+
 #pipeline in shell for ATACseq footprinting
+
+
 
 organism=$1
 fasta=$2
@@ -9,8 +13,11 @@ output=$6
 macs=$7
 mac="--nomodel --shift -100 --extsize 200 --broad"
 
+code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
+data_path=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
 
+bam_directory=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
 WT_NT_files=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/ATAC_tet2_WT_NT*.bam
 WT_LDL_files=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/ATAC_tet2_WT_LDL*.bam
 Tet2_KO_NT_file=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/ATAC_tet2_KO_NT*.bam
@@ -27,6 +34,36 @@ module load samtools/1.9
 
 #Step 1. Combine bam files of replicate samples
 #1a. sort each bam file
+bams=$bam_dir/.*
+
+bam_file="$bam_directory/BAMs" #give a path to a file to store the paths to the bams files in $bam_directory
+
+find "$bam_directory" -type f | grep ".*\.bam.gz$" | grep -v ".*\.sorted.bam.gz$" > "${bam_file}" #generate list of full paths to bam files and save to the file in $bam_list
+
+number_bams=$(wc -l < "${bam_file}") #get the number of files
+array_length="$number_bams"
+
+
+if ! [ -d "$data_path/Logs" ]; then
+    mkdir -p "$data_path/Logs"
+fi
+
+sorted=$(find "$data_path/" -type f | grep "sorted" | sort -u | wc -l)
+
+if [ $sorted -le 1 ]; then
+         sbatch -o "${data_path}/Logs/%A_%a.log" `#put into log` \
+        -a "1-${array_length}" `#initiate job array equal to the number of bam files` \
+        -W `#indicates to the script not to move on until the sbatch operation is complete` \
+            "${code_directory}/sort.sh" \
+            $data_path $temp_path
+        
+        wait
+    else
+        echo "sorted files found"
+fi
+
+
+
 #1b. merge bam files with the same condition (for any conditions that have more than 1 replicate)
 #1c. index all resulting files (should be 1 final sorted bam for each experimental condition)
 
