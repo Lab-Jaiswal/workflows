@@ -38,7 +38,7 @@ bams=$bam_dir/.*
 
 bam_file="$bam_directory/BAMs" #give a path to a file to store the paths to the bams files in $bam_directory
 
-find "$bam_directory" -type f | grep ".*\.bam.gz$" | grep -v ".*\.sorted.bam.gz$" > "${bam_file}" #generate list of full paths to bam files and save to the file in $bam_list
+find "$bam_directory" -type f | grep ".*\.bam$" | grep -v ".*\.sorted.bam$" > "${bam_file}" #generate list of full paths to bam files and save to the file in $bam_list
 
 number_bams=$(wc -l < "${bam_file}") #get the number of files
 array_length="$number_bams"
