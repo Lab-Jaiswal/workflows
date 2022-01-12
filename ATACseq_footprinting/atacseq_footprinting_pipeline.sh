@@ -16,6 +16,7 @@ mac="--nomodel --shift -100 --extsize 200 --broad"
 code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
 data_path=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
+bam_path="/home/maurertm/labs/maurertm/atac_seq/data"
 
 bam_directory=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
 WT_NT_files=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/ATAC_tet2_WT_NT*.bam
@@ -35,13 +36,14 @@ module load samtools/1.9
 #Step 1. Combine bam files of replicate samples
 #1a. sort each bam file
 
-bams=$bam_dir/.*
+cd $bam_path 
+#bams=$bam_dir/.*
 bam_file="$bam_path/BAMs" #give a path to a file to store the paths to the bams files in $bam_directory
 
 find "${bam_path}/" -type f `#list all files in ${fastq_directory}` | \
-        grep ".*\.bam$" `#only keep files with bams in name (case insensitive)` | \
-        grep -v ".sorted.bam" `#remove sorted bams` | \
-        sed -e 's/\_Rep.*//g' `#remove everything from _Rep onward` | \
+        grep ".*\.bam$" `#only keep files with FASTQ in name (case insensitive)` | \
+        grep -v ".sorted.bam" `#remove Undetermined FASTQs` | \
+        sed -e 's/\_Rep.*//g' `#remove _R1/2_fastq.gz file extension` | \
         sort -u  `#sort and remove duplicate names` > ${bam_file}
             #| \
         #head -n -1 > ${bam_list} `#remove the last line and generate a list of unique FASTQs`
@@ -52,30 +54,27 @@ number_bams=$(wc -l < "${bam_file}") #get the number of files
 array_length="$number_bams"
 
 
-if ! [ -d "$data_path/Logs" ]; then
-    mkdir -p "$data_path/Logs"
+if ! [ -d "$bam_path/Logs" ]; then
+    mkdir -p "$bam_path/Logs"
 fi
 
-sorted=$(find "$data_path/" -type f | grep "sorted" | sort -u | wc -l)
+sorted=$(find "$bam_path/" -type f | grep "sorted" | sort -u | wc -l)
+reps=2
 
 if [ $sorted -le 1 ]; then
-         sbatch -o "${data_path}/Logs/%A_%a.log" `#put into log` \
+         sbatch -o "${bam_path}/Logs/%A_%a.log" `#put into log` \
         -a "1-${array_length}" `#initiate job array equal to the number of bam files` \
         -W `#indicates to the script not to move on until the sbatch operation is complete` \
             "${code_directory}/sort.sh" \
-            $data_path $temp_path
+            $bam_path $reps
         
         wait
     else
         echo "sorted files found"
 fi
 
-
-
 #1b. merge bam files with the same condition (for any conditions that have more than 1 replicate)
 #1c. index all resulting files (should be 1 final sorted bam for each experimental condition)
-
-
 #code for merging bams for single condition
 
 
