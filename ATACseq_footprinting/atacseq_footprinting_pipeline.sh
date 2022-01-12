@@ -47,7 +47,6 @@ find "${bam_path}/" -type f `#list all files in ${fastq_directory}` | \
         #head -n -1 > ${bam_list} `#remove the last line and generate a list of unique FASTQs`
     bam_array_length=$(wc -l < ${bam_file}) #get the number of FASTQs 
     echo "$bam_array_length"
-exit 1
 
 number_bams=$(wc -l < "${bam_file}") #get the number of files
 array_length="$number_bams"
