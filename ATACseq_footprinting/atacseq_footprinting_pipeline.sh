@@ -62,9 +62,9 @@ if ! [ -d "$bam_path/Logs" ]; then
     mkdir -p "$bam_path/Logs"
 fi
 
-sorted=$(find "$bam_path/" -type f | grep "sorted" | sort -u | wc -l)
+indexed=$(find "$bam_path/" -type f | grep ".merged.sorted.bai" | sort -u | wc -l)
 
-if [ $sorted -le 1 ]; then
+if [ $indexed -le 1 ]; then
          sbatch -o "${bam_path}/Logs/%A_%a.log" `#put into log` \
         -a "1-${array_length}" `#initiate job array equal to the number of bam files` \
         -W `#indicates to the script not to move on until the sbatch operation is complete` \
@@ -73,7 +73,7 @@ if [ $sorted -le 1 ]; then
         
         wait
     else
-        echo "sorted files found"
+        echo "sorting, merging, and indexing of files already completed"
 fi
 
 
