@@ -43,7 +43,7 @@ replicates=$(seq $reps)
 
 #1b. merge bam files with the same condition (for any conditions that have more than 1 replicate)
 
-samtools merge -b "${bam_path}/BAMs_rep_${PREFIX}" -o "${PREFIX}.merged.bam"
+samtools merge -b "${bam_path}/BAMs_rep_${PREFIX}" "${PREFIX}.merged.bam"
 
 #1c. index all resulting files (should be 1 final sorted bam for each experimental condition)
 
