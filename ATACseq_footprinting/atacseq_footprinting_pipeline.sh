@@ -42,8 +42,9 @@ bam_file="$bam_path/BAMs" #give a path to a file to store the paths to the bams 
 
 find "${bam_path}/" -type f `#list all files in ${fastq_directory}` | \
         grep ".*\.bam$" `#only keep files with FASTQ in name (case insensitive)` | \
-        grep -v ".sorted.bam" `#remove Undetermined FASTQs` | \
-        sed -e 's/\_Rep.*//g' `#remove _R1/2_fastq.gz file extension` | \
+        grep -v ".sorted.bam" `#remove sorted BAMs` | \
+	grep -v ".merged.bam" `#remove merged BAMs` | \
+        sed -e 's/\_Rep.*//g' `#remove _Rep1/2_treat_rep1.bam extension` | \
         sort -u  `#sort and remove duplicate names` > ${bam_file}
             #| \
         #head -n -1 > ${bam_list} `#remove the last line and generate a list of unique FASTQs`
