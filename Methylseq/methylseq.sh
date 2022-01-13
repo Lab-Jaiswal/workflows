@@ -228,7 +228,7 @@ if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/genome_alignment/
         do
             chr="${chromosome}${i}"
             echo "$chr"
-            samtools view -b "${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam.sorted.bam" $chr > "split_bams/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam.${chr}.${sample_name}.bam"  
+            samtools view -b "${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam.deduplicated.bam" $chr > "split_bams/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam.${chr}.${sample_name}.bam"  
         done
     rsync -vur $temp_path/ $seq_path
     echo "bam file has been split up by chromosome"
