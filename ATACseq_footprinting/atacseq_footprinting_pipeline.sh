@@ -35,6 +35,9 @@ module load samtools/1.9
 
 #Step 1. Combine bam files of replicate samples
 #1a. sort each bam file
+#1b. merge bam files with the same condition (for any conditions that have more than 1 replicate)
+#1c. index all resulting files (should be 1 final sorted bam for each experimental condition)
+#code for merging bams for single condition
 
 cd $bam_path 
 #bams=$bam_dir/.*
@@ -60,24 +63,18 @@ if ! [ -d "$bam_path/Logs" ]; then
 fi
 
 sorted=$(find "$bam_path/" -type f | grep "sorted" | sort -u | wc -l)
-reps=2
 
 if [ $sorted -le 1 ]; then
          sbatch -o "${bam_path}/Logs/%A_%a.log" `#put into log` \
         -a "1-${array_length}" `#initiate job array equal to the number of bam files` \
         -W `#indicates to the script not to move on until the sbatch operation is complete` \
             "${code_directory}/sort.sh" \
-            $bam_path $reps
+            $bam_path
         
         wait
     else
         echo "sorted files found"
 fi
-
-#1b. merge bam files with the same condition (for any conditions that have more than 1 replicate)
-#1c. index all resulting files (should be 1 final sorted bam for each experimental condition)
-#code for merging bams for single condition
-
 
 
 bams=WT_NT_files
