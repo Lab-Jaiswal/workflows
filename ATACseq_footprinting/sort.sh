@@ -25,16 +25,15 @@ PREFIX=$FILENAME
 echo "filename: $PREFIX"
 
 cd $bam_path
-
-if [ ! -f "$bam_path/${PREFIX}_Rep1_treat_rep1.sorted.bam" ]; then
-      number_replicates=$(find . -name "${PREFIX}_Rep[1-9]*_treat_rep1.bam" |
+number_replicates=$(find . -name "${PREFIX}_Rep[1-9]*_treat_rep1.bam" |
             sed "s/${PREFIX}_Rep\([0-9][0-9]*\)\_treat_rep1.bam/\1/" |
             sort -n |
             tail -n 1)
-      reps=$(basename "${number_replicates}")
+reps=$(basename "${number_replicates}")
 
-      echo "number of replicates for ${PREFIX}: $reps"
+echo "number of replicates for ${PREFIX}: $reps"
 
+if [ ! -f "$bam_path/${PREFIX}_Rep1_treat_rep1.sorted.bam" ]; then
       replicates=$(seq $reps)
           for i in ${replicates[@]}
               do
@@ -54,12 +53,12 @@ fi
 
 #1b. merge bam files with the same condition (for any conditions that have more than 1 replicate)
 
-if [ ! -f "$bam_path/${PREFIX}.merged.bam" ]; then
-
+if [ ! -f "$bam_path/${PREFIX}.merged.bam" ] && [ $reps -gt 1 ]; then
       samtools merge -b "${bam_path}/BAMs_rep_${PREFIX}" "${PREFIX}.merged.bam"
       echo "merging of sorted bams complete"
 else
       echo "sorted bams were already merged"
+      cp "$bam_path/${PREFIX}_Rep1_treat_rep1.sorted.bam" "$bam_path/${PREFIX}.merged.bam"
 fi
 
 #1c. index all resulting files (should be 1 final sorted bam for each experimental condition)
