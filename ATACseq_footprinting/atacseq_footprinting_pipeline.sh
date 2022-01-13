@@ -33,14 +33,14 @@ OUTPUT_DIR=/oak/stanford/groups/smontgom/kameronr/ATACseq/output
 
 module load samtools/1.9
 
-#Step 1. Combine bam files of replicate samples
+##################################################################################################################################
+#####################################---STEP 1: SORT, MERGE, AND INDEX BAM FILES---############################################### 
+##################################################################################################################################
 #1a. sort each bam file
-#1b. merge bam files with the same condition (for any conditions that have more than 1 replicate)
+#1b. merge bam files of replicate samples with the same condition (for any conditions that have more than 1 replicate)
 #1c. index all resulting files (should be 1 final sorted bam for each experimental condition)
-#code for merging bams for single condition
 
 cd $bam_path 
-#bams=$bam_dir/.*
 bam_file="$bam_path/BAMs" #give a path to a file to store the paths to the bams files in $bam_directory
 
 find "${bam_path}/" -type f `#list all files in ${fastq_directory}` | \
@@ -85,8 +85,9 @@ fi
 #input_
 #output_name= samtools sort bam -o merge_bams[-1] -@ threads -T temp_prefix
 
-#step 2. Create coverage bigwig track
-
+##################################################################################################################################
+#####################################---STEP 2: CREATE COVERAGE BIGWIG TRACK---################################################### 
+##################################################################################################################################
 #get chromosomes available in fasta (fasta chroms) -- because it's needed for making the bigwig tracks.
 #OUTPUT_DIR=/oak/stanford/groups/smontgom/kameronr/ATACseq/test
 #this next line might not work? seems like a python command? https://www.biostars.org/p/173963/
@@ -102,11 +103,11 @@ awk '{{ print $1\"\t\"0\"\t\"$2 }}' $OUTPUT_DIR/flatfiles/chromsizes.txt > $OUTP
 bedtools genomecov -ibam {input.bam} -bg | sort -k1,1 -k2,2 -T $OUTPUTDIR/coverage > $OUTPUTDIR/coverage/{condition}_coverage.bg
 bedGraphToBigWig $OUTPUTDIR/coverage/{condition}_coverage.bg $OUTPUT_DIR/flatfiles/chromsizes.txt $OUTPUTDIR/coverage/{condition}_coverage.bw
 
-
-
-
-
-#step 3. Peak calling with MACS2 (get broad peaks (in future can also try narrow peaks)) (why broad peaks and not narrow peaks?). because ATACseq includes more broadpeaks by nature than ChIPseq?
+##################################################################################################################################
+#####################################---STEP 3: PEAK CALLING WITH MACS2---######################################################## 
+##################################################################################################################################
+#Get broad peaks (in future can also try narrow peaks))
+#Why broad peaks and not narrow peaks? -> because ATACseq includes more broadpeaks by nature than ChIPseq?
 #bams of condition and sample_id
 gsize=2620345972 #is this correct?!
 macs=$OUTPUTDIR/peak_calling/{condition}/{sample_id}_peaks.broadPeak
@@ -118,9 +119,9 @@ echo Running macs2 with .bam-file: {input}
 macs2 callpeak -t {input} --name {sample_id} --outdir $OUTPUTDIR/peak_calling/{condition} --gsize $gsize --nomodel --shift -100 --extsize 200 --broad &> $OUTPUTDIR/logs/{condition}_{sample_id}_peak_calling.log
 cp $OUTPUTDIR/peak_calling/{condition}/{sample_id}_peaks.broadPeak $OUTPUTDIR/peak_calling/{condition}/{sample_id}_raw.bed
 
-
-#Step 4. Peak processing: reduce to genomic location columns and sort
-
+##################################################################################################################################
+#########################---STEP 4: PEAK PROCESSING: REDUCE GENOMIC LOCATION COLUMNS AND SORT---################################## 
+##################################################################################################################################
 #4a. reduce to genomic location columns, remove blacklisted regions, sort, then merge peaks per condition.
 for each condition OUTPUTDIR/peak_calling/{condition}/sample_id_raw.bed
 blacklist=$BLACKLIST
