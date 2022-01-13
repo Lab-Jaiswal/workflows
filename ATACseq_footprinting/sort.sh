@@ -11,8 +11,6 @@
 #cd /oak/stanford/groups/sjaiswal/kameronr/JG97/methylseq/miseq/213566405/FASTQ/
 
 bam_path=$1
-#temp_path=$2
-reps=$2
 
 #cd $temp_path
 
@@ -26,8 +24,15 @@ FILENAME=$(basename "${bam_prefix}")
 PREFIX=$FILENAME
 echo "filename: $PREFIX"
 
-
 cd $bam_path
+number_replicates=$(find . -name "${PREFIX}_Rep[1-9]*_treat_rep1.bam" |
+      sed "s/${PREFIX}_Rep\([0-9][0-9]*\)\_treat_rep1.bam/\1/" |
+      sort -n |
+      tail -n 1)
+reps=$(basename "${number_replicates}")
+
+echo "number of replicates for ${PREFIX}: $reps"
+
 replicates=$(seq $reps)
     for i in ${replicates[@]}
         do
