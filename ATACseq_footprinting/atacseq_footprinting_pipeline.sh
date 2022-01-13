@@ -77,38 +77,13 @@ if [ $sorted -le 1 ]; then
 fi
 
 
-bams=WT_NT_files
-bam=$OUTPUT_DIR
-bam=os.path.join(OUTPUTDIR, "mapping", "{condition}.bam"),
-bai = os.path.join(OUTPUTDIR, "mapping", "{condition}.bam.bai")
-output_dir=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
-input_
-output_name=
-samtools sort bam -o merge_bams[-1] -@ threads -T temp_prefix
-
-#use regex for the condition
-
-$OUTPUTDIR/mapping/{condition}.bam.bai
-output_dir=$(dirname $OUTPUTDIR/mapping/{condition}.bam)
-threads_count=10
-files=??? #the folder to all the bam files
-for bam in files/*.bam:
-	prefix=$(basename bam)
-	temp_prefix=$ouput_dir/$prefix
-	samtools sort bam -o $output_dir/$prefix.sorted -@ $threads_count -T $temp_prefix
-
-#if more than 1 bam file
-samtools merge -@ $threads_count $OUTPUTDIR/mapping/{condition}.bam *.bam
-samtools index $OUTPUTDIR/mapping/{condition}.bam
-
-#else:
-samtools sort -o $OUTPUTDIR/mapping/{condition}.bam files/*.bam
-samtools index $OUTPUTDIR/mapping/{condition}.bam
-
-
-
-
-
+#bams=WT_NT_files
+#bam=$OUTPUT_DIR
+#bam=os.path.join(OUTPUTDIR, "mapping", "{condition}.bam"),
+#bai = os.path.join(OUTPUTDIR, "mapping", "{condition}.bam.bai")
+#output_dir=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
+#input_
+#output_name= samtools sort bam -o merge_bams[-1] -@ threads -T temp_prefix
 
 #step 2. Create coverage bigwig track
 
