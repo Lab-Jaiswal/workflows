@@ -81,3 +81,22 @@ else
       echo "sorted merged bams already indexed"
 fi      
 
+##############################---STEP 6: INDEX MERGED BAMS---###########################################
+
+gsize=2620345972 #is this correct?!
+macs="$bam_path/peak_calling/${PREFIX}/${PREFIX}_peaks.broadPeak"
+raw="$bam_path/peak_calling/${PREFIX}/${PREFIX}_raw.bed"
+log="$bam_path/Logs/${PREFIX}_peak_calling.log"
+
+echo "Running macs2 with .bam file: ${PREFIX}.merged.sorted.bam"
+
+#Arguments:
+#-t: the IP data file
+#--outdir: the output directory
+
+mkdir "$bam_path/peak_calling/${PREFIX}"
+
+macs2 callpeak -t "$bam_path/${PREFIX}.merged.sorted.bam" --name ${PREFIX} --outdir "$bam_path/peak_calling/${PREFIX}" --gsize $gsize --nomodel --shift -100 --extsize 200 --broad &> "$bam_path/Logs/{PREFIX}_peak_calling.log"
+cp "$bam_path/peak_calling/${PREFIX}/{PREFIX}_peaks.broadPeak" "$bam_path/peak_calling/${PREFIX}/{PREFIX}_raw.bed"
+
+
