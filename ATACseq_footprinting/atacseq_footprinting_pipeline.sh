@@ -38,7 +38,7 @@ OUTPUT_DIR=/oak/stanford/groups/smontgom/kameronr/ATACseq/output
 module load samtools/1.9
 
 ##################################################################################################################################
-#####################################---STEP 1: CREATE COVERAGE BIGWIG TRACK---################################################### 
+########################################---STEP 1: CREATE COVERAGE BED FILES---################################################### 
 ##################################################################################################################################
 #get chromosomes available in fasta (fasta chroms) -- because it's needed for making the bigwig tracks.
 #OUTPUT_DIR=/oak/stanford/groups/smontgom/kameronr/ATACseq/test
@@ -49,9 +49,9 @@ if [ ! -f $genome_folder/chromsizes.bed ]; then
     cut -f1,2 mm9_bgzip.fa.gz.fai > sizes.genome
 
     awk '{{ print $1, 0, $2 }}' chromsizes.txt > chromsizes.bed
-    echo "creation of BigWig coverage track complete"
+    echo "creation of chromosome-based coverage bed files complete"
 else
-    echo "coverage files for the BigWig track have already been created"
+    echo "chromosome-based coverage bed files have already been created"
 fi
 
 
