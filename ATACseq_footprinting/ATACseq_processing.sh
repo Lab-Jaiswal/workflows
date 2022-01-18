@@ -79,6 +79,9 @@ else
       echo "sorted merged bams already indexed"
 fi
 
+########################---STEP 5: CREATE COVERAGE FILES, THEN SORT---##################################
+#Create: coverage.bg, coverage.sorted.bg, coverage.bw
+#After creating the coverage files, sort them
 if [ ! -f "$bam_path/coverage/${PREFIX}_coverage.bg" ]; then
     mkdir "$bam_path/coverage"
     bedtools genomecov -ibam ${PREFIX}.merged.sorted.bam -g "$genome_folder/chromsizes.txt" -bg  > "$bam_path/coverage/${PREFIX}_coverage.bg"
