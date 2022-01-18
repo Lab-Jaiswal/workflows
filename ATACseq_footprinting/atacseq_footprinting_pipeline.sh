@@ -2,21 +2,25 @@
 
 #pipeline in shell for ATACseq footprinting
 
+bam_path=$1
+genome_path=$2
+genome_folder="$(dirname "${genome_path}")"
+echo "$genome_folder"
 
 
-organism=$1
-fasta=$2
-blacklist=$3
-gtf=$4
-motifs=$5
-output=$6
-macs=$7
-mac="--nomodel --shift -100 --extsize 200 --broad"
+#organism=$1
+#fasta=$2
+#blacklist=$3
+#gtf=$4
+#motifs=$5
+#output=$6
+#macs=$7
+#mac="--nomodel --shift -100 --extsize 200 --broad"
 
 code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
-data_path=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
-bam_path="/home/maurertm/labs/maurertm/atac_seq/data"
+#data_path=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
+#bam_path="/home/maurertm/labs/maurertm/atac_seq/data"
 
 bam_directory=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
 WT_NT_files=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/ATAC_tet2_WT_NT*.bam
@@ -34,7 +38,26 @@ OUTPUT_DIR=/oak/stanford/groups/smontgom/kameronr/ATACseq/output
 module load samtools/1.9
 
 ##################################################################################################################################
-#####################################---STEP 1: SORT, MERGE, AND INDEX BAM FILES---############################################### 
+########################################---STEP 1: CREATE COVERAGE BED FILES---################################################### 
+##################################################################################################################################
+#get chromosomes available in fasta (fasta chroms) -- because it's needed for making the bigwig tracks.
+#OUTPUT_DIR=/oak/stanford/groups/smontgom/kameronr/ATACseq/test
+#this next line might not work? seems like a python command? https://www.biostars.org/p/173963/
+
+if [ ! -f $genome_folder/chromsizes.bed ]; then
+    samtools faidx mm9_bgzip.fa.gz
+    cut -f1,2 mm9_bgzip.fa.gz.fai > sizes.genome
+
+    awk '{{ print $1, 0, $2 }}' chromsizes.txt > chromsizes.bed
+    echo "creation of chromosome-based coverage bed files complete"
+else
+    echo "chromosome-based coverage bed files have already been created"
+fi
+
+
+##################################################################################################################################
+#####################################---STEP 2: SORT, MERGE, AND INDEX BAM FILES---############################################### 
+##########################################---CREATE COVERAGE BIGWIG TRACK---######################################################
 ##################################################################################################################################
 #1a. sort each bam file
 #1b. merge bam files of replicate samples with the same condition (for any conditions that have more than 1 replicate)
@@ -62,46 +85,21 @@ if ! [ -d "$bam_path/Logs" ]; then
     mkdir -p "$bam_path/Logs"
 fi
 
-indexed=$(find "$bam_path/" -type f | grep ".merged.sorted.bai" | sort -u | wc -l)
+indexed=$(find "$bam_path/coverage" -type f | grep ".coverage.bw" | sort -u | wc -l)
 
 if [ $indexed -le 1 ]; then
          sbatch -o "${bam_path}/Logs/%A_%a.log" `#put into log` \
         -a "1-${array_length}" `#initiate job array equal to the number of bam files` \
         -W `#indicates to the script not to move on until the sbatch operation is complete` \
-            "${code_directory}/sort.sh" \
-            $bam_path
+            "${code_directory}/footprint_processing.sh" \
+            $bam_path $genome_folder
         
         wait
     else
         echo "sorting, merging, and indexing of files already completed"
 fi
 
-
-#bams=WT_NT_files
-#bam=$OUTPUT_DIR
-#bam=os.path.join(OUTPUTDIR, "mapping", "{condition}.bam"),
-#bai = os.path.join(OUTPUTDIR, "mapping", "{condition}.bam.bai")
-#output_dir=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
-#input_
-#output_name= samtools sort bam -o merge_bams[-1] -@ threads -T temp_prefix
-
-##################################################################################################################################
-#####################################---STEP 2: CREATE COVERAGE BIGWIG TRACK---################################################### 
-##################################################################################################################################
-#get chromosomes available in fasta (fasta chroms) -- because it's needed for making the bigwig tracks.
-#OUTPUT_DIR=/oak/stanford/groups/smontgom/kameronr/ATACseq/test
-#this next line might not work? seems like a python command? https://www.biostars.org/p/173963/
-mkdir $OUTPUT_DIR/flatfiles
-faidx $FASTA_PATH -i chromsizes > $OUTPUT_DIR/flatfiles/chromsizes.txt
-#samtools faidx input.fa
-#cut -f1,2 input.fa.fai > sizes.genome
-awk '{{ print $1\"\t\"0\"\t\"$2 }}' $OUTPUT_DIR/flatfiles/chromsizes.txt > $OUTPUT_DIR/flatfiles/chromsizes.bed
-
-
-
-#Make bigwig tracks
-bedtools genomecov -ibam {input.bam} -bg | sort -k1,1 -k2,2 -T $OUTPUTDIR/coverage > $OUTPUTDIR/coverage/{condition}_coverage.bg
-bedGraphToBigWig $OUTPUTDIR/coverage/{condition}_coverage.bg $OUTPUT_DIR/flatfiles/chromsizes.txt $OUTPUTDIR/coverage/{condition}_coverage.bw
+exit 1
 
 ##################################################################################################################################
 #####################################---STEP 3: PEAK CALLING WITH MACS2---######################################################## 
@@ -201,7 +199,3 @@ tail -n +2 $OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits_sub.txt > $
 
 
 #could later add expression information to each peaks if needed?
-
-
-
-
