@@ -109,9 +109,9 @@ if ! [ -d "$bam_path/Logs" ]; then
     mkdir -p "$bam_path/Logs"
 fi
 
-indexed=$(find "$bam_path/" -type f | grep ".merged.sorted.bai" | sort -u | wc -l)
+bed_file=$(find "$bam_path/" -type f | grep "raw.bed" | sort -u | wc -l)
 
-if [ $indexed -le 1 ]; then
+if [ $bed_file -lt 1 ]; then
          sbatch -o "${bam_path}/Logs/%A_%a.log" `#put into log` \
         -a "1-${array_length}" `#initiate job array equal to the number of bam files` \
         -W `#indicates to the script not to move on until the sbatch operation is complete` \
