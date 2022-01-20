@@ -145,5 +145,3 @@ if [ ! -f "$bam_path/peak_calling/${PREFIX}/${PREFIX}_raw.bed" ]; then
 else
       echo "peaking calling with macs2 already done"
 fi
-            
-
