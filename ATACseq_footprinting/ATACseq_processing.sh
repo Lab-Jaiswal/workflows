@@ -87,6 +87,33 @@ else
       echo "sorted merged bams already indexed"
 fi      
 
+########################---STEP 5: CREATE COVERAGE FILES, THEN SORT---##################################
+#Create: coverage.bg, coverage.sorted.bg, coverage.bw
+#After creating the coverage files, sort them
+if [ ! -f "$bam_path/coverage/${PREFIX}_coverage.bg" ]; then
+    mkdir "$bam_path/coverage"
+    bedtools genomecov -ibam ${PREFIX}.merged.sorted.bam -g "$genome_folder/chromsizes.txt" -bg  > "$bam_path/coverage/${PREFIX}_coverage.bg"
+    echo "creation of coverage file complete"
+else
+    echo "coverage file already created"
+fi
+
+if [ ! -f "$bam_path/coverage/${PREFIX}_coverage.sorted.bg" ]; then
+    mkdir "$bam_path/coverage"
+    sort -k1,1 -k2,2n "$bam_path/coverage/${PREFIX}_coverage.bg" > "$bam_path/coverage/${PREFIX}_coverage.sorted.bg"
+    echo "creation of coverage file complete"
+else
+    echo "coverage file already created"
+fi
+
+if [ ! -f "$bam_path/coverage/${PREFIX}_coverage.bw" ]; then
+    mkdir "$bam_path/coverage"
+    bedGraphToBigWig "$bam_path/coverage/${PREFIX}_coverage.sorted.bg" "$genome_folder/chromsizes.txt" "$bam_path/coverage/${PREFIX}_coverage.bw" 
+    echo "begraph to BigWig complete"
+else
+    echo "bedgraph has already been converted to BigWig"
+fi
+
 ###########################---STEP 6: PEAK CALLING WITH MACS2---########################################
 if [ ! -f "$bam_path/peak_calling/${PREFIX}/${PREFIX}_raw.bed" ]; then
 
