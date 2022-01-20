@@ -27,17 +27,19 @@ TEMP=`getopt -o vdm: --long gsize:,extsize:,shifts:,broad:,nomodel \
         esac
     done
 
-    if [ $broad != true ] || [ $braod != false ]; then
+    echo "macs2 parameters: gsize: $gsize, extsize: $extsize, shifts: $shifts, broad: $broad, nomodel: $nomodel"
+
+    if ( [[ $broad != true ]] && [[ $broad != false ]] ); then
         echo "broad can only be set to true or false"
         echo "example: --broad true"
         echo "example: --broad false"
         exit 1
     fi
 
-    if [ $nomodel != true ] || [ $nomodel != false ]; then
-        echo "broad can only be set to true or false"
-        echo "example: --broad true"
-        echo "example: --broad false"
+    if ( [[ $nomodel != true ]] && [[ $nomodel != false ]] ); then
+        echo "nomodel can only be set to true or false"
+        echo "example: --nomodel true"
+        echo "example: --nomodel false"
         exit 1
     fi
     
@@ -115,7 +117,7 @@ if [ $bed_file -lt 1 ]; then
          sbatch -o "${bam_path}/Logs/%A_%a.log" `#put into log` \
         -a "1-${array_length}" `#initiate job array equal to the number of bam files` \
         -W `#indicates to the script not to move on until the sbatch operation is complete` \
-            "${code_directory}/sort.sh" \
+            "${code_directory}/ATACseq_processing.sh" \
             $bam_path $gsize $extsize $shifts $broad $nomodel
         
         wait
@@ -205,7 +207,3 @@ tail -n +2 $OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits_sub.txt > $
 
 
 #could later add expression information to each peaks if needed?
-
-
-
-
