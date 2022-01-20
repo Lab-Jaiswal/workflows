@@ -109,7 +109,7 @@ if ! [ -d "$bam_path/Logs" ]; then
     mkdir -p "$bam_path/Logs"
 fi
 
-bed_file=$(find "$bam_path/" -type f | grep "raw.bed" | sort -u | wc -l)
+bed_file=$(find "$bam_path/peak_calling" -type f | grep "raw.bed" | sort -u | wc -l)
 
 if [ $bed_file -lt 1 ]; then
          sbatch -o "${bam_path}/Logs/%A_%a.log" `#put into log` \
