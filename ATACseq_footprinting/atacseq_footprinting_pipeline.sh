@@ -1,35 +1,67 @@
 #!/bin/bash
 
 #pipeline in shell for ATACseq footprinting
+TEMP=`getopt -o vdm: --long gsize:,extsize:,shifts:,broad:,nomodel \
+    -n './submit_atacseq' -- "$@"`
 
+   if [ $? != 0 ]; then
+       echo "Unrecognized argument. Possible arguments: --gize, --extsize, shifts, --broad true, --broad false, --nomodel true, --nomodel false." >&2 ; exit 1 ; 
+   fi
+       eval set -- "$TEMP"
 
+        gsize=2620345972
+        extsize=200
+        shifts=100
+        broad=true
+        nomodel=true
+        
+    while true; do
+        case "$1" in
+            --gsize ) gsize="$2"; shift 2 ;;
+            --extsize ) extsize="$2"; shift 2 ;;
+            --shifts ) shifts="$2"; shift 2 ;;
+            --broad ) broad="$2"; shift 2 ;;
+            --nomodel ) nomodel="$2"; shift 2 ;;
+            -- ) shift; break ;;
+            * ) break ;;
+        esac
+    done
 
-organism=$1
-fasta=$2
-blacklist=$3
-gtf=$4
-motifs=$5
-output=$6
-macs=$7
-mac="--nomodel --shift -100 --extsize 200 --broad"
+    if [ $broad != true ] || [ $braod != false ]; then
+        echo "broad can only be set to true or false"
+        echo "example: --broad true"
+        echo "example: --broad false"
+        exit 1
+    fi
+
+    if [ $nomodel != true ] || [ $nomodel != false ]; then
+        echo "broad can only be set to true or false"
+        echo "example: --broad true"
+        echo "example: --broad false"
+        exit 1
+    fi
+    
+bam_path=$1
+genome_path=$2
+genome_folder="$(dirname "${genome_path}")"
+echo "$genome_folder"
 
 code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
-data_path=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
-bam_path="/home/maurertm/labs/maurertm/atac_seq/data"
+#organism=$1
+#fasta=$2
+#blacklist=$3
+#gtf=$4
+#motifs=$5
+#output=$6
+#macs=$7
+#mac="--nomodel --shift -100 --extsize 200 --broad"
 
-bam_directory=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
-WT_NT_files=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/ATAC_tet2_WT_NT*.bam
-WT_LDL_files=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/ATAC_tet2_WT_LDL*.bam
-Tet2_KO_NT_file=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/ATAC_tet2_KO_NT*.bam
-Tet2_KO_LDL_file=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/ATAC_tet2_KO_LDL*.bam
-
-FASTA_PATH=/oak/stanford/groups/sjaiswal/kameronr/sjaiswal_old/genomes/mm9/mm9_bgzip.fa.gz
-BLACKLIST_PATH=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/blacklist/mm9-blacklist.bed.gz
-GTF_PATH=/oak/stanford/groups/sjaiswal/kameronr/sjaiswal_old/genomes/mm9/GTF/gencode.vM1.annotation.gtf.gz
-MOTIFS_DIR=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/TOBIAS_snakemake/data/individual_motifs
-OUTPUT_DIR=/oak/stanford/groups/smontgom/kameronr/ATACseq/output
-
+#FASTA_PATH=/oak/stanford/groups/sjaiswal/kameronr/sjaiswal_old/genomes/mm9/mm9_bgzip.fa.gz
+#BLACKLIST_PATH=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/blacklist/mm9-blacklist.bed.gz
+#GTF_PATH=/oak/stanford/groups/sjaiswal/kameronr/sjaiswal_old/genomes/mm9/GTF/gencode.vM1.annotation.gtf.gz
+#MOTIFS_DIR=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/TOBIAS_snakemake/data/individual_motifs
+#OUTPUT_DIR=/oak/stanford/groups/smontgom/kameronr/ATACseq/output
 
 module load samtools/1.9
 
