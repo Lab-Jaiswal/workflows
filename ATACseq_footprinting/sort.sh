@@ -11,6 +11,12 @@
 
 #####################################---STEP 1: SET UP---############################################### 
 bam_path=$1 #set arguments
+gsize=$2
+extsize=$3
+shifts=$4
+broad=$5
+nomodel=$6
+
 module load samtools/1.9 #load necessary modules
 
 line_number=$SLURM_ARRAY_TASK_ID #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
@@ -91,15 +97,21 @@ if [ ! -f "$bam_path/peak_calling/${PREFIX}/${PREFIX}_raw.bed" ]; then
             mkdir "$bam_path/peak_calling/${PREFIX}"
       fi
       
-      module load macs2 
-      gsize=2620345972 #is this correct?!
+      module load macs2
       echo "Running macs2 with .bam file: ${PREFIX}.merged.sorted.bam"
 
-      #Arguments:
-      #-t: the IP data file
-      #--outdir: the output directory
+      if [ $broad == true ] && [ $nomodel == true ]; then
+            macs2 callpeak -t "$bam_path/${PREFIX}.merged.sorted.bam" --name ${PREFIX} --outdir "$bam_path/peak_calling/${PREFIX}" --gsize $gsize --nomodel --shift -$shifts --extsize $extsize --broad 
+      fi
 
-      macs2 callpeak -t "$bam_path/${PREFIX}.merged.sorted.bam" --name ${PREFIX} --outdir "$bam_path/peak_calling/${PREFIX}" --gsize $gsize --nomodel --shift -100 --extsize 200 --broad 
+      if [ $broad == true ] && [ $nomodel == false ]; then
+            macs2 callpeak -t "$bam_path/${PREFIX}.merged.sorted.bam" --name ${PREFIX} --outdir "$bam_path/peak_calling/${PREFIX}" --gsize $gsize --shift -$shifts --extsize $extsize --broad 
+      fi
+
+      if [ $broad == false ] && [ $nomodel == true ]; then
+            macs2 callpeak -t "$bam_path/${PREFIX}.merged.sorted.bam" --name ${PREFIX} --outdir "$bam_path/peak_calling/${PREFIX}" --gsize $gsize --nomodel --shift -$shifts --extsize $extsize
+      fi
+      
       cp "$bam_path/peak_calling/${PREFIX}/{PREFIX}_peaks.broadPeak" "$bam_path/peak_calling/${PREFIX}/{PREFIX}_raw.bed"
      
       echo "peak calling with macs2 complete"
