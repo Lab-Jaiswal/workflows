@@ -4,14 +4,19 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=28
-####SBATCH --partition=batch
-#SBATCH --partition=nih_s10
-#SBATCH --mem=128G
-#SBATCH --time=12:00:00
+#SBATCH --partition=batch
+#SBATCH --mem=500G
+#SBATCH --time=3:00:00
 #SBATCH --account=sjaiswal
 
 #####################################---STEP 1: SET UP---############################################### 
 bam_path=$1 #set arguments
+gsize=$2
+extsize=$3
+shifts=$4
+broad=$5
+nomodel=$6
+
 module load samtools/1.9 #load necessary modules
 
 line_number=$SLURM_ARRAY_TASK_ID #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
@@ -80,7 +85,7 @@ if [ ! -f "$bam_path/${PREFIX}.merged.sorted.bai" ]; then
       echo "indexing of sorted merged bams complete"
 else
       echo "sorted merged bams already indexed"
-fi
+fi      
 
 ########################---STEP 5: CREATE COVERAGE FILES, THEN SORT---##################################
 #Create: coverage.bg, coverage.sorted.bg, coverage.bw
@@ -107,4 +112,36 @@ if [ ! -f "$bam_path/coverage/${PREFIX}_coverage.bw" ]; then
     echo "begraph to BigWig complete"
 else
     echo "bedgraph has already been converted to BigWig"
+fi
+
+###########################---STEP 6: PEAK CALLING WITH MACS2---########################################
+if [ ! -f "$bam_path/peak_calling/${PREFIX}/${PREFIX}_raw.bed" ]; then
+
+      if [ ! -f "$bam_path/peak_calling" ]; then
+            mkdir "$bam_path/peak_calling/"
+      fi
+      if [ ! -f "$bam_path/peak_calling/${PREFIX}" ]; then
+            mkdir "$bam_path/peak_calling/${PREFIX}"
+      fi
+      
+      module load macs2
+      echo "Running macs2 with .bam file: ${PREFIX}.merged.sorted.bam"
+
+      if [ $broad == true ] && [ $nomodel == true ]; then
+            macs2 callpeak -t "$bam_path/${PREFIX}.merged.sorted.bam" --name ${PREFIX} --outdir "$bam_path/peak_calling/${PREFIX}" --gsize $gsize --nomodel --shift -$shifts --extsize $extsize --broad 
+      fi
+
+      if [ $broad == true ] && [ $nomodel == false ]; then
+            macs2 callpeak -t "$bam_path/${PREFIX}.merged.sorted.bam" --name ${PREFIX} --outdir "$bam_path/peak_calling/${PREFIX}" --gsize $gsize --shift -$shifts --extsize $extsize --broad 
+      fi
+
+      if [ $broad == false ] && [ $nomodel == true ]; then
+            macs2 callpeak -t "$bam_path/${PREFIX}.merged.sorted.bam" --name ${PREFIX} --outdir "$bam_path/peak_calling/${PREFIX}" --gsize $gsize --nomodel --shift -$shifts --extsize $extsize
+      fi
+      
+      cp "$bam_path/peak_calling/${PREFIX}/{PREFIX}_peaks.broadPeak" "$bam_path/peak_calling/${PREFIX}/{PREFIX}_raw.bed"
+     
+      echo "peak calling with macs2 complete"
+else
+      echo "peaking calling with macs2 already done"
 fi

@@ -1,12 +1,54 @@
 #!/bin/bash
 
 #pipeline in shell for ATACseq footprinting
+TEMP=`getopt -o vdm: --long gsize:,extsize:,shifts:,broad:,nomodel \
+    -n './submit_atacseq' -- "$@"`
 
+   if [ $? != 0 ]; then
+       echo "Unrecognized argument. Possible arguments: --gize, --extsize, shifts, --broad true, --broad false, --nomodel true, --nomodel false." >&2 ; exit 1 ; 
+   fi
+       eval set -- "$TEMP"
+
+        gsize=2620345972
+        extsize=200
+        shifts=100
+        broad=true
+        nomodel=true
+        
+    while true; do
+        case "$1" in
+            --gsize ) gsize="$2"; shift 2 ;;
+            --extsize ) extsize="$2"; shift 2 ;;
+            --shifts ) shifts="$2"; shift 2 ;;
+            --broad ) broad="$2"; shift 2 ;;
+            --nomodel ) nomodel="$2"; shift 2 ;;
+            -- ) shift; break ;;
+            * ) break ;;
+        esac
+    done
+
+    echo "macs2 parameters: gsize: $gsize, extsize: $extsize, shifts: $shifts, broad: $broad, nomodel: $nomodel"
+
+    if ( [[ $broad != true ]] && [[ $broad != false ]] ); then
+        echo "broad can only be set to true or false"
+        echo "example: --broad true"
+        echo "example: --broad false"
+        exit 1
+    fi
+
+    if ( [[ $nomodel != true ]] && [[ $nomodel != false ]] ); then
+        echo "nomodel can only be set to true or false"
+        echo "example: --nomodel true"
+        echo "example: --nomodel false"
+        exit 1
+    fi
+    
 bam_path=$1
 genome_path=$2
 genome_folder="$(dirname "${genome_path}")"
 echo "$genome_folder"
 
+code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
 #organism=$1
 #fasta=$2
@@ -17,23 +59,11 @@ echo "$genome_folder"
 #macs=$7
 #mac="--nomodel --shift -100 --extsize 200 --broad"
 
-code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
-
-#data_path=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
-#bam_path="/home/maurertm/labs/maurertm/atac_seq/data"
-
-bam_directory=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/
-WT_NT_files=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/ATAC_tet2_WT_NT*.bam
-WT_LDL_files=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/ATAC_tet2_WT_LDL*.bam
-Tet2_KO_NT_file=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/ATAC_tet2_KO_NT*.bam
-Tet2_KO_LDL_file=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/ATAC_tet2_KO_LDL*.bam
-
-FASTA_PATH=/oak/stanford/groups/sjaiswal/kameronr/sjaiswal_old/genomes/mm9/mm9_bgzip.fa.gz
-BLACKLIST_PATH=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/blacklist/mm9-blacklist.bed.gz
-GTF_PATH=/oak/stanford/groups/sjaiswal/kameronr/sjaiswal_old/genomes/mm9/GTF/gencode.vM1.annotation.gtf.gz
-MOTIFS_DIR=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/TOBIAS_snakemake/data/individual_motifs
-OUTPUT_DIR=/oak/stanford/groups/smontgom/kameronr/ATACseq/output
-
+#FASTA_PATH=/oak/stanford/groups/sjaiswal/kameronr/sjaiswal_old/genomes/mm9/mm9_bgzip.fa.gz
+#BLACKLIST_PATH=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/blacklist/mm9-blacklist.bed.gz
+#GTF_PATH=/oak/stanford/groups/sjaiswal/kameronr/sjaiswal_old/genomes/mm9/GTF/gencode.vM1.annotation.gtf.gz
+#MOTIFS_DIR=/oak/stanford/groups/sjaiswal/kameronr/ATACseq/TOBIAS_snakemake/data/individual_motifs
+#OUTPUT_DIR=/oak/stanford/groups/smontgom/kameronr/ATACseq/output
 
 module load samtools/1.9
 
@@ -58,11 +88,8 @@ fi
 ##################################################################################################################################
 #####################################---STEP 2: SORT, MERGE, AND INDEX BAM FILES---############################################### 
 ##########################################---CREATE COVERAGE BIGWIG TRACK---######################################################
+############################################---PEAK CALLING WITH MACS2---#########################################################
 ##################################################################################################################################
-#1a. sort each bam file
-#1b. merge bam files of replicate samples with the same condition (for any conditions that have more than 1 replicate)
-#1c. index all resulting files (should be 1 final sorted bam for each experimental condition)
-
 cd $bam_path 
 bam_file="$bam_path/BAMs" #give a path to a file to store the paths to the bams files in $bam_directory
 
@@ -80,42 +107,23 @@ find "${bam_path}/" -type f `#list all files in ${fastq_directory}` | \
 number_bams=$(wc -l < "${bam_file}") #get the number of files
 array_length="$number_bams"
 
-
 if ! [ -d "$bam_path/Logs" ]; then
     mkdir -p "$bam_path/Logs"
 fi
 
-indexed=$(find "$bam_path/coverage" -type f | grep ".coverage.bw" | sort -u | wc -l)
+bed_file=$(find "$bam_path/peak_calling" -type f | grep "raw.bed" | sort -u | wc -l)
 
-if [ $indexed -le 1 ]; then
+if [ $bed_file -lt 1 ]; then
          sbatch -o "${bam_path}/Logs/%A_%a.log" `#put into log` \
         -a "1-${array_length}" `#initiate job array equal to the number of bam files` \
         -W `#indicates to the script not to move on until the sbatch operation is complete` \
-            "${code_directory}/footprint_processing.sh" \
-            $bam_path $genome_folder
+            "${code_directory}/ATACseq_processing.sh" \
+            $bam_path $gsize $extsize $shifts $broad $nomodel
         
         wait
     else
         echo "sorting, merging, and indexing of files already completed"
 fi
-
-exit 1
-
-##################################################################################################################################
-#####################################---STEP 3: PEAK CALLING WITH MACS2---######################################################## 
-##################################################################################################################################
-#Get broad peaks (in future can also try narrow peaks))
-#Why broad peaks and not narrow peaks? -> because ATACseq includes more broadpeaks by nature than ChIPseq?
-#bams of condition and sample_id
-gsize=2620345972 #is this correct?!
-macs=$OUTPUTDIR/peak_calling/{condition}/{sample_id}_peaks.broadPeak
-raw=$OUTPUTDIR/peak_calling/{condition}/{sample_id}_raw.bed
-log=$OUTPUTDIR/logs/{condition}_{sample_id}_peak_calling.log
-
-echo Running macs2 with .bam-file: {input}
-
-macs2 callpeak -t {input} --name {sample_id} --outdir $OUTPUTDIR/peak_calling/{condition} --gsize $gsize --nomodel --shift -100 --extsize 200 --broad &> $OUTPUTDIR/logs/{condition}_{sample_id}_peak_calling.log
-cp $OUTPUTDIR/peak_calling/{condition}/{sample_id}_peaks.broadPeak $OUTPUTDIR/peak_calling/{condition}/{sample_id}_raw.bed
 
 ##################################################################################################################################
 #########################---STEP 4: PEAK PROCESSING: REDUCE GENOMIC LOCATION COLUMNS AND SORT---################################## 
