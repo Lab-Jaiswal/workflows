@@ -16,6 +16,9 @@ extsize=$3
 shifts=$4
 broad=$5
 nomodel=$6
+blacklist=$7
+whitelist=$8
+genome_folder=$9
 
 module load samtools/1.9 #load necessary modules
 
@@ -91,7 +94,10 @@ fi
 #Create: coverage.bg, coverage.sorted.bg, coverage.bw
 #After creating the coverage files, sort them
 if [ ! -f "$bam_path/coverage/${PREFIX}_coverage.bg" ]; then
-    mkdir "$bam_path/coverage"
+    if [ ! -d "$bam_path/coverage" ]; then
+        mkdir "$bam_path/coverage"
+    fi
+
     bedtools genomecov -ibam ${PREFIX}.merged.sorted.bam -g "$genome_folder/chromsizes.txt" -bg  > "$bam_path/coverage/${PREFIX}_coverage.bg"
     echo "creation of coverage file complete"
 else
@@ -99,7 +105,10 @@ else
 fi
 
 if [ ! -f "$bam_path/coverage/${PREFIX}_coverage.sorted.bg" ]; then
-    mkdir "$bam_path/coverage"
+    if [ ! -d "$bam_path/coverage" ]; then
+        mkdir "$bam_path/coverage"
+    fi
+
     sort -k1,1 -k2,2n "$bam_path/coverage/${PREFIX}_coverage.bg" > "$bam_path/coverage/${PREFIX}_coverage.sorted.bg"
     echo "creation of coverage file complete"
 else
@@ -107,7 +116,11 @@ else
 fi
 
 if [ ! -f "$bam_path/coverage/${PREFIX}_coverage.bw" ]; then
-    mkdir "$bam_path/coverage"
+    if [ ! -d "$bam_path/coverage" ]; then
+        mkdir "$bam_path/coverage"
+    fi
+
+    chmod 775 $genome_folder/chromsizes.txt
     bedGraphToBigWig "$bam_path/coverage/${PREFIX}_coverage.sorted.bg" "$genome_folder/chromsizes.txt" "$bam_path/coverage/${PREFIX}_coverage.bw" 
     echo "begraph to BigWig complete"
 else
@@ -115,11 +128,12 @@ else
 fi
 
 ###########################---STEP 6: PEAK CALLING WITH MACS2---########################################
-if [ ! -f "$bam_path/peak_calling/${PREFIX}/${PREFIX}_raw.bed" ]; then
+if [ ! -f "$bam_path/peak_calling/${PREFIX}/${PREFIX}_peaks.broadPeak" ]; then
 
       if [ ! -f "$bam_path/peak_calling" ]; then
             mkdir "$bam_path/peak_calling/"
       fi
+
       if [ ! -f "$bam_path/peak_calling/${PREFIX}" ]; then
             mkdir "$bam_path/peak_calling/${PREFIX}"
       fi
@@ -139,9 +153,26 @@ if [ ! -f "$bam_path/peak_calling/${PREFIX}/${PREFIX}_raw.bed" ]; then
             macs2 callpeak -t "$bam_path/${PREFIX}.merged.sorted.bam" --name ${PREFIX} --outdir "$bam_path/peak_calling/${PREFIX}" --gsize $gsize --nomodel --shift -$shifts --extsize $extsize
       fi
       
-      cp "$bam_path/peak_calling/${PREFIX}/{PREFIX}_peaks.broadPeak" "$bam_path/peak_calling/${PREFIX}/{PREFIX}_raw.bed"
-     
       echo "peak calling with macs2 complete"
 else
       echo "peaking calling with macs2 already done"
+fi
+      
+if [ ! -f "$bam_path/peak_calling/${PREFIX}/${PREFIX}_raw.bed" ]; then
+      
+    cp "$bam_path/peak_calling/${PREFIX}/${PREFIX}_peaks.broadPeak" "$bam_path/peak_calling/${PREFIX}/${PREFIX}_raw.bed"
+
+fi
+
+##########################---STEP 7: REMOVE BLACKLISTED REGIONS---######################################
+if [ ! -f "$bam_path/peak_calling/${PREFIX}/${PREFIX}_union_final.bed" ]; then
+    cat $bam_path/peak_calling/${PREFIX}/${PREFIX}_raw.bed | cut -f1-3 | sort -k1,1 -k2,2n | bedtools merge -d 5 | \
+        bedtools subtract -a - -b $blacklist -A | bedtools intersect -a - -b $whitelist -wa | awk '$1 !~ /[M]/' | \
+        sed "s/$/ ${PREFIX}/"  > $bam_path/peak_calling/${PREFIX}/${PREFIX}_union.bed
+    #cat $bam_path/peak_calling/${PREFIX}/${PREFIX}_union.bed | tr ' ' '\t' > $bam_path/peak_calling/${PREFIX}/${PREFIX}_union_final.bed
+        #excludes mitochondria chromosome (M)
+        #adds condition name to each peak
+    echo "blacklisted region removal complete"
+else
+    echo "blacklisted regions have already been removed"
 fi
