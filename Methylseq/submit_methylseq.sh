@@ -128,7 +128,7 @@ else
 ##################################################################################################################################
     fastq=$(find "$data_path/fastq" -type f | grep ".*\.fastq.gz$" | sort -u | wc -l)
 
-    if ! [ $fastq -lt 1 ]; then
+    if [ $fastq -lt 1 ]; then
         echo "converting bcls to fastqs"
         cd $data_path
         module load bcl2fastq2
