@@ -154,63 +154,8 @@ if [ ! -f "$bam_path/peak_calling/all_merged.bed" ]; then
     echo "merged union file complete"
 else
     echo "creation of merged union file already finished"
-
-python - << EOF
-out = open($bam_path/peak_calling/all_merged.bed, "w")
-with open($bam_path/peak_calling/all_merged.tmp) as f:
-    for line in f:
-        columns = line.rstrip().split("\t")
-
-        peak_ids = columns[3].split(",")
-        columns[3] = ",".join(sorted(peak_ids, key= lambda x: CONDITION_IDS.index(x)))
-
-        out.write("\t".join(columns) + "\n")
-out.close()
-EOF
-
-exit 1
+fi
 
 #4d. peak annotation. peaks per condition or across conditions, dependent on run info output
-
 #need to make .config file for uropa to use.
-python script:
-{
-		import json
-		config = {"queries":[
-					{"feature":"gene", "feature.anchor":"start", "distance":[10000,1000], "filter_attribute":"gene_biotype", "attribute_values":"protein_coding", "name":"protein_coding_promoter"},
-					{"feature":"gene", "distance":1, "filter_attribute":"gene_biotype", "attribute_values":"protein_coding", "internals":0.1, "name":"protein_coding_internal"},
-					{"feature":"gene", "feature.anchor":"start", "distance":[10000,1000], "name":"any_promoter"},
-					{"feature":"gene", "distance":1, "internals":0.1, "name":"any_internal"},
-					{"feature":"gene", "distance":[50000, 50000], "name":"distal_enhancer"},
-					],
-				"show_attributes":["gene_biotype", "gene_id", "gene_name"],
-				"priority":"True"
-				}
-
-		config["gtf"] = $GTF_PATH
-		config["bed"] = $OUTPUTDIR/peak_calling/all_merged.bed
-
-		string_config = json.dumps(config, indent=4)
-
-		config_file = open($OUTPUTDIR/peak_annotation/all_merged_annotated.config, "w")
-		config_file.write(string_config)
-		config_file.close()
-}
-
-
-
-$OUTPUTDIR/peak_annotation/all_merged_annotated.config
-log=$OUTPUTDIR/logs/uropa.log
-prefix=$OUTPUTDIR/peak_annotation/all_merged_annotated
-finalhits=$OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits.txt
-finalhits_sub=$OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits_sub.txt
-peaks=$OUTPUTDIR/peak_annotation/all_merged_annotated.bed
-header=$OUTPUTDIR/peak_annotation/all_merged_annotated_header.txt
-
-uropa --input $OUTPUTDIR/peak_annotation/all_merged_annotated.config --prefix $OUTPUTDIR/peak_annotation/all_merged_annotated --threads $threads_count --log $OUTPUTDIR/logs/uropa.log; 
-cut -f 1-4,7-13,16-19 $OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits.txt > $OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits_sub.txt;  #Get a subset of columns
-head -n 1 $OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits_sub.txt > $OUTPUTDIR/peak_annotation/all_merged_annotated_header.txt;  #header
-tail -n +2 $OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits_sub.txt > $OUTPUTDIR/peak_annotation/all_merged_annotated.bed #bedlines
-
-
 #could later add expression information to each peaks if needed?
