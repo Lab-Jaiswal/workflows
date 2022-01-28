@@ -104,17 +104,8 @@ echo "temp_path is $temp_path"
 
 #####################previously trim.sh###########################
 ###############################################################################
-if [ ! -f "${temp_path}/$R1_trimmed" ]; then
-    cd $temp_path
-        echo "$R1_trimmed does not exist yet"
-        cutadapt -q 20 -m 15 -a AGATCGGAAGAGC -A AAATCAAAAAAAC -o $R1_trimmed -p $R2_trimmed $R1 $R2 --cores=${SLURM_CPUS_PER_TASK}
-    #copy files back to seq_path directory
-        rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
+bash trim.sh -r $R1 -R $R2 -t $R1_trimmed T $R2_trimmed 
 
-        echo "Fastq files have been trimmed"
-else
-        echo "Fastq files have already been trimmed"
-fi
 
 #####################previously map_to_control_seqs.sh###########################
 ###############################################################################

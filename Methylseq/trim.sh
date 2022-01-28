@@ -13,6 +13,9 @@ do
     esac
 done
 
+
+#TO DO: add code to check all inputs are present and if not to give error message with help information about all the script inputs
+
 echo ""
 echo "trim command used:"
 echo "$0 -r $read1 -R $read2 -t $read1_trimmed -T $read2_trimmed"
@@ -54,7 +57,7 @@ fi
 
 #TO DO: halt code with any error to prevent errors from snowballing and not being detected by end user or by development team. http://web.archive.org/web/20110314180918/http://www.davidpashley.com/articles/writing-robust-shell-scripts.html
 
-#TO DO: #test code: bash trim.sh -r hi -R yo -t dude -T pumpkin -o yes!
+#TO DO: #test code: bash trim.sh -r hi -R yo -t dude -T pumpkin
 #should output that it is trimming the files. it's looking for the relative path . which exists always. It should trim and output the trimmed files to the current working directory.
 
 
