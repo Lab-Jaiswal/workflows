@@ -57,7 +57,7 @@ else
 ##################################################################################################################################
 
     if [ ! -d "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment" ]; then
-        mkdir "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
+        mkdir -p "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
     fi
 
     if [ ! -d "$output_path/Logs" ]; then
