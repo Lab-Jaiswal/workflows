@@ -5,38 +5,33 @@
 if [ -z $1 ] || [ -z $2 ] || [ -z $3 ]; then
     echo "Format: ./submit_methylseq.sh [data_directory] [output_path] [genetic_locations_file]"
     echo "genetic_locations_file is a txt file"
-    echo "user can use argument --force to force the code to disregard the checks preventing methylseq.sh, extract_methylation.sh & join_coverage.sh from running"
     echo "user can use argument --cores to select a number of cores different from the default (24)"
     echo "user can use argument --log_name to specify a name for the log files"
+    echo "user can use argument --force to force the code to disregard the checks preventing methylseq.sh, extract_methylation.sh & join_coverage.sh from running"
     exit 1
 else
 
-    TEMP=`getopt -o vdm: --long cores:,log_name:,force  -n 'submit_methylseq.sh' -- "$@"`
+    TEMP=`getopt -o vdm: --long cores:,log_name:,force  -n 'submit_methylseq.sh' -- "$@"` #create optional arguments --cores, --force and --log_name
         eval set -- "$TEMP"
         
-        force=false
-        cores=0
-        log_name="log_"
+        cores=0                                                                           #if --cores # is not called, the default number is 0
+        log_name="log"                                                                    #if --log_name is not called, log files will being with "log"
+        force=false                                                                       #if --force is not called, force is equal to false
                         
     while true; do
         case "$1" in
-            -f | --force ) force=true; shift 2 ;;
             --cores ) cores="$2"; shift 2;;
             --log_name ) log_name="$2"; shift 2;;
+            -f | --force ) force=true; shift ;;
             -- ) shift; break ;;
             * ) break ;;
         esac
-    done
-
-    if [ $log_name != "log_" ]; then
-        log_name=$(echo "${log_name}_")
-    fi
-
-    echo "force: $force"
-    data_path=$1
+    done                                                                 
+    
+    data_path=$1                                                                             
     output_path=$2
     genetic_locations=$3
-    unmethyl_control=$(sed -n '1p' $genetic_locations)
+    unmethyl_control=$(sed -n '1p' $genetic_locations)                                    #Collect the folder names and genome locations from the provided .txt file 
     unmethyl_control_fasta=$(sed -n '2p' $genetic_locations)
     hydroxymethyl_control=$(sed -n '3p' $genetic_locations)
     hydroxymethyl_control_fasta=$(sed -n '4p' $genetic_locations)
@@ -77,24 +72,34 @@ else
 #######################################---STEP 3: CREATE PARAMETER LOG---#####################################################
 ##################################################################################################################################
     now=$(date +%m_%d_%H_%M)
-    if [ log == "log_" ]; then
-        parameter_file="${output_path}/Parameters/${now}_parameters.txt" #give a path to a file to store the paths to the fastq files in $fastq_directory
+    if [ log == "log_" ]; then                                                             #give a path to a file to store the parameter files (so they are unique)
+        parameter_file="${output_path}/Parameters/${now}_parameters.txt"                   #add date stamp to parameter files and, if provided, the log name
     else
         parameter_file="${log_name}${now}_parameters.txt"
     fi
-    
-    if [ $force == true ]; then
-        set_force="--force"
+        
+    if [ $force == true ]; then                                                           #Create a variable called set_force which is empty if the 
+        set_force="--force"                                                                     #user did not selecte --force and "--force" if they did
     fi
-    if [ $cores -ne 0 ]; then
-        set_cores="--cores ${cores}"
+    if [ $cores -ne 0 ]; then                                                             #Create a variable called set_cores which is empty if the
+        set_cores="--cores ${cores}"                                                             #user did not selecte --cores and "--cores #" if they did
     fi
-    if [ $log_name != "log_" ]; then
-        set_long="--log_name ${log_name}"
+    if [ $log_name != "log_" ]; then                                                      #Create a variable called set_log which is empty if the
+        set_log="--log_name ${log_name}"                                                         #user did not selecte --log_name and "--log_name value" if they did
     fi
+                                                                                          #We have to create these variable because these argument are NOT recognized
+                                                                                                 #using traditional methods ($4, $5, etc.)     
         
     echo "call made to execute code: $0 $1 $2 $3 $set_force $set_cores $set_long
     " > $parameter_file
+    
+    if [ $force == true ] || [ $cores -ne 0 ] || [ $log_name != "log_" ]; then
+        echo "you selected the following optional arguments: ${set_force}, ${set_cores}, ${set_log} 
+            force is now equal to $force
+            cores is now equal to $cores
+            and your log files will begin with $log_name
+        " >> $parameter_file
+    fi
         
     echo "location of file with genome directions: $genetic_locations
     " >> $parameter_file
@@ -140,20 +145,21 @@ else
 ##################################################################################################################################
 ##############################################---STEP 5: RUN methylseq.sh---###################################################### 
 ##################################################################################################################################    
-    fastq_file="${data_path}/fastq/FASTQs" #give a path to a file to store the paths to the fastq files in $fastq_directory
+    fastq_file="${data_path}/fastq/FASTQs"                                              #give a path to a file to store the fastq file paths in $fastq_directory
     echo "location of fastq_file: $fastq_file"
-    find "$data_path/fastq" -type f | grep ".*\.fastq.gz$" | grep -v ".*\.trimmed.fastq.gz$" | sed -e 's/_R1.*$//g' | sed -e 's/_R2.*$//g' | sort -u > "${fastq_file}" #generate list of full paths to fastq files and save to the file in $fastq_list
-    array_length=$(wc -l < "${fastq_file}") #get the number of files
-    echo "array length: $array_length"
+    find "$data_path/fastq" -type f | grep ".*\.fastq.gz$" | \                          #generate list of full paths to fastq files and save to the file in $fastq_list
+           grep -v ".*\.trimmed.fastq.gz$" | sed -e 's/_R1.*$//g' | \
+           sed -e 's/_R2.*$//g' | sort -u > "${fastq_file}" 
+    array_length=$(wc -l < "${fastq_file}")                                             #get the number of files and, thus, array length
     echo "array length: $array_length
     " >> $parameter_file
    
-    picard=$(find "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment" -type f | grep ".*\.bam_picard_insert_size_plot.pdf$" | sort -u | wc -l)
-    echo "picard: $picard"
-
+    picard=$(find "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment" -type f | \
+            grep ".*\.bam_picard_insert_size_plot.pdf$" | sort -u | wc -l)
+    
     if [[ $picard -lt 1 ]] || [[ $force = true ]]; then
             echo "methylseq.sh running"
-            sbatch -o "${output_path}/Logs/${log_name}%A_%a.log" `#put into log` \
+            sbatch -o "${output_path}/Logs/${log_name}_%A_%a.log" `#put into log` \
                     -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
                    -W `#indicates to the script not to move on until the sbatch operation is complete` \
                     "${code_directory}/methylseq.sh" \
