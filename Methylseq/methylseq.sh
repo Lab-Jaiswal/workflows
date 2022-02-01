@@ -6,6 +6,9 @@
 #SBATCH --mem=256GB
 #SBATCH --job-name=methylseq
 
+##################################################################################################################################
+#############################################---STEP 1: SET UP ARGUMENTS---####################################################### 
+##################################################################################################################################
 data_path=$1
 output_path=$2
 seq_path="$1/fastq"
@@ -38,8 +41,12 @@ if [ $SLURM_TASK_ARRAY_ID -eq 1 ]; then
     fi
 fi
 
-fastq_file="${data_path}/fastq/FASTQs" #provide path to file containing list of fastq files
-fastq_path="$(sed "${line_number}q; d" $fastq_file)" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
+
+##################################################################################################################################
+############################################---STEP 2: COPY TO TEMP PATH---####################################################### 
+##################################################################################################################################
+fastq_file="${data_path}/fastq/FASTQs"                                                         #provide path to file containing list of fastq files
+fastq_path="$(sed "${line_number}q; d" $fastq_file)"                                           #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
 
 sample_prefix=$(ls $fastq_path | grep fastq | head -n 1 | sed -e 's/_S[0-9]*_L[0-9]*_[IR][0-9]_[0-9]*.fastq.gz//g')
 sample_name="${fastq_path##*/}"
@@ -52,7 +59,6 @@ seq_path="$data_path/fastq"
 echo "copying FASTQs..."
 temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
 echo "temp_path is: " $temp_path
-mkdir $temp_path
 #copy fastq files to temp_path
 rsync -vur "$data_path/fastq/" $temp_path
 rsync -a --relative "$output_path/./$unmethyl_control/$hydroxymethyl_control/$methyl_control/$genome_alignment/" "$temp_path/"
@@ -66,6 +72,10 @@ rsync -vur "$methyl_control_fasta/" "$temp_path/methyl_genome"
 
 echo "Transcriptomes have been copied to the temporary file directory"
 
+
+##################################################################################################################################
+###########################################---STEP 3: CREATE SAMPLE NAMES---######################################################
+##################################################################################################################################
 module load bismark/0.22.3
 module load samtools
 "Bismark and samtools modules have been loaded"
@@ -75,9 +85,10 @@ R2="${fastq_temp}_R2_001.fastq.gz"
 
 R1_trimmed="${fastq_temp}_R1_001.trimmed.fastq.gz"
 R2_trimmed="${fastq_temp}_R2_001.trimmed.fastq.gz"
-directory="$(dirname $R1_trimmed)"
+
 trimmed_R1_file_path=$(echo $R1_trimmed| sed 's/.fastq.gz//')
 trimmed_R2_file_path=$(echo $R2_trimmed| sed 's/.fastq.gz//')
+
 trimmed_R1_file_name="${trimmed_R1_file_path##*/}"
 trimmed_R2_file_name="${trimmed_R2_file_path##*/}"
 R1_trimmed_bismark_PE_report="${trimmed_R1_file_name}_bismark_bt2_PE_report.txt"
@@ -90,7 +101,6 @@ R2_hydroxy="${temp_path}/$unmethyl_control/$hydroxymethyl_control/${trimmed_R2_f
 
 trimmed_R1_bismark_bam="${trimmed_R1_file_path}_bismark_bt2_pe.bam"
 
-#unmapped_R1_file_path=$(echo $R1_unmapped| sed 's/.fq.gz//')
 unmethyl_R1_file_path="${temp_path}/$unmethyl_control/$hydroxymethyl_control/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1"
 unmethyl_R1_file_name="${unmethyl_R1_file_path##*/}"
 R1_unmethyl_bismark_PE_report="${unmethyl_R1_file_name}_bismark_bt2_PE_report.txt"
@@ -103,18 +113,14 @@ R1_hydroxy_bismark_PE_report2="${hydroxy_R1_file_name}_bismark_bt2_PE_report.txt
 
 hydroxy_R1_bismark_bam="${hydroxy_R1_file_path}_bismark_bt2_pe.bam"
 
-#unmapped_unmapped_R1="${temp_path}/$unmethyl_control/$hydroxymethyl_control/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz"
-#unmapped_unmapped_R2="${temp_path}/$unmethyl_control/$hydroxymethyl_control/${trimmed_R2_file_name}.fastq.gz_unmapped_reads_2.fq.gz_unmapped_reads_2.fq.gz"
 methyl_R1="${temp_path}/$unmethyl_control/$hydroxymethyl_control/$methyl_control/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz"
 methyl_R2="${temp_path}/$unmethyl_control/$hydroxymethyl_control/$methyl_control/${trimmed_R2_file_name}.fastq.gz_unmapped_reads_2.fq.gz_unmapped_reads_2.fq.gz_unmapped_reads_2.fq.gz"
 
-#trimmed_unmapped_R1_bam="${temp_path}/$unmethyl_control/$hydroxymethyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam"
-trimmed_genome_R1_bam="${temp_path}/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam"
+trimmed_genome_R1_bam="${temp_path}/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam"
 
-echo "temp_path is $temp_path"
-
-#####################previously trim.sh###########################
-###############################################################################
+##################################################################################################################################
+###########################################---STEP 4: PREVIOUSLY trim.sh---######################################################
+##################################################################################################################################
 if [ ! -f "${temp_path}/$R1_trimmed" ]; then
     cd $temp_path
         echo "$R1_trimmed does not exist yet"
@@ -127,9 +133,9 @@ else
         echo "Fastq files have already been trimmed"
 fi
 
-#####################previously map_to_control_seqs.sh###########################
-###############################################################################
-
+##################################################################################################################################
+####################################---STEP 5: PREVIOUSLY map_to_control_seqs.sh---###############################################
+##################################################################################################################################
 #map to unmethyl control
 if [ ! -f "${temp_path}/${unmethyl_control}/${trimmed_R1_file_name}_bismark_bt2_PE_report.txt" ]; then
     cd $temp_path
@@ -171,9 +177,9 @@ fi
 
 echo "map to control seqs complete"
 
-#####################previously extract_methylation_controls.sh###################
-################################################################################
-
+##################################################################################################################################
+###############################---STEP 6: PREVIOUSLY extract_methylation_controls.sh---###########################################
+##################################################################################################################################
 if [ ! -f "$temp_path/$unmethyl_control/${trimmed_R1_file_name}_bismark_bt2_pe_splitting_report.txt" ]; then  
     cd $temp_path/$unmethyl_control
         echo "$temp_path/$unmethyl_control/${trimmed_R1_file_name}_bismark_bt2_pe_splitting_report.txt does not exist yet"
@@ -206,11 +212,9 @@ fi
 
 echo "extract unmethyl, hydroxymethyl, and methyl controls complete"
 
-#####################previously map_to_genome_seqs.sh#############################
-################################################################################
-#if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/genome_alignment/${unmapped_R1_file_name}.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam" ]; then   
-#    cd $temp_path/$unmethyl_control/$hydroxymethyl_control
-#        echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/genome_alignment/${unmapped_R1_file_name}.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam does not exist yet"
+##################################################################################################################################
+####################################---STEP 7: PREVIOUSLY map_to_genome_seqs.sh---################################################
+##################################################################################################################################
 if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${unmethyl_R1_file_name}.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam" ]; then   
     cd $temp_path/$unmethyl_control/$hydroxymethyl_control
         echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${unmethyl_R1_file_name}.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam does not exist yet"
@@ -230,8 +234,9 @@ fi
 
 echo "map_to_genome_seqs complete"
 
-#####################previously remove_duplicates.sh##############################
-################################################################################
+##################################################################################################################################
+#####################################---STEP 8: PREVIOUSLY remove_duplicates.sh---################################################
+##################################################################################################################################
 if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplication_report.txt" ]; then 
     cd "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
         echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplication_report.txt"
@@ -253,8 +258,9 @@ else
     echo "indexed and sorted bam file already exists"
 fi
 
-#####################previous extract_methylation.sh############################
-################################################################################
+##################################################################################################################################
+####################################---STEP 9: PREVIOUSLY extract_methylation.sh---###############################################
+##################################################################################################################################
 if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam.bismark.cov.gz" ]; then 
     cd "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
         echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam.bismark.cov.gz does not exist yet"
@@ -266,14 +272,14 @@ else
     echo "methlyation extraction already completed"
 fi
 
-#####################previously insert_size_analysis.sh###########################
-################################################################################
+##################################################################################################################################
+##################################---STEP 10: PREVIOUSLY insert_size_analysis.sh---###############################################
+##################################################################################################################################
 if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam_picard_insert_size_plot.pdf" ]; then 
    cd "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
         echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam_picard_insert_size_plot.pdf"
     module load R
     module load picard/2.9.5
-        #java -Xmx4g -XX:+UseG1GC -XX:ParallelGCThreads=8 -jar ~/picard.jar CollectInsertSizeMetrics INPUT=$sample OUTPUT={$sample}_picard_insert_size_metrics.txt HISTOGRAM_FILE={$sample}_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
     picard CollectInsertSizeMetrics INPUT=$trimmed_genome_R1_bam OUTPUT=$trimmed_genome_R1_bam\_picard_insert_size_metrics.txt HISTOGRAM_FILE=$trimmed_genome_R1_bam\_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
         echo "picard insert_size_analysis complete"
     #copy files back to seq_path directory
