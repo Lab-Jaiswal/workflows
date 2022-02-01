@@ -7,22 +7,37 @@
 #SBATCH --job-name=methylseq
 
 data_path=$1
+output_path=$2
 seq_path="$1/fastq"
-unmethyl_control_fasta=$2
+unmethyl_control_fasta=$3
 chmod 775 $unmethyl_control_fasta
-unmethyl_control=$3
-hydroxymethyl_control_fasta=$4
+unmethyl_control=$4
+hydroxymethyl_control_fasta=$5
 chmod 775 $hydroxymethyl_control_fasta
-hydroxymethyl_control=$5
-methyl_control_fasta=$6
+hydroxymethyl_control=$6
+methyl_control_fasta=$7
 chmod 755 $methyl_control_fasta
-methyl_control=$7
-main_genome=$8
+methyl_control=$8
+main_genome=$9
 chmod 775 $main_genome
-phix_path=$9
-cores="${10}"
+phix_path=${10}
+cores="${11}"
+log_name="${12}"
+parameter_file="${13}"
 
 line_number=$SLURM_ARRAY_TASK_ID #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
+
+if [ $SLURM_TASK_ARRAY_ID -eq 1 ]; then
+    most_recent=$(ls $output_path/Logs -c | head -n 1 | sed 's/.*\///' | cut -d'_' -f1 | sed 's/[^0-9]*//g')
+    if [ $most_recent -gt $SLURM_JOBID ]; then
+        echo "log file name: ${log_name}_${most_recent}_#.log" 
+        >> $parameter_file
+    else
+        echo "log file name ${log_name}_${SLURM_JOB_ID}_#.log"
+        >> $parameter_file
+    fi
+fi
+
 fastq_file="${data_path}/fastq/FASTQs" #provide path to file containing list of fastq files
 fastq_path="$(sed "${line_number}q; d" $fastq_file)" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
 
@@ -40,14 +55,10 @@ echo "temp_path is: " $temp_path
 mkdir $temp_path
 #copy fastq files to temp_path
 rsync -vur "$data_path/fastq/" $temp_path
+rsync -a --relative "$output_path/./$unmethyl_control/$hydroxymethyl_control/$methyl_control/$genome_alignment/" "$temp_path/"
 echo "FASTQs have been copied to the temporary file"
 
 echo "copying reference transcriptome..."
-mkdir /tmp/genomes
-mkdir -p /tmp/genomes/main_genome
-mkdir -p /tmp/genomes/unmethyl_genome
-mkdir -p /tmp/genomes/hydroxy_genome
-mkdir -p /tmp/genomes/methyl_genome
 rsync -vur "$main_genome/" "$temp_path/main_genome"
 rsync -vur "$unmethyl_control_fasta/" "$temp_path/unmethyl_genome"
 rsync -vur "$hydroxymethyl_control_fasta/" "$temp_path/hydroxymethyl_genome"
@@ -60,7 +71,7 @@ module load samtools
 "Bismark and samtools modules have been loaded"
 
 R1="${fastq_temp}_R1_001.fastq.gz"
-R2="${fastq_temp}_R1_001.fastq.gz"
+R2="${fastq_temp}_R2_001.fastq.gz"
 
 R1_trimmed="${fastq_temp}_R1_001.trimmed.fastq.gz"
 R2_trimmed="${fastq_temp}_R2_001.trimmed.fastq.gz"
@@ -109,7 +120,7 @@ if [ ! -f "${temp_path}/$R1_trimmed" ]; then
         echo "$R1_trimmed does not exist yet"
         cutadapt -q 20 -m 15 -a AGATCGGAAGAGC -A AAATCAAAAAAAC -o $R1_trimmed -p $R2_trimmed $R1 $R2 --cores=${SLURM_CPUS_PER_TASK}
     #copy files back to seq_path directory
-        rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
+        rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $output_path
 
         echo "Fastq files have been trimmed"
 else
@@ -126,7 +137,7 @@ if [ ! -f "${temp_path}/${unmethyl_control}/${trimmed_R1_file_name}_bismark_bt2_
     	echo "Run bismark on $R1_trimmed and $R2_trimmed"
     bismark --bam --maxins 800 "$temp_path/unmethyl_genome" -1 $R1_trimmed -2 $R2_trimmed -o $temp_path/$unmethyl_control --unmapped --nucleotide_coverage --multicore $cores
         echo "map_to_control_seqs.sh complete for unmethyl control"
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
+    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/$unmethyl_control/ $output_path/$unmethyl_control
 else
     	echo "Bismark mapping to control sequences for unmethyl control already completed"
 fi
@@ -140,7 +151,7 @@ if [ ! -f "$unmapped_path/$hydroxymethyl_control/${unmethyl_R1_file_name}_bismar
     	echo Run bismark on $R1_unmethyl and $R2_unmethyl
     bismark --bam --maxins 800 "$temp_path/hydroxymethyl_genome" -1 $R1_unmethyl -2 $R2_unmethyl -o $unmapped_path/$hydroxymethyl_control --unmapped --nucleotide_coverage --multicore $cores
         echo "map_to_control_seqs.sh complete for hydroxymethyl control"
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
+    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/$unmethyl_control/ $output_path/$unmethyl_control
 else
     	echo "Bismark mapping to control sequences for hydroxymethyl control already completed"
 fi
@@ -153,13 +164,12 @@ if [ ! -f "$unmapped_path/$hyrdoxymethyl_control/$methyl_control/${hydroxy_R1_fi
         echo Run bismark on $R1_hydroxy and $R2_hydroxy
     bismark --bam --maxins 800 "$temp_path/methyl_genome" -1 $R1_hydroxy -2 $R2_hydroxy -o $unmapped_path/$hydroxymethyl_control/$methyl_control --unmapped --nucleotide_coverage --multicore $cores
         echo "map_to_control_seqs.sh complete for methyl control"
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
+    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/$unmethyl_control/ $output_path/$unmethyl_control
 else
         echo "Bismark mapping to control sequences for methyl control already completed"
 fi
 
 echo "map to control seqs complete"
-
 
 #####################previously extract_methylation_controls.sh###################
 ################################################################################
@@ -169,7 +179,7 @@ if [ ! -f "$temp_path/$unmethyl_control/${trimmed_R1_file_name}_bismark_bt2_pe_s
         echo "$temp_path/$unmethyl_control/${trimmed_R1_file_name}_bismark_bt2_pe_splitting_report.txt does not exist yet"
     bismark_methylation_extractor --gzip --cytosine_report --bedGraph --genome_folder "$temp_path/unmethyl_genome" $trimmed_R1_bismark_bam --multicore $cores
         echo "extract_methylation_controls complete for unmethyl control"
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
+    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/$unmethyl_control/ $output_path/$unmethyl_control
 else
     echo "methylation control extraction for the unmethyl control found and already created"
 fi
@@ -179,7 +189,7 @@ if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/${unmethyl_R1_fil
         echo "$temp_path/$unmethyl_control/${unmethyl_R1_file_name}_bismark_bt2_pe_splitting_report.txt does not exist yet"
     bismark_methylation_extractor --gzip --cytosine_report --bedGraph --genome_folder "$temp_path/hydroxymethyl_genome" $unmethyl_R1_bismark_bam --multicore $cores
         echo "extract_methylation_controls complete for hydroxymethyl"
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
+    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/$unmethyl_control/ $output_path/$unmethyl_control
 else
     echo "methylation control extraction for the hydroxymethyl control found and already created"
 fi
@@ -189,62 +199,12 @@ if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/$
         echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/${hydroxy_R1_file_name}_bismark_bt2_pe_splitting_report.txt does not exist yet"
     bismark_methylation_extractor --gzip --cytosine_report --bedGraph --genome_folder "$temp_path/methyl_genome" $hydroxy_R1_bismark_bam --multicore $cores
         echo "extract_methylation_controls complete for methyl"
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
+    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/$unmethyl_control/ $output_path/$unmethyl_control
 else
     echo "methylation control extraction for the methyl control found and already created"
 fi
 
 echo "extract unmethyl, hydroxymethyl, and methyl controls complete"
-
-#####################previously report_controls.sh################################
-################################################################################
-
-if [ ! -f "$temp_path/$unmethyl_control/bismark_summary_report.txt" ]; then 
-    cd $temp_path/$unmethyl_control
-        echo "$temp_path/$unmethyl_control/bismark_summary_report.txt does not exist yet"
-    #http://felixkrueger.github.io/Bismark/Docs/
-    #bismark report options:
-    #--alignment_report FILE
-    #--dedup_report FILE
-    #--splitting_report FILE
-    #--mbias_report FILE
-    #--nucleotide_report FILE
-    
-    #https://rawgit.com/FelixKrueger/Bismark/master/Docs/Bismark_User_Guide.html
-    bismark2report
-    bismark2summary
-    #need to specify a nucleotide coverage report file in the above command!
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
-        echo "created report for unmethyl control"
-else 
-        echo "bismark summary already completed for unmethyl control"
-fi
-    
-if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/bismark_summary_report.txt" ]; then
-    cd $temp_path/$unmethyl_control/$hydroxymethyl_control
-        echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/bismark_summary_report.txt does not exist yet"
-    bismark2report
-    bismark2summary
-    #need to specify a nucleotide coverage report file in the above command! ^
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
-        echo "created report for hydroxymethyl control"
-else
-    echo "bismark summary already completed for hydroxymethyl control"
-fi
-
-if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/bismark_summary_report.txt" ]; then
-    cd $temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control
-        echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/bismark_summary_report.txt does not exist yet"
-    bismark2report
-    bismark2summary
-    #need to specify a nucleotide coverage report file in the above command! ^
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
-        echo "created report for methyl control"
-else
-    echo "bismark summary already completed for methyl control"
-fi
-
-echo "report_controls complete for unmethyl, hydroxymethyl, and methyl control sequences"
 
 #####################previously map_to_genome_seqs.sh#############################
 ################################################################################
@@ -258,7 +218,7 @@ if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/g
         #--parallel ${SLURM_CPUS_PER_TASK}
     
     #copy all results back to #seq_path and updates to the genome
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path  
+    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/$unmethyl_control/ $output_path/$unmethyl_control  
     rsync -vur "$temp_path/main_genome/" $main_genome
     rsync -vur "$temp_path/hydroxymethyl_genome/" $hydroxymethyl_control_fasta
     rsync -vur "$temp_path/methyl_genome/" $methyl_control_fasta
@@ -277,7 +237,7 @@ if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/g
         echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplication_report.txt"
             deduplicate_bismark -p --bam $trimmed_genome_R1_bam  
         echo "remove_duplicates complete"
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
+    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/$unmethyl_control/ $output_path/$unmethyl_control
 else
     echo "duplicates already removed"
 fi
@@ -287,33 +247,23 @@ if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/g
         echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam does not yet exist"
     samtools sort "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam" -o  "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam"
     samtools index "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam"
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
+    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/$unmethyl_control/ $output_path/$unmethyl_control
     echo "bam file has been indexed and sorted"
 else
     echo "indexed and sorted bam file already exists"
 fi
 
-
-if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/split_bams/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.1.bam" ]; then
+#####################previous extract_methylation.sh############################
+################################################################################
+if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam.bismark.cov.gz" ]; then 
     cd "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
-    echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/split_bams/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.1.bam does not yet exist"
-    #this depends if it is mouse or human genome!
-    #chromosomes=$(seq 20)
-    chromosomes=$(seq 22)
-    chromosomes=(${chromosomes[@]} "X" "Y")
-    echo $chromosomes
-    mkdir split_bams
-    chromosome="chr"
-    for i in ${chromosomes[@]}
-        do
-            chr="${chromosome}${i}"
-            echo "$chr"
-            samtools view -b "${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam" $chr > "split_bams/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.${chr}.${sample_name}.bam"  
-        done
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
-    echo "bam file has been split up by chromosome"
-else
-    echo "bam file was already split up by chromosome"
+        echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam.bismark.cov.gz does not exist yet"
+    #remove --cytosine_report
+    bismark_methylation_extractor --buffer_size 20G --gzip --cytosine_report --bedGraph --genome_folder "$temp_path/main_genome" "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz__unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam" --multicore $cores
+        echo "extract_methylation complete"
+    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "methyl_genome" --exclude "hydroxymethyl_genome" $temp_path/$unmethyl_control/ $output_path/$unmethyl_control
+else 
+    echo "methlyation extraction already completed"
 fi
 
 #####################previously insert_size_analysis.sh###########################
@@ -327,22 +277,7 @@ if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/g
     picard CollectInsertSizeMetrics INPUT=$trimmed_genome_R1_bam OUTPUT=$trimmed_genome_R1_bam\_picard_insert_size_metrics.txt HISTOGRAM_FILE=$trimmed_genome_R1_bam\_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
         echo "picard insert_size_analysis complete"
     #copy files back to seq_path directory
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
+    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/$unmethyl_control/ $output_path/$unmethyl_control
 else
     echo "picard insert size analysis already complete"
-fi
-
-#####################previously report.sh#########################################
-################################################################################
-if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/bismark_summary_report.txt" ]; then 
-    #https://rawgit.com/FelixKrueger/Bismark/master/Docs/Bismark_User_Guide.html
-    
-    cd $temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment
-    
-    bismark2report
-    bismark2summary
-        echo "report complete"
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
-else
-    echo "bismark summary found and already created"
 fi
