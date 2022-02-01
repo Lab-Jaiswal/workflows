@@ -57,7 +57,7 @@ else
 ##################################################################################################################################
 
     if [ ! -d "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment" ]; then
-        mkdir "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
+        mkdir -p "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
     fi
 
     if [ ! -d "$output_path/Logs" ]; then
@@ -147,15 +147,13 @@ else
 ##################################################################################################################################    
     fastq_file="${data_path}/fastq/FASTQs"                                              #give a path to a file to store the fastq file paths in $fastq_directory
     echo "location of fastq_file: $fastq_file"
-    find "$data_path/fastq" -type f | grep ".*\.fastq.gz$" | \                          #generate list of full paths to fastq files and save to the file in $fastq_list
-           grep -v ".*\.trimmed.fastq.gz$" | sed -e 's/_R1.*$//g' | \
-           sed -e 's/_R2.*$//g' | sort -u > "${fastq_file}" 
+    find "$data_path/fastq" -type f | grep ".*\.fastq.gz$" | grep -v ".*\.trimmed.fastq.gz$" | sed -e 's/_R1.*$//g' | sed -e 's/_R2.*$//g' | sort -u > "${fastq_file}" 
+    #generate list of full paths to fastq files and save to the file in $fastq_list
     array_length=$(wc -l < "${fastq_file}")                                             #get the number of files and, thus, array length
     echo "array length: $array_length
     " >> $parameter_file
    
-    picard=$(find "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment" -type f | \
-            grep ".*\.bam_picard_insert_size_plot.pdf$" | sort -u | wc -l)
+    picard=$(find "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment" -type f | grep ".*\.bam_picard_insert_size_plot.pdf$" | sort -u | wc -l)
     
     if [[ $picard -lt 1 ]] || [[ $force = true ]]; then
             echo "methylseq.sh running"
