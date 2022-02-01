@@ -6,7 +6,7 @@ if [ -z $1 ] || [ -z $2 ] || [ -z $3 ]; then
     echo "Format: ./submit_methylseq.sh [data_directory] [output_path] [genetic_locations_file]"
     echo "genetic_locations_file is a txt file"
     echo "user can use argument --cores to select a number of cores different from the default (24)"
-    echo "user can use argument --log_name to specify a name for the log files"
+    echo "user can use argument --log_name to specify a name forthe log files"
     echo "user can use argument --force to force the code to disregard the checks preventing methylseq.sh, extract_methylation.sh & join_coverage.sh from running"
     exit 1
 else
@@ -14,7 +14,7 @@ else
     TEMP=`getopt -o vdm: --long cores:,log_name:,force  -n 'submit_methylseq.sh' -- "$@"` #create optional arguments --cores, --force and --log_name
         eval set -- "$TEMP"
         
-        cores=0                                                                           #if --cores # is not called, the default number is 0
+        cores=24                                                                           #if --cores # is not called, the default number is 0
         log_name="log"                                                                    #if --log_name is not called, log files will being with "log"
         force=false                                                                       #if --force is not called, force is equal to false
                         
@@ -57,7 +57,7 @@ else
 ##################################################################################################################################
 
     if [ ! -d "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment" ]; then
-        mkdir -p "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
+        mkdir "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
     fi
 
     if [ ! -d "$output_path/Logs" ]; then
@@ -75,13 +75,13 @@ else
     if [ log == "log_" ]; then                                                             #give a path to a file to store the parameter files (so they are unique)
         parameter_file="${output_path}/Parameters/${now}_parameters.txt"                   #add date stamp to parameter files and, if provided, the log name
     else
-        parameter_file="${log_name}${now}_parameters.txt"
+        parameter_file="${output_path}/Parameters/${log_name}${now}_parameters.txt"
     fi
         
     if [ $force == true ]; then                                                           #Create a variable called set_force which is empty if the 
         set_force="--force"                                                                     #user did not selecte --force and "--force" if they did
     fi
-    if [ $cores -ne 0 ]; then                                                             #Create a variable called set_cores which is empty if the
+    if [ $cores -ne 24 ]; then                                                             #Create a variable called set_cores which is empty if the
         set_cores="--cores ${cores}"                                                             #user did not selecte --cores and "--cores #" if they did
     fi
     if [ $log_name != "log_" ]; then                                                      #Create a variable called set_log which is empty if the
@@ -93,7 +93,7 @@ else
     echo "call made to execute code: $0 $1 $2 $3 $set_force $set_cores $set_long
     " > $parameter_file
     
-    if [ $force == true ] || [ $cores -ne 0 ] || [ $log_name != "log_" ]; then
+    if [ $force == true ] || [ $cores -ne 24 ] || [ $log_name != "log_" ]; then
         echo "you selected the following optional arguments: ${set_force}, ${set_cores}, ${set_log} 
             force is now equal to $force
             cores is now equal to $cores
@@ -147,7 +147,7 @@ else
 ##################################################################################################################################    
     fastq_file="${data_path}/fastq/FASTQs"                                              #give a path to a file to store the fastq file paths in $fastq_directory
     echo "location of fastq_file: $fastq_file"
-    find "$data_path/fastq" -type f | grep ".*\.fastq.gz$" | grep -v ".*\.trimmed.fastq.gz$" | sed -e 's/_R1.*$//g' | sed -e 's/_R2.*$//g' | sort -u > "${fastq_file}" 
+    find "$data_path/fastq" -type f | grep ".*\.fastq.gz$" | grep -v ".*\.trimmed.fastq.gz$" | sed -e 's/_R1.*$//g' | sed -e 's/_R2.*$//g' | sort -u > "${fastq_file}"                        
     #generate list of full paths to fastq files and save to the file in $fastq_list
     array_length=$(wc -l < "${fastq_file}")                                             #get the number of files and, thus, array length
     echo "array length: $array_length
@@ -225,4 +225,4 @@ module load bismark
     else
         echo "bismark summary found and already created for genome alignment"
     fi
-fi
+fi 
