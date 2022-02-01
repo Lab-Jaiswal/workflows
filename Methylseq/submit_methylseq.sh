@@ -15,7 +15,7 @@ else
         eval set -- "$TEMP"
         
         force=false
-        cores=24
+        cores=0
         log_name="log_"
                         
     while true; do
@@ -83,16 +83,14 @@ else
         parameter_file="${log_name}${now}_parameters.txt"
     fi
     
-    if [ $force == true ] || [ $cores -ne 24 ] || [ log_name != "log_" ]; then
-        if [ $force == true ]; then
-            set_force="--force"
-        fi
-        if [ $cores -ne 24 ]; then
-            set_cores="--cores ${cores}"
-        fi
-        if [ $log_name != "log_" ]; then
-            set_long="--log_name ${log_name}"
-        fi
+    if [ $force == true ]; then
+        set_force="--force"
+    fi
+    if [ $cores -ne 0 ]; then
+        set_cores="--cores ${cores}"
+    fi
+    if [ $log_name != "log_" ]; then
+        set_long="--log_name ${log_name}"
     fi
         
     echo "call made to execute code: $0 $1 $2 $3 $set_force $set_cores $set_long
