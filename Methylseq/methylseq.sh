@@ -15,13 +15,15 @@ hydroxymethyl_control_fasta=$4
 chmod 775 $hydroxymethyl_control_fasta
 hydroxymethyl_control=$5
 methyl_control_fasta=$6
-chmod 755 $methyl_control_fasta
+chmod 775 $methyl_control_fasta
 methyl_control=$7
 main_genome=$8
 chmod 775 $main_genome
 phix_path=$9
 cores="${10}"
 
+
+#define the fastq file path
 line_number=$SLURM_ARRAY_TASK_ID #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
 fastq_file="${data_path}/fastq/FASTQs" #provide path to file containing list of fastq files
 fastq_path="$(sed "${line_number}q; d" $fastq_file)" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
@@ -56,14 +58,12 @@ rsync -vur "$methyl_control_fasta/" "$temp_path/methyl_genome"
 echo "Transcriptomes have been copied to the temporary file directory"
 
 module load bismark/0.22.3
-module load samtools
+module load samtools/1.9
 "Bismark and samtools modules have been loaded"
 
 R1="${fastq_temp}_R1_001.fastq.gz"
-R2="${fastq_temp}_R1_001.fastq.gz"
+R2="${fastq_temp}_R2_001.fastq.gz"
 
-R1_trimmed="${fastq_temp}_R1_001.trimmed.fastq.gz"
-R2_trimmed="${fastq_temp}_R2_001.trimmed.fastq.gz"
 directory="$(dirname $R1_trimmed)"
 trimmed_R1_file_path=$(echo $R1_trimmed| sed 's/.fastq.gz//')
 trimmed_R2_file_path=$(echo $R2_trimmed| sed 's/.fastq.gz//')
@@ -102,15 +102,32 @@ trimmed_genome_R1_bam="${temp_path}/$unmethyl_control/$hydroxymethyl_control/$me
 
 echo "temp_path is $temp_path"
 
-#####################previously trim.sh###########################
+################### Trim paired end reads #####################################
 ###############################################################################
-bash trim.sh -r $R1 -R $R2 -t $R1_trimmed T $R2_trimmed 
+
+#set variables to use
+R1="${sample_name}_R1_001.fastq.gz"
+R2="${sample_name}_R2_001.fastq.gz"
+read1_trimmed=$(echo $R1 | sed 's/fastq.gz/trimmed.fastq.gz/')
+read2_trimmed=$(echo $R2 | sed 's/fastq.gz/trimmed.fastq.gz/')
+
+bash trim.sh -r $R1 -R $R2 -t $read1_trimmed T $read2_trimmed 
 
 
 #####################previously map_to_control_seqs.sh###########################
 ###############################################################################
 
 #map to unmethyl control
+bash map_and_deduplicate.sh -t $read1_trimmed -T $read2_trimmed -g $genome_fasta_path -o $output_directory -c $cores -d false
+
+#set a starting genome folder path
+#for genome in genome list... 
+    #append new directory to the starting genome folder path
+    #establish other variables needed as parameters for the map_and_deduplicate.sh script
+    #run the map_and_deduplicate.sh script
+    #if it's the final genome, then do deduplication also
+    #for all genomes, run methylation extraction script? Or wait until afterwards?
+
 if [ ! -f "${temp_path}/${unmethyl_control}/${trimmed_R1_file_name}_bismark_bt2_PE_report.txt" ]; then
     cd $temp_path
     	echo "${temp_path}/${unmethyl_control}/${trimmed_R1_file_name}_bismark_bt2_PE_report.txt does not exist yet" 
@@ -261,28 +278,32 @@ fi
 
 echo "map_to_genome_seqs complete"
 
-#####################previously remove_duplicates.sh##############################
+##################### Sort and index ##############################
 ################################################################################
-if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplication_report.txt" ]; then 
-    cd "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
-        echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplication_report.txt"
-            deduplicate_bismark -p --bam $trimmed_genome_R1_bam  
-        echo "remove_duplicates complete"
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
-else
-    echo "duplicates already removed"
-fi
 
-if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam" ]; then
-    cd "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
-        echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam does not yet exist"
-    samtools sort "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam" -o  "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam"
-    samtools index "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam"
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
-    echo "bam file has been indexed and sorted"
-else
-    echo "indexed and sorted bam file already exists"
-fi
+bash sort_and_index.sh -b $bam -o $output_directory
+
+
+# if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplication_report.txt" ]; then 
+#     cd "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
+#         echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplication_report.txt"
+#             deduplicate_bismark -p --bam $trimmed_genome_R1_bam  
+#         echo "remove_duplicates complete"
+#     rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
+# else
+#     echo "duplicates already removed"
+# fi
+
+# if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam" ]; then
+#     cd "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
+#         echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam does not yet exist"
+#     samtools sort "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam" -o  "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam"
+#     samtools index "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam"
+#     rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
+#     echo "bam file has been indexed and sorted"
+# else
+#     echo "indexed and sorted bam file already exists"
+# fi
 
 
 if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/split_bams/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.1.bam" ]; then

@@ -29,7 +29,7 @@ module load cutadapt/3.4
 #check if directory of trimmed file exists yet, if it does go there, else throw error message to fix upstream code.
 parent_directory="$(dirname "$read1_trimmed")"
 
-echo "Parent directory for trimming is "$parent_directory""
+echo "Parent directory for trimming is '$parent_directory'"
 
 if [ -d "$parent_directory" ] 
 	then
@@ -50,7 +50,7 @@ if [ -d "$parent_directory" ]
 		fi
 
 	else
-		echo "Error: Directory "$parent_directory" does not exist. Directory "$parent_directory" must be created before running "$0""
+		echo "Error: Directory '$parent_directory' does not exist. Directory '$parent_directory' must be created before running '$0'"
 fi
 
 #TO DO: This script could use testing code that tests each 'then' and 'else' sections of each 'if' statement! So a total of 4 test cases.
