@@ -60,22 +60,6 @@ else
 ##################################################################################################################################
 #######################################---STEP 2: CREATE NECESSARY FOLDERS---#####################################################
 ##################################################################################################################################
-   
-    if [ ! -d $output_path ]; then
-        mkdir $output_path
-    fi
-
-    if [ ! -d "$output_path/$unmethyl_control" ];then
-        mkdir "$output_path/$unmethyl_control"
-    fi
-
-    if [ ! -d "$output_path/$unmethyl_control/$hydroxymethyl_control" ]; then
-        mkdir "$output_path/$unmethyl_control/$hydroxymethyl_control"
-    fi
-
-    if [ ! -d "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control" ]; then
-        mkdir "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control"
-    fi
 
     if [ ! -d "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment" ]; then
         mkdir "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
@@ -93,27 +77,26 @@ else
 #######################################---STEP 3: CREATE PARAMETER LOG---#####################################################
 ##################################################################################################################################
     now=$(date +%m_%d_%H_%M)
-    parameter_file="${output_path}/Parameters/${now}_parameters.txt" #give a path to a file to store the paths to the fastq files in $fastq_directory
-    
-    if [ $force == true ] && [ $cores -eq 24 ]; then 
-        echo "call made to execute code: ./submit_methylseq $data_path $genetic_locations --force
-        " > $parameter_file
+    if [ log == "log_" ]; then
+        parameter_file="${output_path}/Parameters/${now}_parameters.txt" #give a path to a file to store the paths to the fastq files in $fastq_directory
+    else
+        parameter_file="${log_name}${now}_parameters.txt"
     fi
     
-    if [ $force != true ] && [ $cores -ne 24 ]; then 
-        echo "call made to execute code: ./submit_methylseq $data_path $genetic_locations --cores $cores
-        " > $parameter_file
+    if [ $force == true ] || [ $cores -ne 24 ] || [ log_name != "log_" ]; then
+        if [ $force == true ]; then
+            set_force="--force"
+        fi
+        if [ $cores -ne 24 ]; then
+            set_cores="--cores ${cores}"
+        fi
+        if [ $log_name != "log_" ]; then
+            set_long="--log_name ${log_name}"
+        fi
     fi
-    
-     if [ $force == true ] && [ $cores -ne 24 ]; then 
-        echo "call made to execute code: ./submit_methylseq $data_path $genetic_locations --force --cores $cores
-        " > $parameter_file
-    fi
-    
-     if [ $force != true ] && [ $cores -eq 24 ]; then 
-        echo "call made to execute code: ./submit_methylseq $data_path $genetic_locations
-        " > $parameter_file
-    fi
+        
+    echo "call made to execute code: $0 $1 $2 $3 $set_force $set_cores $set_long
+    " > $parameter_file
         
     echo "location of file with genome directions: $genetic_locations
     " >> $parameter_file
