@@ -21,6 +21,7 @@ main_genome=$8
 chmod 775 $main_genome
 phix_path=$9
 cores="${10}"
+params_file=$11
 
 
 #define the fastq file path
@@ -108,10 +109,46 @@ echo "temp_path is $temp_path"
 #set variables to use
 R1="${sample_name}_R1_001.fastq.gz"
 R2="${sample_name}_R2_001.fastq.gz"
-read1_trimmed=$(echo $R1 | sed 's/fastq.gz/trimmed.fastq.gz/')
-read2_trimmed=$(echo $R2 | sed 's/fastq.gz/trimmed.fastq.gz/')
+read1_trimmed=$(cat $R1 | sed 's/fastq.gz/trimmed.fastq.gz/')
+read2_trimmed=$(cat $R2 | sed 's/fastq.gz/trimmed.fastq.gz/')
 
 bash trim.sh -r $R1 -R $R2 -t $read1_trimmed T $read2_trimmed 
+
+
+
+#process all steps except for those associated with the primary genome, because those take the longest and should be done last
+#count only lines in params_file that aren't blank
+total_genomes=$(($(cat $params_file | sed '/^\s*$/d' | wc -l) / 3))
+total_non_primary_genomes=$((total_genomes - 1))
+#index=1
+#sed "${NUM}q;d" $params_file
+#cat $params_file | sed -n 1p
+#cat $params_file | sed -n "${i}p"
+
+
+#for ((i=1; i<=$total_non_primary_genomes; i++)); do
+#ensures this won't fail when only the primary genome is used! It should skip this if the primary genome is all there is to do.
+if [ total_genomes > 1 ]; then
+    for i in {1..total_non_primary_genomes}; do
+        genome_name=$(cat $params_file | sed -n "$((${i}))p")
+        genome_fasta_path=$(cat $params_file | sed -n "$((${i} + 1))p")
+        deduplicate=$(cat $params_file | sed -n "$((${i} + 2))p")
+
+        #TO DO: fill in output directory in a way that utilizes genome_name !
+        output_directory=
+
+        #map to the genome path
+        bash map_and_deduplicate.sh -t $read1_trimmed -T $read2_trimmed -g $genome_fasta_path -o $output_directory -c $cores -d false
+
+
+
+    done
+fi
+
+
+
+
+
 
 
 #####################previously map_to_control_seqs.sh###########################
