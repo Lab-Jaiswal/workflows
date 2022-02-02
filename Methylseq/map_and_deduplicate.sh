@@ -63,7 +63,7 @@ fi
 #deduplicate step
 
 #check if deduplication is wanted
-if [ "$deduplicate" == "True" ] || [ "$deduplicate" == "true" ]
+if [ "$deduplicate" == "True" ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "TRUE" ]
 	then
 		echo ""
 		echo "Deduplication requested for mapping output of $(basename "$read1") and $(basename "$read2") to genome $genome_fasta_path"

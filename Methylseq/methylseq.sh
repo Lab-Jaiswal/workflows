@@ -46,11 +46,11 @@ rsync -vur "$data_path/fastq/" $temp_path
 echo "FASTQs have been copied to the temporary file"
 
 echo "copying reference transcriptome..."
-mkdir /tmp/genomes
-mkdir -p /tmp/genomes/main_genome
-mkdir -p /tmp/genomes/unmethyl_genome
-mkdir -p /tmp/genomes/hydroxy_genome
-mkdir -p /tmp/genomes/methyl_genome
+# mkdir /tmp/genomes
+# mkdir -p /tmp/genomes/main_genome
+# mkdir -p /tmp/genomes/unmethyl_genome
+# mkdir -p /tmp/genomes/hydroxy_genome
+# mkdir -p /tmp/genomes/methyl_genome
 rsync -vur "$main_genome/" "$temp_path/main_genome"
 rsync -vur "$unmethyl_control_fasta/" "$temp_path/unmethyl_genome"
 rsync -vur "$hydroxymethyl_control_fasta/" "$temp_path/hydroxymethyl_genome"
@@ -60,7 +60,7 @@ echo "Transcriptomes have been copied to the temporary file directory"
 
 module load bismark/0.22.3
 module load samtools/1.9
-"Bismark and samtools modules have been loaded"
+echo "Bismark and samtools modules have been loaded"
 
 R1="${fastq_temp}_R1_001.fastq.gz"
 R2="${fastq_temp}_R2_001.fastq.gz"
@@ -120,13 +120,10 @@ bash trim.sh -r $R1 -R $R2 -t $read1_trimmed T $read2_trimmed
 #count only lines in params_file that aren't blank
 total_genomes=$(($(cat $params_file | sed '/^\s*$/d' | wc -l) / 3))
 total_non_primary_genomes=$((total_genomes - 1))
-#index=1
-#sed "${NUM}q;d" $params_file
-#cat $params_file | sed -n 1p
-#cat $params_file | sed -n "${i}p"
 
+current_write_path="/"
+echo "Current output directory is: $current_write_path"
 
-#for ((i=1; i<=$total_non_primary_genomes; i++)); do
 #ensures this won't fail when only the primary genome is used! It should skip this if the primary genome is all there is to do.
 if [ total_genomes > 1 ]; then
     for i in {1..total_non_primary_genomes}; do
@@ -134,11 +131,15 @@ if [ total_genomes > 1 ]; then
         genome_fasta_path=$(cat $params_file | sed -n "$((${i} + 1))p")
         deduplicate=$(cat $params_file | sed -n "$((${i} + 2))p")
 
+        #move genome to temp directory and update the path to the genome
+
         #TO DO: fill in output directory in a way that utilizes genome_name !
-        output_directory=
+        output_directory="$current_write_path/$genome_name"
 
         #map to the genome path
-        bash map_and_deduplicate.sh -t $read1_trimmed -T $read2_trimmed -g $genome_fasta_path -o $output_directory -c $cores -d false
+        bash map_and_deduplicate.sh -t $read1_trimmed -T $read2_trimmed -g $genome_fasta_path -o $output_directory -c $cores -d $deduplicate
+
+        #extract methylation
 
 
 
