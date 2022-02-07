@@ -4,45 +4,40 @@
 
 #TO DO: test all the paths in this script!
 
-while getopts b:o: flag
-do
-    case "${flag}" in
-        b) bam=${OPTARG};;
-        o) output_directory=${OPTARG};;
-    esac
-done
-
+sort_input=$1
+index_input=$2
+index_output=$3
+output_directory=$4
 
 module load samtools/1.9
 
+
 #TO DO: add code to check all inputs are present and if not to give error message with help information about all the script inputs
 
-echo ""
 echo "sort_and_index command used:"
 echo "$0 -b $bam -o $output_directory"
 echo ""
 
-expected_sorted_output="${output_directory}/$(basename "$bam" ".bam").sorted.bam"
-echo "Expected sorted output file is '$expected_sorted_output'"
+echo "Expected sorted output file is '$index_input'"
 
-if [ ! -f "${output_directory}/$(basename "$bam" ".bam").sorted.bam" ]
-	then
-    	echo "Starting to sort $(basename "$bam")"
-    	#cd "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
-        #echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.deduplicated.bam.sorted.bam does not yet exist"
-    	samtools sort $bam -o $expected_sorted_output
-    	echo "Finished sorting $(basename "$bam")"
-    	echo "Starting to index $(basename "$expected_sorted_output")"
-    	samtools index $expected_sorted_output
-    	echo "Finished indexing $(basename "$expected_sorted_output")"
-
-    	#rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/ $seq_path
-    	echo "Sorting and indexing complete for the bam file $bam"
-	else
-    	echo "Sorted file already exists (and likely an indexed file too) for $bam"
+if [ ! -f "$index_input" ]; then
+    echo "Starting to sort $(basename "$sort_input")"
+    samtools sort $sort_input -o $index_input
+    echo "sorting of $sort_input is complete"
+else
+    echo "sorting of $(basename "$sort_input") already complete"
 fi
 
+if  [ -f "$index_output" ]; then
+    echo "Starting to index $(basename "$index_input")"  
+    samtools index $index_input
+    echo "indexing of $(basename "$index_input") is complete"
+else
+    echo "sorting of $(basename "$index_input") already complete"
+fi
 
+    	
+    	
 
 
 
