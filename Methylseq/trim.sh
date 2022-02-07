@@ -2,7 +2,8 @@
 
 #script to trim paired reads with error checking code wrapped around it. 
 #Is set to autodetect cores available and use them.
-
+module load bismark/0.22.3
+module load samtools
 while getopts r:R:t:T: flag
 do
     case "${flag}" in
@@ -59,17 +60,3 @@ fi
 
 #TO DO: #test code: bash trim.sh -r hi -R yo -t dude -T pumpkin
 #should output that it is trimming the files. it's looking for the relative path . which exists always. It should trim and output the trimmed files to the current working directory.
-
-
-
-
-
-
-
-
-
- 
-
-
-
-
