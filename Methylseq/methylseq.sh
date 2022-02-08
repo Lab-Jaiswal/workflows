@@ -119,31 +119,33 @@ echo "output_path: $output_path"
         genome_name=$(sed -n ${number1}'p' $genetic_locations)
         genome_fasta_path=$(sed -n ${number2}'p' $genetic_locations)
         deduplicate=$(sed -n ${number3}'p' $genetic_locations)
-            
+
+        k=$(bc -l <<< "scale=0; ($i + 1)")
+
+        echo "LOOP $k INFORMATION:
+                genome name: $genome_name
+                genome fasta path: $genome_fasta_path
+                deduplicate status: $deduplicate
+                " >> $parameter_file
+
+         echo "LOOP $k INFORMATION:
+                genome name: $genome_name
+                genome fasta path: $genome_fasta_path
+                deduplicate status: $deduplicate "            
+        
         output_temp_directory=$(find $temp_path -type d -name "$genome_name")
         output_directory=$(find $initial_path -type d -name "$genome_name")
             
-        echo "output_temp_directory:" $output_temp_directory
-        echo "output_directory:" $output_directory
-
         j=$(bc -l <<< "scale=0; ($i - 1)")
-        echo "j: $j"
 
         if [ $j -gt -1 ]; then            
             number4=$(bc -l <<< "scale=0; (($j * 3) +1)")
             genome_name_input=$(sed -n ${number4}'p' $genetic_locations)
             input_directory=$(find $initial_path -type d -name "$genome_name_input")
-
             input_temp_directory=$(find $temp_path -type d -name "$genome_name_input")
-            echo "input_temp_directory:" $input_temp_directory
-            echo "input_directory:" $input_directory
         else
             input_temp_directory=$temp_path
-            echo "input_temp_directory:" $input_temp_directory
-            echo "input_directory:" $input_directory
         fi
-        echo "input_temp_directory:" $input_temp_directory
-            echo "input_directory:" $input_directory
 
         rsync -vur "$genome_fasta_path/" "$temp_path/${genome_name}_fasta"
 
@@ -151,6 +153,7 @@ echo "output_path: $output_path"
         
         read1_addition="_unmapped_reads_1.fq.gz"
         read2_addition="_unmapped_reads_2.fq.gz"
+        bismark_addition="_unmapped_reads_1"
         #level=$(printf -v output '%*s' "$level")
 
         echo "level: $i"  
@@ -169,7 +172,8 @@ echo "output_path: $output_path"
             read2_trimmed="${sample_name}_R2_001.trimmed.fastq.gz"
             read1_filename="${read1_trimmed}${read1_ending}"
             read2_filename="${read2_trimmed}${read2_ending}"
-            bismark_output="${output_temp_directory}/${read1_filename}_bismark_bt2_PE_report.txt"
+            bismark_filename="${read1_ending}${bismark_addition}"
+            bismark_output="${output_temp_directory}/${bismark_filename}_bismark_bt2_PE_report.txt"
         fi
        
         read1_input="${input_temp_directory}/${read1_filename}"
@@ -195,7 +199,7 @@ echo "output_path: $output_path"
             cores: $cores 
             deduplicate: $deduplicate 
             genome_name: $genome_name"
-        ${code_directory}/map_and_deduplicate.sh $read1_input $read2_input $bismark_output $dedup_input $dedup_output $temp_genome $output_temp_directory $input_temp_directory $cores $deduplicate $genome_name
+        ${code_directory}/map_and_deduplicate.sh $read1_input $read2_input $bismark_output $dedup_input $dedup_output $temp_genome $output_temp_directory $cores $deduplicate
         rsync -vur $output_temp_directory/ $output_directory
 
         if [ $deduplicate == TRUE ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "TRUE" ]; then
