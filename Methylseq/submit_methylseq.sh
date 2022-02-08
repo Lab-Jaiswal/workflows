@@ -68,12 +68,12 @@ else
 
     if [ ! -d "$initial_path/Logs" ]; then
         
-        mkdir "$initial_path/Logs"
+        mkdir -p "$initial_path/Logs"
     fi
 Logs="${initial_path}/Logs"
 
     if [ ! -d "$initial_path/Parameters" ]; then
-        mkdir "$initial_path/Parameters"
+        mkdir -p "$initial_path/Parameters"
     fi
 Parameters="${initial_path}/Parameters"
 
