@@ -172,8 +172,9 @@ echo "output_path: $output_path"
             read2_trimmed="${sample_name}_R2_001.trimmed.fastq.gz"
             read1_filename="${read1_trimmed}${read1_ending}"
             read2_filename="${read2_trimmed}${read2_ending}"
-            bismark_filename="${read1_ending}${bismark_addition}"
-            bismark_output="${output_temp_directory}/${bismark_filename}_bismark_bt2_PE_report.txt"
+            bismark_file=$(echo $read1_filename | sed 's/\(.*\).fq.gz/\1/')
+            bismark_filename="${bismark_file}_bismark_bt2_PE_report.txt"
+            bismark_output="${output_temp_directory}/${bismark_filename}"
         fi
        
         read1_input="${input_temp_directory}/${read1_filename}"
@@ -188,17 +189,20 @@ echo "output_path: $output_path"
           
         
         chmod 777 ${code_directory}/map_and_deduplicate.sh
-        echo "read1_input: $read1_input 
-            read2_input: $read2_input 
-            bismark_output:$bismark_output 
-            dedup_input: $dedup_input 
-            dedup_output: $dedup_output 
-            temp_genome: $temp_genome 
-            output_temp_directory: $output_temp_directory 
-            input_temp_directory: $input_temp_directory 
-            cores: $cores 
-            deduplicate: $deduplicate 
-            genome_name: $genome_name"
+        echo "arguments used for the map_and_deduplicate.sh script:
+                read1_input: $read1_input 
+                read2_input: $read2_input 
+                bismark_output:$bismark_output 
+                dedup_input: $dedup_input 
+                dedup_output: $dedup_output 
+                temp_genome: $temp_genome 
+                output_temp_directory: $output_temp_directory 
+                input_temp_directory: $input_temp_directory 
+                cores: $cores 
+                deduplicate: $deduplicate 
+                genome_name: $genome_name
+                " >> $parameter_file
+
         ${code_directory}/map_and_deduplicate.sh $read1_input $read2_input $bismark_output $dedup_input $dedup_output $temp_genome $output_temp_directory $cores $deduplicate
         rsync -vur $output_temp_directory/ $output_directory
 
@@ -213,26 +217,31 @@ echo "output_path: $output_path"
         fi
 
         chmod 777 ${code_directory}/sort_and_index.sh
+
+        echo "arguments used for the sort_and_index.sh script:
+                sort_input: $sort_input
+                index_input: $index_input
+                index_output: $index_output
+                output_temp_directory: $output_temp_directory
+                " >> $parameter_file
+        
         ${code_directory}/sort_and_index.sh $sort_input $index_input $index_output $output_temp_directory
         rsync -vur $output_temp_directory/ $output_directory
 
 
-        if [ $deduplicate == TRUE ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "TRUE" ] ; then
-            bismark_input=$index_input
-            bismark_output=$(echo $bismark_output | sed 's/PE_report.txt/pe_splitting_report.txt/')
-        else
-            bismark_input=$index_input
-            bismark_output=$(echo $bismark_output | sed 's/PE_report.txt/pe_splitting_report.txt/')
-        fi
-
+        bismark_input=$index_input
+        bismark_methyl_output=$(echo $bismark_output | sed 's/PE_report.txt/pe_splitting_report.txt/')
+        
         chmod 777 ${code_directory}/extract_methyl.sh
-        echo "${code_directory}/extract_methyl.sh 
-        bismark input: $bismark_input 
-        bismark_output: $bismark_output
-        output_temp: $output_temp_directory 
-        temp_genome: $temp_genome 
-        cores: $cores"
-        ${code_directory}/extract_methyl.sh $bismark_input $bismark_output $output_temp_directory $temp_genome $cores
+        echo "arguments used for extract_methyl.sh script:
+                bismark input: $bismark_input 
+                bismark_methyl_output: $bismark_output
+                output_temp: $output_temp_directory 
+                temp_genome: $temp_genome 
+                cores: $cores
+                " >> $parameter_file
+        
+        ${code_directory}/extract_methyl.sh $bismark_input $bismark_methyl_output $output_temp_directory $temp_genome $cores
         rsync -vur $output_temp_directory/ $output_directory
 
     done
