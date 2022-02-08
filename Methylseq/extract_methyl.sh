@@ -22,7 +22,7 @@ module load bismark/0.22.3
 
 if [ ! -f $bismark_output ]; then  
         echo "$bismark_output does not exist yet"
-    bismark_methylation_extractor --gzip --cytosine_report --bedGraph --genome_folder "$genome_fasta_path" $bismark_input --multicore $cores
+    bismark_methylation_extractor --gzip --cytosine_report --bedGraph --genome_folder "$genome_fasta_path" $bismark_input -o $output_directory --multicore $cores
         echo "extract_methylation_controls complete for unmethyl control"
 else
     echo "methylation control extraction for the unmethyl control found and already created"
