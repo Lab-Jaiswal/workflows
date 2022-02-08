@@ -27,9 +27,3 @@ if [ ! -f $bismark_output ]; then
 else
     echo "methylation control extraction for the unmethyl control found and already created"
 fi
-
-
-
-
-
-
