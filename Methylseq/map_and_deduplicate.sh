@@ -2,21 +2,6 @@
 
 #script to map to genome using Bismark and optionally deduplicate the output from mapping.
 
-#while getopts t:T:g:o:c:d: flag
-#do
-    #case "${flag}" in
-        #t) read1_trimmed=${OPTARG};;
-        #T) read2_trimmed=${OPTARG};;
-        #g) genome_fasta_path=${OPTARG};;
-        #o) output_directory=${OPTARG};;
-        #c) cores=${OPTARG};;
-        #d) deduplicate=${OPTARG};;
-        #l) level=${OPTARG};;
-        #n) genome_name=${OPTARG};;
-
-    #esac
-#done
-
 echo "entered map_and_deduplicate script"
 
 read1_input=$1
@@ -26,10 +11,8 @@ dedup_input=$4
 dedup_output=$5
 genome_fasta_path=$6
 output_directory=$7
-input_directory=$8
-cores=$9
-deduplicate=${10}
-genome_name_output=${11}
+cores=$8
+deduplicate=$9
 
 echo "read1_input=$1
 read2_input=$2
@@ -38,10 +21,9 @@ dedup_input=$4
 dedup_output=$5
 genome_fasta_path=$6
 output_directory=$7
-input_directory=$8
-cores=$9
-deduplicate=${10}
-genome_name_output=${11}" 
+cores=$8
+deduplicate=$9
+"
 #echo "mapping command used:"
 #echo "$0 -t $read1_trimmed -T $read2_trimmed -g $genome_fasta_path -o $output_directory -c $cores -d $deduplicate -l $level" 
 #echo ""
