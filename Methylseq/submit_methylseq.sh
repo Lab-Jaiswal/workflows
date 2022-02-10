@@ -185,9 +185,9 @@ Parameters="${initial_path}/Parameters"
     echo "array length: $array_length
     " >> $parameter_file
    
-    #picard=$(find "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment" -type f | grep ".*\.bam_picard_insert_size_plot.pdf$" | sort -u | wc -l)
+    picard=$(find "$output_path" -type f | grep ".*\.bam_picard_insert_size_plot.pdf$" | sort -u | wc -l)
     
-    #if [[ $picard -lt 1 ]] || [[ $force = true ]]; then
+    if [[ $picard -lt 1 ]] || [[ $force = true ]]; then
     echo "output_path: $output_path"
             echo "methylseq.sh running"
             sbatch -o "$Logs/${log_name}_%A_%a.log" `#put into log` \
@@ -198,9 +198,9 @@ Parameters="${initial_path}/Parameters"
 
             wait
             echo "methylseq.sh complete"
-        #else
-            #echo "picard files already created, methylseq.sh skipped"
-    #fi
+        else
+            echo "picard files already created, methylseq.sh skipped"
+    fi
 
 #####################previously report_controls.sh################################
 ################################################################################
@@ -208,7 +208,7 @@ Parameters="${initial_path}/Parameters"
 for i in $(seq 0 $total_non_primary_genomes); do
         number1=$(bc -l <<< "scale=0; (($i * 3) +1)")
         genome_name=$(sed -n ${number1}'p' $genetic_locations)
-        output_path=${output_path}/${genome_name}
+        #output_path=${initial_path}/${genome_name}
         
         echo "parameters:$genome_name
                             ${genome_fasta_path}
@@ -224,8 +224,9 @@ for i in $(seq 0 $total_non_primary_genomes); do
 
 
     if [ ! -f $bismark_summary ]; then
-        cd $
+        cd $output_directory
             echo "$bismark_summary does not exist yet"
+        module load bismark
         bismark2report
         bismark2summary
     fi
