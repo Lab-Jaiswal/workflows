@@ -54,15 +54,18 @@ module load bismark/0.22.3
 		fi
 
 	
-if [ "$deduplicate" == "True" ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "TRUE" ]; then
+if [ "$deduplicate" == "TRUE" ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "True" ]; then
 		echo "Deduplication requested for mapping output of $(basename "$read1_input") and $(basename "$read2_input") to genome $genome_fasta_path"
 		#TO DO: this path needs to be checked that it is correct!
 		echo "Expected deduplication output file is $dedup_output"
-		
+	
+        
 		if [ ! -f "$dedup_output" ]; then
-				echo "Begin deduplicating $deduplicate_input"
-            	deduplicate_bismark -p --bam $deduplicate_input
-            	echo "Finished deduplicating $deduplicate_input"
+                cd $output_directory
+                deduplication_input=$(basename $dedup_input)
+				echo "Begin deduplicating $dedup_input"
+            	deduplicate_bismark -p --bam $dedup_input -o $dedup_input
+            	echo "Finished deduplicating $dedup_input"
         fi
     
     else        
