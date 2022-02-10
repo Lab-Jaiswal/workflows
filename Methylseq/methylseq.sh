@@ -107,7 +107,7 @@ chmod 777 ${code_directory}/map_and_deduplicate.sh
 ####################################---STEP 5: PREVIOUSLY map_to_control_seqs.sh---###############################################
 ##################################################################################################################################
 line_count=$( wc -l < "${genetic_locations}" )
-total_non_primary_genomes=$(bc -l <<< "scale=0; ($line_count / 3)")
+total_non_primary_genomes=$(bc -l <<< "scale=0; (($line_count / 3) - 1)")
 
 echo "output_path: $output_path"
 #if [ total_non_primary_genomes -ge 1 ]; then
