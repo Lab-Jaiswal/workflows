@@ -18,7 +18,7 @@ cores=$cores
 "
 
 module load bismark/0.22.3
-
+#cd $output_directory
 
 if [ ! -f $bismark_output ]; then  
         echo "$bismark_output does not exist yet"
@@ -27,3 +27,9 @@ if [ ! -f $bismark_output ]; then
 else
     echo "methylation control extraction for the unmethyl control found and already created"
 fi
+
+
+
+
+
+
