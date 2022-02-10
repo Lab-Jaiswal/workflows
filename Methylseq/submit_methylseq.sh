@@ -1,4 +1,11 @@
 #!/bin/bash
+
+#SBATCH --time=72:00:00
+#SBATCH --account=sjaiswal
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=256GB
+#SBATCH --job-name=submit_methylseq
+
 ##################################################################################################################################
 #############################################---STEP 1: SET UP PARAMETERS---###################################################### 
 ##################################################################################################################################
@@ -60,7 +67,9 @@ else
     #fi
 
     
-    code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+    #code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+    working_directory=$( realpath . )
+    code_directory="${working_directory}"
 
 ##################################################################################################################################
 #######################################---STEP 2: CREATE NECESSARY FOLDERS---#####################################################
@@ -196,60 +205,31 @@ Parameters="${initial_path}/Parameters"
 #####################previously report_controls.sh################################
 ################################################################################
 
-exit 1
-module load bismark
-    if [ ! -f "$output_path/$unmethyl_control/bismark_summary_report.txt" ]; then 
-        cd $output_path/$unmethyl_control
-            echo "$output_path/$unmethyl_control/bismark_summary_report.txt does not exist yet"
-        #http://felixkrueger.github.io/Bismark/Docs/
-        #bismark report options:
-        #--alignment_report FILE
-        #--dedup_report FILE
-        #--splitting_report FILE
-        #--mbias_report FILE
-        #--nucleotide_report FILE
+for i in $(seq 0 $total_non_primary_genomes); do
+        number1=$(bc -l <<< "scale=0; (($i * 3) +1)")
+        genome_name=$(sed -n ${number1}'p' $genetic_locations)
+        output_path=${output_path}/${genome_name}
         
-        #https://rawgit.com/FelixKrueger/Bismark/master/Docs/Bismark_User_Guide.html
+        echo "parameters:$genome_name
+                            ${genome_fasta_path}
+                            deduplicate: $deduplicate"   
+        echo "parameters:$genome_name
+                            ${genome_fasta_path}
+                            deduplicate: $deduplicate
+                            " >> $parameter_file             
+   
+    output_directory=$(find $initial_path -type d -name "$genome_name")
+    
+    bismark_summary="${output_directory}/bismark_summary_report.txt" 
+
+
+    if [ ! -f $bismark_summary ]; then
+        cd $
+            echo "$bismark_summary does not exist yet"
         bismark2report
         bismark2summary
-        #need to specify a nucleotide coverage report file in the above command!
-            echo "created report for unmethyl control"
-    else 
-            echo "bismark summary already completed for unmethyl control"
-    fi
-        
-    if [ ! -f "$output_path/$unmethyl_control/$hydroxymethyl_control/bismark_summary_report.txt" ]; then
-        cd $output_path/$unmethyl_control/$hydroxymethyl_control
-            echo "$output_path/$unmethyl_control/$hydroxymethyl_control/bismark_summary_report.txt does not exist yet"
-        bismark2report
-        bismark2summary
-        #need to specify a nucleotide coverage report file in the above command! ^
-            echo "created report for hydroxymethyl control"
-    else
-        echo "bismark summary already completed for hydroxymethyl control"
     fi
 
-    if [ ! -f "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/bismark_summary_report.txt" ]; then
-        cd $output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control
-            echo "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/bismark_summary_report.txt does not exist yet"
-        bismark2report
-        bismark2summary
-        #need to specify a nucleotide coverage report file in the above command! ^
-            echo "created report for methyl control"
-    else
-        echo "bismark summary already completed for methyl control"
-    fi
+done
 
-    echo "report_controls complete for unmethyl, hydroxymethyl, and methyl control sequences"
-
-    if [ ! -f "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/bismark_summary_report.txt" ]; then 
-        #https://rawgit.com/FelixKrueger/Bismark/master/Docs/Bismark_User_Guide.html
-        cd $output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment
-            echo "$output_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/bismark_summary_report.txt does not exist yet"
-        bismark2report
-        bismark2summary
-            echo "report complete"
-    else
-        echo "bismark summary found and already created for genome alignment"
-    fi
-fi 
+fi
