@@ -132,6 +132,7 @@ echo "output_path: $output_path"
                 genome name: $genome_name
                 genome fasta path: $genome_fasta_path
                 deduplicate status: $deduplicate "            
+       
         
         output_temp_directory=$(find $temp_path -type d -name "$genome_name")
         output_directory=$(find $initial_path -type d -name "$genome_name")
@@ -230,12 +231,12 @@ echo "output_path: $output_path"
 
 
         bismark_input=$index_input
-        bismark_methyl_output=$(echo $bismark_output | sed 's/PE_report.txt/pe_splitting_report.txt/')
+        bismark_methyl_output=$(echo $bismark_input | sed 's/\(.*\).bam/\1_splitting_report.txt/')
         
         chmod 777 ${code_directory}/extract_methyl.sh
         echo "arguments used for extract_methyl.sh script:
                 bismark input: $bismark_input 
-                bismark_methyl_output: $bismark_output
+                bismark_methyl_output: $bismark_methyl_output
                 output_temp: $output_temp_directory 
                 temp_genome: $temp_genome 
                 cores: $cores
@@ -244,21 +245,16 @@ echo "output_path: $output_path"
         ${code_directory}/extract_methyl.sh $bismark_input $bismark_methyl_output $output_temp_directory $temp_genome $cores
         rsync -vur $output_temp_directory/ $output_directory
 
-    done
-#fi
+    done 
 
-
-
-exit 1
 ##################################################################################################################################
 ##################################---STEP 10: PREVIOUSLY insert_size_analysis.sh---###############################################
 ##################################################################################################################################
-if [ ! -f "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam_picard_insert_size_plot.pdf" ]; then 
-   cd "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment"
-        echo "$temp_path/$unmethyl_control/$hydroxymethyl_control/$methyl_control/genome_alignment/${trimmed_R1_file_name}.fastq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1.fq.gz_unmapped_reads_1_bismark_bt2_pe.bam_picard_insert_size_plot.pdf"
+picard_output="${dedup_input}_picard_insert_size_plot.pdf"
+if [ ! -f $dedup_input ]; then 
     module load R
     module load picard/2.9.5
-    picard CollectInsertSizeMetrics INPUT=$trimmed_genome_R1_bam OUTPUT=$trimmed_genome_R1_bam\_picard_insert_size_metrics.txt HISTOGRAM_FILE=$trimmed_genome_R1_bam\_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
+    picard CollectInsertSizeMetrics INPUT=$dedup_input OUTPUT=$dedup_input\_picard_insert_size_metrics.txt HISTOGRAM_FILE=$dedup_input\_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
         echo "picard insert_size_analysis complete"
     #copy files back to seq_path directory
     rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/$unmethyl_control/ $output_path/$unmethyl_control
