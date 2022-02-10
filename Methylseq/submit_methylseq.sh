@@ -121,7 +121,7 @@ Parameters="${initial_path}/Parameters"
     echo "location of file with genome directions: $genetic_locations
     " >> $parameter_file
 
-    total_non_primary_genomes=$(bc -l <<< "scale=0; ($line_count / 3)")
+    total_non_primary_genomes=$(bc -l <<< "scale=0; (($line_count / 3) - 1)")
     #total_non_primary_genomes=$(bc -l <<< "scale=0; (($line_count / 3) - 1)")
     echo "number of control genomes provided: $total_non_primary_genomes
     " >> $parameter_file
