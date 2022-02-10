@@ -38,19 +38,14 @@ else
     data_path=$1                                                                             
     output_path=$2
     initial_path=$output_path
-    if [[ "$inital_path" != */ ]]; then 
-           path_dot="${initial_path}/."
-       else
-        path_dot="${initial_path}."
-    fi
-    echo "path_dot: $path_dot"
-
-    echo "inital path: $initial_path"
-    genetic_csv=$3
-    dirname_genetic_csv=$(dirname $genetic_csv)
     
-    genetic_locations="${dirname_genetic_csv}/genetic_locations.txt"
-    cat $genetic_csv | tr  ',' '\n' > $genetic_locations
+    echo "inital path: $initial_path"
+    #genetic_csv=$3
+    #dirname_genetic_csv=$(dirname $genetic_csv)
+    
+    #genetic_locations="${dirname_genetic_csv}/genetic_locations.txt"
+    #cat $genetic_csv | tr  ',' '\n' > $genetic_locations
+    genetic_locations=$3
     echo $genetic_locations
     
 
