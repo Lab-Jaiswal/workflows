@@ -207,6 +207,8 @@ echo "output_path: $output_path"
         ${code_directory}/map_and_deduplicate.sh $read1_input $read2_input $bismark_output $dedup_input $dedup_output $temp_genome $output_temp_directory $cores $deduplicate
         rsync -vur $output_temp_directory/ $output_directory
 
+        cd ${code_directory}
+
         if [ $deduplicate == TRUE ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "TRUE" ]; then
             sort_input=$(echo $bismark_output | sed 's/PE_report.txt/pe.deduplicated.bam/')
             index_input="${dedup_output}.sorted.bam"
@@ -251,13 +253,13 @@ echo "output_path: $output_path"
 ##################################---STEP 10: PREVIOUSLY insert_size_analysis.sh---###############################################
 ##################################################################################################################################
 picard_output="${dedup_input}_picard_insert_size_plot.pdf"
-if [ ! -f $dedup_input ]; then 
+if [ ! -f $picard_output ]; then 
     module load R
     module load picard/2.9.5
     picard CollectInsertSizeMetrics INPUT=$dedup_input OUTPUT=$dedup_input\_picard_insert_size_metrics.txt HISTOGRAM_FILE=$dedup_input\_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
         echo "picard insert_size_analysis complete"
     #copy files back to seq_path directory
-    rsync -vur --exclude "main_genome" --exclude "unmethyl_genome" --exclude "hydroxymethyl_genome" --exclude "methyl_genome" $temp_path/$unmethyl_control/ $output_path/$unmethyl_control
+    rsync -vur $output_temp_directory/ $output_directory
 else
     echo "picard insert size analysis already complete"
 fi
