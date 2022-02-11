@@ -10,6 +10,8 @@ input_directory=$1
 output_directory=$2
 cores=8
 
-bash bcl_to_fastq.sh -i $input_directory -o $output_directory -p $cores
+script_directory=$(dirname "$0")
+
+bash "${script_directory}/bcl_to_fastq.sh" -i $input_directory -o $output_directory -p $cores
 
 
