@@ -15,7 +15,7 @@ done
 
 echo ""
 echo "bcl_to_fastq.sh command used:"
-echo "$0 -i $input_directory -o $output_directory -p $processing_threads"
+echo "$0 -i $input_directory -o $output_directory -p $processing_threads --no-lane-splitting"
 echo ""
 
 #TO DO: add code to check all inputs are present and if not to give error message with help information about all the script inputs
