@@ -98,7 +98,7 @@ echo $read2_trimmed
 
 if [ ! -f $read1_trimmed ]; then
     chmod 777 ${code_directory}/trim.sh
-    ${code_directory}/trim.sh -r $R1 -R $R2 -t $read1_trimmed T $read2_trimmed 
+    ${code_directory}/trim.sh -r $R1 -R $R2 -t $read1_trimmed -T $read2_trimmed 
 fi
 
 chmod 777 ${code_directory}/map_and_deduplicate.sh
