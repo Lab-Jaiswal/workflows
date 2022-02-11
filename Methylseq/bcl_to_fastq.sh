@@ -31,7 +31,7 @@ if [ ! -d "${output_directory}" ]
     echo "Starting to convert bcl files to fastq files for $input_directory"
     starting_directory=$(pwd)
     cd $input_directory
-    bcl2fastq -o $output_directory -p $processing_threads
+    bcl2fastq -o $output_directory -p $processing_threads --no-lane-splitting
     cd $starting_directory
     echo "Finished converting bcl files to fastq files for $input_directory"
     else
