@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --time=32:00:00
+#SBATCH --time=72:00:00
 #SBATCH --account=smontgom
 #SBATCH --partition=batch
 #SBATCH --cpus-per-task=20
