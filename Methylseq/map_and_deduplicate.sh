@@ -33,9 +33,9 @@ if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
 		deduplicate=${10}
 		parameter_file=${11}
 		" >> $parameter_file
+fi
 
-module load bismark/0.22.3
-        
+module load bismark/0.22.3        
 
 if [ ! -f $read1_bismark ]; then
 	echo "Expected mapping output file is $read1_bismark"
