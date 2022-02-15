@@ -147,29 +147,8 @@ for i in $(seq 0 $total_genomes); do
         
     dedup_input=$(echo $bismark_output | sed 's/PE_report.txt/pe.bam/')
     dedup_output=$(echo $bismark_output | sed 's/PE_report.txt/pe.deduplicated.bam/')
-
-    echo "read1_input: $read1_input
-    read2_input: $read2_input"
-        
-          
-    if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-        echo "arguments used for the map_and_deduplicate.sh script:
-                read1_input: $read1_input 
-                read2_input: $read2_input 
-                bismark_output:$bismark_output 
-                dedup_input: $dedup_input 
-                dedup_output: $dedup_output 
-                temp_genome: $temp_genome 
-                output_temp_directory: $output_temp_directory 
-                input_temp_directory: $input_temp_directory 
-                cores: $cores 
-                deduplicate: $deduplicate 
-                genome_name: $genome_name
-                " >> $parameter_file
-    fi
     
-    ${code_directory}/map_and_deduplicate.sh $read1_input $read2_input $bismark_output $dedup_input $dedup_output $temp_genome $output_temp_directory $cores $deduplicate
-    rsync -vur $output_temp_directory/ $output_directory
+    ${code_directory}/map_and_deduplicate.sh $read1_input $read2_input $bismark_output $dedup_input $dedup_output $temp_genome $output_temp_directory $output_directory $cores $deduplicate $parameter_file
 
     cd ${code_directory}
     
