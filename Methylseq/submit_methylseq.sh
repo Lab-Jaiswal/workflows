@@ -189,7 +189,7 @@ Parameters="${initial_path}/Parameters"
                     -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
                    -W `#indicates to the script not to move on until the sbatch operation is complete` \
                     "${code_directory}/methylseq.sh" \
-                    $data_path $output_path $genetic_locations $cores $log_name $parameter_file $code_directory $relative_path $Logs $parameter_file $initial_path
+                    $data_path $output_path $genetic_locations $cores $log_name $parameter_file $code_directory $Logs $parameter_file $initial_path
 
             wait
             echo "methylseq.sh complete"
