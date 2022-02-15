@@ -22,7 +22,6 @@ parameter_file=$9
 initial_path=${10}
 
 line_number=$SLURM_ARRAY_TASK_ID #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
-
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
     most_recent=$(ls $Logs -c | head -n 1 | sed 's/.*\///' | cut -d'_' -f1 | sed 's/[^0-9]*//g')
     if [ $most_recent -gt $SLURM_JOBID ]; then
@@ -36,7 +35,6 @@ fi
 
 fastq_file="${data_path}/fastq/FASTQs"                                                         #provide path to file containing list of fastq files
 fastq_path="$(sed "${line_number}q; d" $fastq_file)"                                           #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
-
 sample_name="${fastq_path##*/}"
 fastq_temp=$(basename "${fastq_path}")
 
@@ -45,21 +43,21 @@ total_genomes=$(bc -l <<< "scale=0; (($line_count / 3) - 1)")                   
 
 temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
 echo "temp_path is: " $temp_path
-
 echo "copying FASTQs from the data path..."                                                     #copy data from data_path to the temp_path
 rsync -vur "$data_path/fastq/" $temp_path
 
 cd $temp_path
 
 ##################################################################################################################################
-###########################################---STEP 3: LOAD MODULES---######################################################
+###########################################---STEP 2: LOAD MODULES---######################################################
 ##################################################################################################################################
 module load bismark/0.22.3
 module load samtools
 echo "Bismark and samtools modules have been loaded"
 
 ##################################################################################################################################
-###########################################---STEP 4: RUN trim.sh---######################################################
+###############################################---STEP 3: RUN trim.sh---##########################################################
+##########################################---Copy output data (if any exist)---###################################################
 ##################################################################################################################################
 read1="${temp_path}/${sample_name}_R1_001.fastq.gz"
 read2="${temp_path}/${sample_name}_R2_001.fastq.gz"
