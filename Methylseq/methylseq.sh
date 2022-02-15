@@ -162,33 +162,12 @@ for i in $(seq 0 $total_genomes); do
             index_output="${index_input}.bai"
     fi
 
-    if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-        echo "arguments used for the sort_and_index.sh script:
-                sort_input: $sort_input
-                index_input: $index_input
-                index_output: $index_output
-                output_temp_directory: $output_temp_directory
-                " >> $parameter_file
-    fi
-        ${code_directory}/sort_and_index.sh $sort_input $index_input $index_output $output_temp_directory
-        rsync -vur $output_temp_directory/ $output_directory
-
+    ${code_directory}/sort_and_index.sh $sort_input $index_input $index_output $output_temp_directory $output_directory $parameter_file
 
     bismark_input=$index_input
     bismark_methyl_output=$(echo $bismark_input | sed 's/\(.*\).bam/\1_splitting_report.txt/')
         
-    if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-        echo "arguments used for extract_methyl.sh script:
-        bismark input: $bismark_input 
-        bismark_methyl_output: $bismark_methyl_output
-        output_temp: $output_temp_directory 
-        temp_genome: $temp_genome 
-        cores: $cores
-        " >> $parameter_file
-    fi
-        
-    ${code_directory}/extract_methyl.sh $bismark_input $bismark_methyl_output $output_temp_directory $temp_genome $cores
-    rsync -vur $output_temp_directory/ $output_directory
+    ${code_directory}/extract_methyl.sh $bismark_input $bismark_methyl_output $output_temp_directory $output_directory $temp_genome $cores $parameter_file
 
 done 
 
