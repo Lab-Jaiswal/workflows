@@ -32,11 +32,8 @@ if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
         echo "log file name ${log_name}_${SLURM_JOB_ID}_#.log"
         >> $parameter_file
     fi
-fi
+fi 
 
-##################################################################################################################################
-############################################---STEP 2: COPY DATA TO TEMP PATH---####################################################### 
-##################################################################################################################################
 fastq_file="${data_path}/fastq/FASTQs"                                                         #provide path to file containing list of fastq files
 fastq_path="$(sed "${line_number}q; d" $fastq_file)"                                           #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
 
@@ -49,11 +46,8 @@ total_genomes=$(bc -l <<< "scale=0; (($line_count / 3) - 1)")                   
 temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
 echo "temp_path is: " $temp_path
 
-echo "copying FASTQs from the data path..."
+echo "copying FASTQs from the data path..."                                                     #copy data from data_path to the temp_path
 rsync -vur "$data_path/fastq/" $temp_path
-
-echo "copying data from the output file (if there is any)"
-rsync -vur --exclude "Logs" --exclude "Parameters" $initial_path/ $temp_path
 
 cd $temp_path
 
@@ -75,6 +69,9 @@ read2_trimmed=$(echo $R2 | sed 's/fastq.gz/trimmed.fastq.gz/')
 if [ ! -f $read1_trimmed ]; then
     ${code_directory}/trim.sh -r $read1 -R $read2 -t $read1_trimmed -T $read2_trimmed -o $data_path
 fi
+
+echo "copying data from the output file (if there is any)"                                      #copy data from output_path to temp_path
+rsync -vur --exclude "Logs" --exclude "Parameters" $initial_path/ $temp_path                    #done after trim.sh to simplify rsync step
 
 ##################################################################################################################################
 #########################################---STEP 5: RUN map_and_deduplicate.sh---#################################################
