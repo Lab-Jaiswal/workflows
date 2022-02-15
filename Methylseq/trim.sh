@@ -12,6 +12,7 @@ do
         t) read1_trimmed=${OPTARG};;
         T) read2_trimmed=${OPTARG};;
 	o) data_path=${OPTARG};;
+	p) parameter_file=${OPTARG};;
     esac
 done
 
