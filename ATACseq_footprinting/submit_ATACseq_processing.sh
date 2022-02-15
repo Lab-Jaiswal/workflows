@@ -1,11 +1,11 @@
 #!/bin/bash
 
 #pipeline in shell for ATACseq footprinting
-TEMP=`getopt -o vdm: --long gsize:,extsize:,shifts:,broad:,nomodel \
+TEMP=`getopt -o vdm: --long gsize:,extsize:,shifts:,broad:,nomodel:,blacklist \
     -n './submit_atacseq' -- "$@"`
 
    if [ $? != 0 ]; then
-       echo "Unrecognized argument. Possible arguments: --gize, --extsize, shifts, --broad true, --broad false, --nomodel true, --nomodel false." >&2 ; exit 1 ; 
+       echo "Unrecognized argument. Possible arguments: --gize, --extsize, shifts, --broad true, --broad false, --nomodel true, --nomodel false, --blacklist path_to_blacklist." >&2 ; exit 1 ; 
    fi
        eval set -- "$TEMP"
 
@@ -14,6 +14,7 @@ TEMP=`getopt -o vdm: --long gsize:,extsize:,shifts:,broad:,nomodel \
         shifts=100
         broad=true
         nomodel=true
+        blacklist="/oak/stanford/groups/sjaiswal/kameronr/ATACseq/blacklist/mm9-blacklist.bed.gz"
         
     while true; do
         case "$1" in
@@ -22,6 +23,7 @@ TEMP=`getopt -o vdm: --long gsize:,extsize:,shifts:,broad:,nomodel \
             --shifts ) shifts="$2"; shift 2 ;;
             --broad ) broad="$2"; shift 2 ;;
             --nomodel ) nomodel="$2"; shift 2 ;;
+            --blacklist ) blacklist="$2"; shift 2 ;;
             -- ) shift; break ;;
             * ) break ;;
         esac
@@ -75,20 +77,24 @@ module load samtools/1.9
 #this next line might not work? seems like a python command? https://www.biostars.org/p/173963/
 
 if [ ! -f $genome_folder/chromsizes.bed ]; then
+    cd $genome_folder
     samtools faidx mm9_bgzip.fa.gz
     cut -f1,2 mm9_bgzip.fa.gz.fai > sizes.genome
 
-    awk '{{ print $1, 0, $2 }}' chromsizes.txt > chromsizes.bed
+    cat chromsizes.txt | awk '{{ print $1, 0, $2 }}' | tr ' ' '\t' > chromsizes.bed
+
     echo "creation of chromosome-based coverage bed files complete"
 else
     echo "chromosome-based coverage bed files have already been created"
 fi
 
+whitelist=$genome_folder/chromsizes.bed
 
 ##################################################################################################################################
 #####################################---STEP 2: SORT, MERGE, AND INDEX BAM FILES---############################################### 
 ##########################################---CREATE COVERAGE BIGWIG TRACK---######################################################
 ############################################---PEAK CALLING WITH MACS2---#########################################################
+###########################################---REMOVE BLACKLISTED REGIONS---#######################################################
 ##################################################################################################################################
 cd $bam_path 
 bam_file="$bam_path/BAMs" #give a path to a file to store the paths to the bams files in $bam_directory
@@ -111,14 +117,14 @@ if ! [ -d "$bam_path/Logs" ]; then
     mkdir -p "$bam_path/Logs"
 fi
 
-bed_file=$(find "$bam_path/peak_calling" -type f | grep "raw.bed" | sort -u | wc -l)
+bed_file=$(find "$bam_path/peak_calling" -maxdepth 2 -type f | grep "raw.bed" | sort -u | wc -l)
 
 if [ $bed_file -lt 1 ]; then
          sbatch -o "${bam_path}/Logs/%A_%a.log" `#put into log` \
         -a "1-${array_length}" `#initiate job array equal to the number of bam files` \
         -W `#indicates to the script not to move on until the sbatch operation is complete` \
             "${code_directory}/ATACseq_processing.sh" \
-            $bam_path $gsize $extsize $shifts $broad $nomodel
+            $bam_path $gsize $extsize $shifts $broad $nomodel $blacklist $whitelist $genome_folder
         
         wait
     else
@@ -128,82 +134,28 @@ fi
 ##################################################################################################################################
 #########################---STEP 4: PEAK PROCESSING: REDUCE GENOMIC LOCATION COLUMNS AND SORT---################################## 
 ##################################################################################################################################
-#4a. reduce to genomic location columns, remove blacklisted regions, sort, then merge peaks per condition.
-for each condition OUTPUTDIR/peak_calling/{condition}/sample_id_raw.bed
-blacklist=$BLACKLIST
-whitelist=$OUTPUT_DIR/flatfiles/chromsizes.bed
+if [ ! -f "$bam_path/peak_calling/all_merged.bed" ]; then
+    temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
+    echo "temp_path is: " $temp_path
+    mkdir $temp_path
 
-cat OUTPUTDIR/peak_calling/{condition}/sample_id_raw.bed | cut -f1-3 | sort -k1,1 -k2,2n | bedtools merge -d 5 | bedtools substract -a - -b $blacklist -A | bedtools intersect -a - -b $whitelist -wa | awk '$1 !~ /[M]/' | awk '{{print $s\"\\t{wildcards.condition}\"}}' > $OUTPUTDIR/peak_calling/{condition}_union.bed
-#excludes mitochondria chromosome (M)
-#adds condition name to each peak
+    cat $bam_file | while read line; do 
+        PREFIX=$(basename $line)
+        chmod 775 $bam_path/peak_calling/$PREFIX/${PREFIX}_union.bed
+        cp $bam_path/peak_calling/$PREFIX/${PREFIX}_union.bed $temp_path
+    done
 
-#4b. Union peaks across all conditions.
-$OUTPUTDIR/peak_calling/{condition}_union.bed for each conditon 
-temp?
-$OUTPUTDIR/peak_calling/all_merged.tmp
-cat $OUTPUTDIR/peak_calling/{condition}_union.bed | sort -k1,1 -k2,2n | bedtools merge -d 5 -c 4 -o distinct > $OUTPUTDIR/peak_calling/all_merged.tmp
-
-
-#4c. get correct sorting of peak_names
-$OUTPUTDIR/peak_calling/all_merged.tmp
-peaks=$OUTPUTDIR/peak_calling/all_merged.bed
-
-python script:
-{
-		out = open($OUTPUTDIR/peak_calling/all_merged.bed, "w")
-		with open($OUTPUTDIR/peak_calling/all_merged.tmp) as f:
-			for line in f:
-				columns = line.rstrip().split("\t")
-
-				#Sort according to condition names
-				peak_ids = columns[3].split(",")
-				columns[3] = ",".join(sorted(peak_ids, key= lambda x: CONDITION_IDS.index(x)))
-
-				out.write("\t".join(columns) + "\n")
-		out.close()
-}
+    cd $temp_path
+    touch $temp_path/merged.txt
+    cat *.bed > $temp_path/merged.txt
+    cat merged.txt | tr ' ' '\t' | sort -k1,1 -k2,2n | bedtools merge -d 5 -c 4 -o distinct > all_merged.bed
+    cp $temp_path/all_merged.bed $bam_path/peak_calling/all_merged.bed
+    cd $bam_path
+    echo "merged union file complete"
+else
+    echo "creation of merged union file already finished"
+fi
 
 #4d. peak annotation. peaks per condition or across conditions, dependent on run info output
-
 #need to make .config file for uropa to use.
-python script:
-{
-		import json
-		config = {"queries":[
-					{"feature":"gene", "feature.anchor":"start", "distance":[10000,1000], "filter_attribute":"gene_biotype", "attribute_values":"protein_coding", "name":"protein_coding_promoter"},
-					{"feature":"gene", "distance":1, "filter_attribute":"gene_biotype", "attribute_values":"protein_coding", "internals":0.1, "name":"protein_coding_internal"},
-					{"feature":"gene", "feature.anchor":"start", "distance":[10000,1000], "name":"any_promoter"},
-					{"feature":"gene", "distance":1, "internals":0.1, "name":"any_internal"},
-					{"feature":"gene", "distance":[50000, 50000], "name":"distal_enhancer"},
-					],
-				"show_attributes":["gene_biotype", "gene_id", "gene_name"],
-				"priority":"True"
-				}
-
-		config["gtf"] = $GTF_PATH
-		config["bed"] = $OUTPUTDIR/peak_calling/all_merged.bed
-
-		string_config = json.dumps(config, indent=4)
-
-		config_file = open($OUTPUTDIR/peak_annotation/all_merged_annotated.config, "w")
-		config_file.write(string_config)
-		config_file.close()
-}
-
-
-
-$OUTPUTDIR/peak_annotation/all_merged_annotated.config
-log=$OUTPUTDIR/logs/uropa.log
-prefix=$OUTPUTDIR/peak_annotation/all_merged_annotated
-finalhits=$OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits.txt
-finalhits_sub=$OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits_sub.txt
-peaks=$OUTPUTDIR/peak_annotation/all_merged_annotated.bed
-header=$OUTPUTDIR/peak_annotation/all_merged_annotated_header.txt
-
-uropa --input $OUTPUTDIR/peak_annotation/all_merged_annotated.config --prefix $OUTPUTDIR/peak_annotation/all_merged_annotated --threads $threads_count --log $OUTPUTDIR/logs/uropa.log; 
-cut -f 1-4,7-13,16-19 $OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits.txt > $OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits_sub.txt;  #Get a subset of columns
-head -n 1 $OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits_sub.txt > $OUTPUTDIR/peak_annotation/all_merged_annotated_header.txt;  #header
-tail -n +2 $OUTPUTDIR/peak_annotation/all_merged_annotated_finalhits_sub.txt > $OUTPUTDIR/peak_annotation/all_merged_annotated.bed #bedlines
-
-
 #could later add expression information to each peaks if needed?
