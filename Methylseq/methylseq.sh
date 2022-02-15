@@ -73,7 +73,7 @@ read1_trimmed=$(echo $R1 | sed 's/fastq.gz/trimmed.fastq.gz/')
 read2_trimmed=$(echo $R2 | sed 's/fastq.gz/trimmed.fastq.gz/')
 
 if [ ! -f $read1_trimmed ]; then
-    ${code_directory}/trim.sh -r $read1 -R $read2 -t $read1_trimmed -T $read2_trimmed 
+    ${code_directory}/trim.sh -r $read1 -R $read2 -t $read1_trimmed -T $read2_trimmed -o $data_path
 fi
 
 ##################################################################################################################################
