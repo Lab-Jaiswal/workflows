@@ -16,7 +16,7 @@ cores=$9
 deduplicate=${10}
 parameter_file=${11}
 
-echo "trim command used the following parameters:
+echo "map_and_deduplicate command used the following parameters:
 $0 $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10} ${11}"
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
