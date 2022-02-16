@@ -38,55 +38,33 @@ else
     data_path=$1                                                                             
     output_path=$2
     initial_path=$output_path
-    
-    echo "inital path: $initial_path"
-    #genetic_csv=$3
-    #dirname_genetic_csv=$(dirname $genetic_csv)
-    
-    #genetic_locations="${dirname_genetic_csv}/genetic_locations.txt"
-    #cat $genetic_csv | tr  ',' '\n' > $genetic_locations
     genetic_locations=$3
-    echo $genetic_locations
-    
-
     line_count=$( wc -l < "${genetic_locations}" )
-    echo $line_count
     genome_count=$(bc -l <<< "scale=1; ($line_count / 3)")
-    #if [[ $genome_count == ?([-+])+([0-9])?(.*([1-9])) ]]; then
-        #echo "you must provide the genomes in the following form:
-            #genome_name
-            #genome_path
-            #TRUE or FALSE
-                #The value of the third line is TRUE if you want your data decuplicated and FALSE if you do not want your data deduplicated"
-        #exit 1
-    #fi
-
+    code_directory=$( realpath . )
     
-    #code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
-    working_directory=$( realpath . )
-    code_directory="${working_directory}"
-
 ##################################################################################################################################
 #######################################---STEP 2: CREATE NECESSARY FOLDERS---#####################################################
 ##################################################################################################################################
-
     if [ ! -d "$initial_path/Logs" ]; then
         
         mkdir -p "$initial_path/Logs"
     fi
-Logs="${initial_path}/Logs"
+        
 
     if [ ! -d "$initial_path/Parameters" ]; then
         mkdir -p "$initial_path/Parameters"
     fi
-Parameters="${initial_path}/Parameters"
+    
+    Logs="${initial_path}/Logs"
+    Parameters="${initial_path}/Parameters"
 
 ##################################################################################################################################
 #######################################---STEP 3: CREATE PARAMETER LOG---#####################################################
 ##################################################################################################################################
     now=$(date +%m_%d_%H_%M)
     if [ log == "log_" ]; then                                                             #give a path to a file to store the parameter files (so they are unique)
-        parameter_file="$Parameters/${now}_parameters.txt"                   #add date stamp to parameter files and, if provided, the log name
+        parameter_file="$Parameters/${now}_parameters.txt"                                 #add date stamp to parameter files and, if provided, the log name
     else
         parameter_file="$Parameters/${log_name}${now}_parameters.txt"
     fi
@@ -105,10 +83,10 @@ Parameters="${initial_path}/Parameters"
                                                                                                  #using traditional methods ($4, $5, etc.)     
 
     echo "location of scripts used to run code : $code_directory
-        " >> $parameter_file 
+        " > $parameter_file 
         
     echo "call made to execute code: $0 $1 $2 $3 $set_force $set_cores $set_long
-    " > $parameter_file
+    " >> $parameter_file
     
     if [ $force == true ] || [ $cores -ne 24 ] || [ $log_name != "log_" ]; then
         echo "you selected the following optional arguments: ${set_force}, ${set_cores}, ${set_log} 
@@ -121,13 +99,11 @@ Parameters="${initial_path}/Parameters"
     echo "location of file with genome directions: $genetic_locations
     " >> $parameter_file
 
-    total_non_primary_genomes=$(bc -l <<< "scale=0; (($line_count / 3) - 1)")
-    #total_non_primary_genomes=$(bc -l <<< "scale=0; (($line_count / 3) - 1)")
-    echo "number of control genomes provided: $total_non_primary_genomes
+    total_genomes=$(bc -l <<< "scale=0; (($line_count / 3) - 1)")
+    echo "number of control genomes provided: $total_genomes
     " >> $parameter_file
 
-    if [ $total_non_primary_genomes -ge 1 ]; then
-    for i in $(seq 0 $total_non_primary_genomes); do
+    for i in $(seq 0 $total_genomes); do
         number1=$(bc -l <<< "scale=0; (($i * 3) +1)")
         number2=$(bc -l <<< "scale=0; (($i * 3) +2)")
         number3=$(bc -l <<< "scale=0; (($i * 3) +3)") 
@@ -144,14 +120,8 @@ Parameters="${initial_path}/Parameters"
                             deduplicate: $deduplicate
                             " >> $parameter_file             
     done
-        echo $output_path
-        echo "initial path: $initial_path"
-        echo "path dot: $path_dot"
+        mkdir -p $output_path 
         echo "output path: $output_path"
-        relative_path=$(echo $output_path | sed "s,${initial_path},${path_dot},")
-        echo "$relative_path"
-        mkdir -p $output_path    
-    fi
 
 ##################################################################################################################################
 ##############################################---STEP 4: BCL TO FASTQ---######################################################### 
@@ -175,7 +145,7 @@ Parameters="${initial_path}/Parameters"
     fastq_file="${data_path}/fastq/FASTQs"                                              #give a path to a file to store the fastq file paths in $fastq_directory
     echo "location of fastq_file: $fastq_file"
     find "$data_path/fastq" -type f | grep ".*\.fastq.gz$" | grep -v ".*\.trimmed.fastq.gz$" | sed -e 's/_R1.*$//g' | sed -e 's/_R2.*$//g' | sort -u > "${fastq_file}"                        
-    #generate list of full paths to fastq files and save to the file in $fastq_list
+                                                                                        #generate list of full paths to fastq files and save to the file in $fastq_list
     array_length=$(wc -l < "${fastq_file}")                                             #get the number of files and, thus, array length
     echo "array length: $array_length
     " >> $parameter_file
@@ -183,13 +153,12 @@ Parameters="${initial_path}/Parameters"
     picard=$(find "$output_path" -type f | grep ".*\.bam_picard_insert_size_plot.pdf$" | sort -u | wc -l)
     
     if [[ $picard -lt 1 ]] || [[ $force = true ]]; then
-    echo "output_path: $output_path"
-            echo "methylseq.sh running"
+            echo "entering methylseq.sh"
             sbatch -o "$Logs/${log_name}_%A_%a.log" `#put into log` \
                     -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
                    -W `#indicates to the script not to move on until the sbatch operation is complete` \
                     "${code_directory}/methylseq.sh" \
-                    $data_path $output_path $genetic_locations $cores $log_name $parameter_file $code_directory $relative_path $Logs $parameter_file $initial_path
+                    $data_path $output_path $genetic_locations $cores $log_name $parameter_file $code_directory $Logs $parameter_file $initial_path
 
             wait
             echo "methylseq.sh complete"
@@ -199,33 +168,23 @@ Parameters="${initial_path}/Parameters"
 
 #####################previously report_controls.sh################################
 ################################################################################
-
-for i in $(seq 0 $total_non_primary_genomes); do
+    for i in $(seq 0 $total_genomes); do
         number1=$(bc -l <<< "scale=0; (($i * 3) +1)")
         genome_name=$(sed -n ${number1}'p' $genetic_locations)
-        #output_path=${initial_path}/${genome_name}
-        
-        echo "parameters:$genome_name
-                            ${genome_fasta_path}
-                            deduplicate: $deduplicate"   
-        echo "parameters:$genome_name
-                            ${genome_fasta_path}
-                            deduplicate: $deduplicate
-                            " >> $parameter_file             
-   
-    output_directory=$(find $initial_path -type d -name "$genome_name")
-    
-    bismark_summary="${output_directory}/bismark_summary_report.txt" 
 
+        output_directory=$(find $initial_path -type d -name "$genome_name")
+        bismark_summary="${output_directory}/bismark_summary_report.txt" 
 
-    if [ ! -f $bismark_summary ]; then
-        cd $output_directory
-            echo "$bismark_summary does not exist yet"
-        module load bismark
-        bismark2report
-        bismark2summary
-    fi
-
-done
+        if [ ! -f $bismark_summary ]; then
+            cd $output_directory
+                echo "$bismark_summary does not exist yet"
+            module load bismark
+            bismark2report
+            bismark2summary
+                echo "bismark summary complete"
+        else
+            echo "bismark summary already complete, skipping bismark2report and bismark2summary for $genome_name"
+        fi
+    done
 
 fi
