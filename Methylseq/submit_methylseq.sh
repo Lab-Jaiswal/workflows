@@ -1,8 +1,7 @@
 #!/bin/bash
 
 #SBATCH --time=72:00:00
-#SBATCH --account=smontgom
-#SBATCH --partition=batch
+#SBATCH --account=sjaiswal
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=256GB
 #SBATCH --job-name=submit_methylseq
@@ -123,7 +122,6 @@ else
     done
         mkdir -p $output_path 
         echo "output path: $output_path"
-    fi
 
 ##################################################################################################################################
 ##############################################---STEP 4: BCL TO FASTQ---######################################################### 
@@ -184,6 +182,8 @@ else
             bismark2report
             bismark2summary
                 echo "bismark summary complete"
+        else
+            echo "bismark summary already complete, skipping bismark2report and bismark2summary for $genome_name"
         fi
     done
 
