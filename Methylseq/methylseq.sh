@@ -63,6 +63,7 @@ read2="${temp_path}/${sample_name}_R2_001.fastq.gz"
 read1_trimmed=$(echo $read1 | sed 's/fastq.gz/trimmed.fastq.gz/')
 read2_trimmed=$(echo $read2 | sed 's/fastq.gz/trimmed.fastq.gz/')
 
+echo "running trim.sh"
 ${code_directory}/trim.sh $read1 $read2 $read1_trimmed $read2_trimmed $data_path $parameter_file
 
 echo "copying data from the output file (if there is any)"                                      #copy data from output_path to temp_path

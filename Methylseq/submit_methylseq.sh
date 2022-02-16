@@ -124,6 +124,22 @@ else
         echo "output path: $output_path"
 
 ##################################################################################################################################
+##############################################---STEP 4: BCL TO FASTQ---######################################################### 
+##################################################################################################################################
+    fastq=$(find "$data_path/fastq" -type f | grep ".*\.fastq.gz$" | sort -u | wc -l)
+
+    if [ $fastq -lt 1 ]; then
+        echo "converting bcls to fastqs"
+        cd $data_path
+        module load bcl2fastq2
+        bcl2fastq -o ./fastq -p 8
+        cd $code_directory
+        echo "conversion of bcls to fastqs complete"
+    else
+        echo "bcls already transformed into fastqs"
+    fi
+
+##################################################################################################################################
 ##############################################---STEP 5: RUN methylseq.sh---###################################################### 
 ##################################################################################################################################    
     fastq_file="${data_path}/fastq/FASTQs"                                              #give a path to a file to store the fastq file paths in $fastq_directory
