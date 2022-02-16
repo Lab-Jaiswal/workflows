@@ -42,8 +42,3 @@ else
 fi
 
 rsync -vur $output_temp_directory/ $output_directory
-
-    	
-
-
-
