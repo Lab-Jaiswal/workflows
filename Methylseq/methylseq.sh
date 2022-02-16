@@ -1,8 +1,7 @@
 #!/bin/bash
 
 #SBATCH --time=72:00:00
-#SBATCH --account=smontgom
-#SBATCH --partition=batch
+#SBATCH --account=sjaiswal
 #SBATCH --cpus-per-task=20
 #SBATCH --mem=256GB
 #SBATCH --job-name=methylseq
@@ -61,12 +60,11 @@ echo "Bismark and samtools modules have been loaded"
 ##################################################################################################################################
 read1="${temp_path}/${sample_name}_R1_001.fastq.gz"
 read2="${temp_path}/${sample_name}_R2_001.fastq.gz"
-read1_trimmed=$(echo $R1 | sed 's/fastq.gz/trimmed.fastq.gz/')
-read2_trimmed=$(echo $R2 | sed 's/fastq.gz/trimmed.fastq.gz/')
+read1_trimmed=$(echo $read1 | sed 's/fastq.gz/trimmed.fastq.gz/')
+read2_trimmed=$(echo $read2 | sed 's/fastq.gz/trimmed.fastq.gz/')
 
-if [ ! -f $read1_trimmed ]; then
-    ${code_directory}/trim.sh -r $read1 -R $read2 -t $read1_trimmed -T $read2_trimmed -o $data_path -p $parameter_file
-fi
+echo "running trim.sh"
+${code_directory}/trim.sh $read1 $read2 $read1_trimmed $read2_trimmed $data_path $parameter_file
 
 echo "copying data from the output file (if there is any)"                                      #copy data from output_path to temp_path
 rsync -vur --exclude "Logs" --exclude "Parameters" $initial_path/ $temp_path                    #done after trim.sh to simplify rsync step
