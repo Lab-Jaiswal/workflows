@@ -63,7 +63,7 @@ else
 #######################################---STEP 3: CREATE PARAMETER LOG---#####################################################
 ##################################################################################################################################
     now=$(date +%m_%d_%H_%M)
-    if [ log == "log_" ]; then                                                             #give a path to a file to store the parameter files (so they are unique)
+    if [ $log_name == "log_" ]; then                                                             #give a path to a file to store the parameter files (so they are unique)
         parameter_file="$Parameters/${now}_parameters.txt"                                 #add date stamp to parameter files and, if provided, the log name
     else
         parameter_file="$Parameters/${log_name}${now}_parameters.txt"
