@@ -11,9 +11,7 @@ SAMPLE_NAME=$6
 BWA_GREF=$7
 FUNCOTATOR_SOURCES=$8
 TRANSCRIPT_LIST=$9
-
-echo "mutect command used the following parameters:
-$0 $1 $2 $3 $4 $5 $6 $7 $8 $9"
+PARAMETER_FILE="${10}"
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
          echo "arguments used for the mutect.sh script:
@@ -26,7 +24,8 @@ if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
                BWA_GREF=$7
                FUNCOTATOR_SOURCES=$8
                TRANSCRIPT_LIST=$9
-                " >> $parameter_file
+               PARAMETER_FILE=${10}
+                " >> $PARAMETER_FILE
 fi
 
 if [ $PAIRED == false ]; then
@@ -51,12 +50,6 @@ if [ ! -f "${SAMPLE_NAME}_mutect2.vcf" ]; then
     --reference "${BWA_GREF}" \
     $OPTIONAL_ARGS \
     --bamout "${SAMPLE_NAME}_mutect2.bam"
-
-    #--input "${PREFIX}_${ASSEMBLY}.bam" \
-    #-tumor "${PREFIX}" \
-    #when have panel of normals, we need to use an argument fo tumor normal mode
-    #have --input with normal bam and another with the other bams?
-    #one extra args --panel-of-normals (a vcf file we get once made panel of normals)
 
     module load samtools
     samtools index "${SAMPLE_NAME}_mutect2.bam" "${SAMPLE_NAME}_mutect2.bam.bai"
