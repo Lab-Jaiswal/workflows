@@ -17,7 +17,7 @@ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
     echo "If --mutect is selected, you may use --twist to indicate you would like your results filtered by the Twist panel"
     exit 1
 else
-    TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,intervals:,paired:,log_name:,bam,twist,mutect,varscan,haplotypecaller,all \
+    TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,intervals:,paired:,log_name:,bwa_gref:,twist_snps:,assembly:,funcotator_sources:,transcript_list:,bam,twist,mutect,varscan,haplotypecaller,all \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
 
    if [ $? != 0 ]; then
@@ -33,6 +33,11 @@ else
         paired=false
         normal_sample=false
         log_name="log_"
+        bwa_gref="/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa"
+        twist_snps="/labs/sjaiswal/workflows/BWA_mutect_twist/twist_snps.bed"
+        assembly="GRCh38"
+        funcotator_sources="/labs/sjaiswal/tools/funcotator/funcotator_dataSources.v1.6.20190124s"
+        transcript_list="/oak/stanford/groups/sjaiswal/Herra/CHIP_TWIST-PANEL_ATHEROMA/chip_transcript_list.txt"
         use_bam=false
         twist="0"
         min_coverage="10"
@@ -47,6 +52,11 @@ else
             --intervals ) intervals="$2"; shift 2 ;;
             -p | --paired ) paired=true; normal_sample="$2"; shift 2 ;; 
             --log_name ) log_name="$2"; shift 2;;
+            --bwa_gref ) bwa_gref="$2"; shift 2;;
+            --twist_snps ) twist_snps="$2"; shift 2;;
+            --assembly ) assembly="$2"; shift 2;;
+            --funcotator_sources ) funcotator_sources="$2"; shift 2;;
+            --transcript_list ) transcript_list="$2"; shift 2;;
             --bam ) use_bam=true; shift ;;
             --twist ) twist="1"; shift ;;      
             -m | --mutect ) get_mutect=true; shift ;;
@@ -219,7 +229,13 @@ else
     ${intervals} \
     ${paired} \
     ${normal_sample} \
-    ${code_directory}
+    ${code_directory} \
+    ${parameter_file} \
+    ${bwa_gref} \
+    ${twist_snps} \
+    ${assembly} \
+    ${funcotator_sources} \
+    ${transcript_list}
 
     wait
 fi
