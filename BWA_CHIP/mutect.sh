@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "running mutect unpaired and with intervals"
+echo "entering mutect script"
 
 PAIRED=$1
 NORMAL_SAMPLE=$2
@@ -12,7 +12,24 @@ BWA_GREF=$7
 FUNCOTATOR_SOURCES=$8
 TRANSCRIPT_LIST=$9
 
- if [ $PAIRED == false ]; then
+echo "mutect command used the following parameters:
+$0 $1 $2 $3 $4 $5 $6 $7 $8 $9"
+
+if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
+         echo "arguments used for the mutect.sh script:
+               PAIRED=$1
+               NORMAL_SAMPLE=$2
+               NORMAL_NAME=$3
+               INTERVALS_FILE=$4
+               MUTECT_INPUT=$5
+               SAMPLE_NAME=$6
+               BWA_GREF=$7
+               FUNCOTATOR_SOURCES=$8
+               TRANSCRIPT_LIST=$9
+                " >> $parameter_file
+fi
+
+if [ $PAIRED == false ]; then
         INPUTS="--input "$MUTECT_INPUT.bam""
 else 
         INPUTS="--input "$MUTECT_INPUT.bam" --input $NORMAL_SAMPLE.bam --normal $NORMAL_NAME"
