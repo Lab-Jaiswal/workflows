@@ -8,6 +8,19 @@ min_coverage=$3
 min_var_freq=$4
 p_value=$5
 
+echo "varscan command used the following parameters:
+$0 $1 $2 $3 $4 $5"
+
+if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
+        echo "arguments used for the varscan.sh script:
+            SAMPLE_NAME=$1
+            BWA_GREF=$2
+            min_coverage=$3
+            min_var_freq=$4
+            p_value=$5
+            " >> $parameter_file
+fi
+
 if [ ! -f "${SAMPLE_NAMEY}.pileup" ]; then
     module load samtools
     echo "Generating pileup from BAM..."
