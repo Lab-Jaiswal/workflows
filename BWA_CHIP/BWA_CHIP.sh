@@ -22,6 +22,12 @@ INTERVALS_FILE="${10}"
 PAIRED="${11}"
 NORMAL_SAMPLE="${12}"
 CODE_DIRECTORY="${13}"
+PARAMETER_FILE=${14}
+BWA_GREF=${15}
+TWIST_SNPS=${16}
+ASSEMBLY=${17}
+FUNCOTATOR_SOURCES=${18}    
+TRANSCRIPT_LIST=${19}
 
 NORMAL_NAME=$(basename $NORMAL_SAMPLE | sed -e 's/.bam//')
 
@@ -43,11 +49,6 @@ echo "PREFIX: $PREFIX"
 R1="${ARRAY_PREFIX}_R1_001.fastq.gz"
 R2="${ARRAY_PREFIX}_R2_001.fastq.gz"
 READGROUP="@RG\tID:${PREFIX}\tLB:${PREFIX}\tPL:illumina\tSM:${PREFIX}"
-BWA_GREF="/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa" #reference genome
-TWIST_SNPS="/labs/sjaiswal/workflows/BWA_mutect_twist/twist_snps.bed" #SNPs for germline calling
-ASSEMBLY="GRCh38" #Genome version
-TRANSCRIPT_LIST="/oak/stanford/groups/sjaiswal/Herra/CHIP_TWIST-PANEL_ATHEROMA/chip_transcript_list.txt" #Transcript list for Mutect
-FUNCOTATOR_SOURCES="/labs/sjaiswal/tools/funcotator/funcotator_dataSources.v1.6.20190124s" #Reference for Funcotator
 
 #Run script and save files in the same location of the fastq files
 cd "${OUTPUT_DIRECTORY}" || exit
@@ -55,9 +56,9 @@ cd "${OUTPUT_DIRECTORY}" || exit
 SAMPLE_NAME="${PREFIX}_${ASSEMBLY}"
 if [ $USE_BAM == false ]; then
    MUTECT_INPUT="${PREFIX}_${ASSEMBLY}"
-   ${CODE_DIRECTORY}/fastq_to_bam.sh $SAMPLE_NAME $READGROUP $BWA_GREF $R1 $R2
+   ${CODE_DIRECTORY}/fastq_to_bam.sh $SAMPLE_NAME $READGROUP $BWA_GREF $R1 $R2 $PARAMETER_FILE
 else
-    MUTECT_INPUT="${array_prefix}"
+    MUTECT_INPUT="${ARRAY_PREFIX}"
 fi
 
 ##################################################################################################################################
@@ -65,8 +66,10 @@ fi
 ##################################################################################################################################       
 if [ $GET_MUTECT = true ]; then
     echo "Mutect analysis requested"
-   ${CODE_DIRECTORY}/mutect.sh $PAIRED $NORMAL_SAMPLE $NORMAL_NAME $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $FUNCOTATOR_SOURCES $TRANSCRIPT_LIST
-    echo "Mutect analysis complete"
+    echo "$PARAMETER_FILE"
+
+   ${CODE_DIRECTORY}/mutect.sh $PAIRED $NORMAL_SAMPLE $NORMAL_NAME $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $FUNCOTATOR_SOURCES $TRANSCRIPT_LIST $PARAMETER_FILE
+       echo "Mutect analysis complete"
 else
     echo "No mutect analysis requested"
 fi
@@ -76,7 +79,7 @@ fi
 ##################################################################################################################################    
 if [ $GET_HAPLOTYPE = true ]; then
     echo "Haplotypecaller analysis requested"
-    ${CODE_DIRECTORY}/haplotypecaller.sh $SAMPLE_NAME $BWA_GREF $TWIST_SNPS
+    ${CODE_DIRECTORY}/haplotypecaller.sh $SAMPLE_NAME $BWA_GREF $TWIST_SNPS $PARAMETER_FILE
     echo "Haplotypecaller analysis complete"
 else
     echo "No HaplotypeCaller analysis requested"
@@ -87,7 +90,7 @@ fi
 ##################################################################################################################################    
 if [ $GET_VARSCAN = true ]; then
     echo "Varscan analysis requested"
-   ${CODE_DIRECTORY}/varscan.sh $SAMPLE_NAME $BWA_GREF $MIN_COVERAGE $MIN_VAR_FREQ $P_VALUE
+   ${CODE_DIRECTORY}/varscan.sh $SAMPLE_NAME $BWA_GREF $MIN_COVERAGE $MIN_VAR_FREQ $P_VALUE $PARAMETER_FILE
    echo "Varscan analysis complete"
 else 
     echo "No Varscan analysis requested"
