@@ -6,6 +6,17 @@ SAMPLE_NAME=$1
 BWA_GREF=$2
 TWIST_SNPS=$3
 
+echo "haplotypecaller command used the following parameters:
+$0 $1 $2 $3"
+
+if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
+        echo "arguments used for the haplotypecaller.sh script:
+            SAMPLE_NAME=$1
+            BWA_GREF=$2
+            TWIST_SNPS=$3
+             " >> $parameter_file
+fi
+
 if [ ! -f "${SAMPLE_NAME}_haplotypecaller.gvcf" ]; then
     echo "Calling germline variants with HaplotypeCaller..."
     module load gatk4
