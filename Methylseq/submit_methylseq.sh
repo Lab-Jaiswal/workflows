@@ -22,7 +22,7 @@ else
         eval set -- "$TEMP"
         
         cores=24                                                                           #if --cores # is not called, the default number is 0
-        log_name="log"                                                                    #if --log_name is not called, log files will being with "log"
+        log_name="log_"                                                                    #if --log_name is not called, log files will being with "log"
         force=false                                                                       #if --force is not called, force is equal to false
                         
     while true; do
