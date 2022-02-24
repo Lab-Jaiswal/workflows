@@ -49,6 +49,8 @@ panel_coordinates <- command_args[1]
 mutect_directory <- command_args[2]
 twist <- command_args[3]
 
+mutect_directory<- "/home/maurertm/smontgom/maurertm/test_outs6"
+
 split_names_vcf <- list.files(mutect_directory, pattern = "*_funcotator_coding.vcf$") %>% str_remove_all("_.*$")
 split_names_maf <- list.files(mutect_directory, pattern = "*_funcotator_coding.maf$") %>% str_remove_all("_.*$")
 if (length(unique(split_names_vcf)) >= 1){
@@ -134,7 +136,15 @@ Modified_maf <- rbind(TSA_snp, TSA_insertion, Start_Position_Mutated)
 # Combine a pruned version of the vcf tibble to the maf tibble 
 vcf <- unite(mutect_vcf_bind, "Chrom_Pos", c("#CHROM", "POS", "Sample"), remove = FALSE)
 maf <- unite(Modified_maf, "Chrom_Pos", c("Chromosome", "VCF_Start_Position", "Sample"), remove = FALSE)
-vcf_pruned <- select(vcf, c(Chrom_Pos, FILTER, GT, AD, AF, F1R2, F2R1, PGT, PS, SB, PID))
+
+columns <- c("Chrom_Pos", "FILTER", "GT", "AD", "AF", "F1R2", "F2R1", "PGT", "PS", "SB", "PID")
+pruned_columns <- c()
+for (i in columns) {
+    if (i %in% colnames(vcf)) {
+        pruned_columns <- append(pruned_columns, i)
+    }
+}
+vcf_pruned <- select(vcf, all_of(pruned_columns))
 combined <- vcf_pruned %>%
   merge(maf, by = "Chrom_Pos") %>%
   select(-Chrom_Pos)
@@ -167,20 +177,15 @@ mutect_vcf_filter <- select(variant_classification, -AD, -tumor_f, -F2R1, -F1R2,
   filter(t_ref_count != "0")
 
 # Select relevant columns for the final output
-mutect_vcf_select <- select(mutect_vcf_filter, c(Sample, Hugo_Symbol, NCBI_Build, Chromosome, Start_Position,
-                                                 End_Position, Variant_Classification, Variant_Type, Protein_Change,
-                                                 FILTER, tumor_f, t_ref_count, contains("t_alt_count"),
-                                                 Reference_Allele, Tumor_Seq_Allele1, Transcript_Exon, Transcript_Position,
-                                                 cDNA_Change, Codon_Change, gc_content, longest_repeat, DP, f1r2_reference,
-                                                 gc_content, longest_repeat, f1r2_reference,
-                                                 contains("f1r2_alternate"), f2r1_reference, contains("f2r1_alternate"),      
-                                                 mbq_reference, contains("mbq_alternate"),  
-                                                 mfrl_reference, contains("mfrl_alternate"), mmq_reference,        
-                                                 contains("mmq_alternate" ), sb_reference, contains("sb_alt"),               
-                                                 AS_FilterStatus, ECNT, GERMQ, MPOS, POPAF, TLOD, RPA, RU, STR, STRQ, GT,                  
-                                                 PGT, PID, PS, OREGANNO_ID, OREGANNO_Values, Other_Transcripts, ref_context           
-))
+final_columns <- c("Sample", "Hugo_Symbol", "NCBI_Build", "Chromosome", "Start_Position", "End_Position", "Variant_Classification", "Variant_Type", "Protein_Change", "FILTER", "tumor_f", "t_ref_count", "Reference_Allele", "Tumor_Seq_Allele1", "Transcript_Exon", "Transcript_Position", "cDNA_Change", "Codon_Change", "gc_content", "longest_repeat", "DP", "f1r2_reference", "gc_content", "longest_repeat", "f1r2_reference", "f2r1_reference", "mbq_reference", "mfrl_reference",  "mmq_reference", "sb_reference", "AS_FilterStatus", "ECNT", "GERMQ", "MPOS", "POPAF", "TLOD", "RPA", "RU", "STR", "STRQ", "GT", "PGT", "PID", "PS", "OREGANNO_ID", "OREGANNO_Values", "Other_Transcripts", "ref_context")
 
+pruned_final_columns <- c()
+for (i in final_columns) {
+    if (i %in% colnames(mutect_vcf_filter)) {
+        pruned_final_columns <- append(pruned_final_columns, i)
+    }
+}
+mutect_vcf_select <- select(mutect_vcf_filter, c(pruned_final_columns, contains("t_alt_count"), contains("f1r2_alternate"), contains("sb_alt"), contains("mfrl_alternate"), contains("mmq_alternate"), contains("f2r1_alternate"), contains("mbq_alternate")))
 
 mutect_simple_file <- str_c(mutect_directory, "/mutect_aggregated_simple.tsv")
 
