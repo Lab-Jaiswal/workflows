@@ -7,9 +7,10 @@ BWA_GREF=$2
 min_coverage=$3
 min_var_freq=$4
 p_value=$5
+PARAMETER_FILE=$6
 
 echo "varscan command used the following parameters:
-$0 $1 $2 $3 $4 $5"
+$0 $1 $2 $3 $4 $5 $6"
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
         echo "arguments used for the varscan.sh script:
@@ -18,7 +19,8 @@ if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
             min_coverage=$3
             min_var_freq=$4
             p_value=$5
-            " >> $parameter_file
+            PARAMETER_FILE=$6
+            " >> $PARAMETER_FILE
 fi
 
 if [ ! -f "${SAMPLE_NAMEY}.pileup" ]; then
