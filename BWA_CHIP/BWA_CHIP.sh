@@ -6,6 +6,9 @@
 #SBATCH --mem=32GB
 #SBATCH --job-name=CHIP_variant_call
 
+##################################################################################################################################
+#############################################---STEP 1: SET UP PARAMETERS---###################################################### 
+##################################################################################################################################
 PARENT_DIRECTORY=$1
 OUTPUT_DIRECTORY="$2"
 MIN_COVERAGE="$3"
@@ -19,45 +22,27 @@ INTERVALS_FILE="${10}"
 PAIRED="${11}"
 NORMAL_SAMPLE="${12}"
 CODE_DIRECTORY="${13}"
-echo "intervals file : $INTERVALS_FILE"
-echo "parameters used:
-PARENT_DIRECTORY=$1
-OUTPUT_DIRECTORY="$2"
-MIN_COVERAGE="$3"
-MIN_VAR_FREQ="$4"
-P_VALUE="$5"
-GET_MUTECT="$6"
-GET_VARSCAN="$7"
-GET_HAPLOTYPE="$8"
-USE_BAM="$9"
-INTERVALS_FILE="${10}"
-PAIRED="${11}"
-NORMAL_SAMPLE="${12}"
-CODE_DIRECTORY="${13}"
-"
 
 NORMAL_NAME=$(basename $NORMAL_SAMPLE | sed -e 's/.bam//')
 
-line_number=$SLURM_ARRAY_TASK_ID #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
-echo "use_bam: $USE_BAM"
-if [ $USE_BAM == false ]; then
-    array_file="${PARENT_DIRECTORY}/fastq_files" #provide path to file containing list of fastq files
-else 
-    array_file="${PARENT_DIRECTORY}/bam_files" #provide path to file containing list of fastq files
-fi
-array_prefix="$(sed "${line_number}q; d" "${array_file}")" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
+LINE_NUMBER=$SLURM_ARRAY_TASK_ID #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
 
-echo "array prefix:i $array_prefix"
-FILENAME=$(basename "${array_prefix}")
+if [ $USE_BAM == false ]; then
+    ARRAY_FILE="${PARENT_DIRECTORY}/fastq_files" #provide path to file containing list of fastq files
+else 
+    ARRAY_FILE="${PARENT_DIRECTORY}/bam_files" #provide path to file containing list of fastq files
+fi
+
+ARRAY_PREFIX="$(sed "${LINE_NUMBER}q; d" "${ARRAY_FILE}")" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
+FILENAME=$(basename "${ARRAY_PREFIX}")
 PREFIX=$FILENAME
 
 echo "FILENAME: $FILENAME"
 echo "PREFIX: $PREFIX"
 
-R1="${array_prefix}_R1_001.fastq.gz"
-R2="${array_prefix}_R2_001.fastq.gz"
+R1="${ARRAY_PREFIX}_R1_001.fastq.gz"
+R2="${ARRAY_PREFIX}_R2_001.fastq.gz"
 READGROUP="@RG\tID:${PREFIX}\tLB:${PREFIX}\tPL:illumina\tSM:${PREFIX}"
-#BWA_GREF="/labs/sjaiswal/genomes/GRCh38/GRCh38.p13.genome.fa"
 BWA_GREF="/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa" #reference genome
 TWIST_SNPS="/labs/sjaiswal/workflows/BWA_mutect_twist/twist_snps.bed" #SNPs for germline calling
 ASSEMBLY="GRCh38" #Genome version
@@ -75,22 +60,35 @@ else
     MUTECT_INPUT="${array_prefix}"
 fi
 
-        
+##################################################################################################################################
+#################################################---STEP 2: MUTECT.sh---########################################################## 
+##################################################################################################################################       
 if [ $GET_MUTECT = true ]; then
+    echo "Mutect analysis requested"
    ${CODE_DIRECTORY}/mutect.sh $PAIRED $NORMAL_SAMPLE $NORMAL_NAME $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $FUNCOTATOR_SOURCES $TRANSCRIPT_LIST
+    echo "Mutect analysis complete"
 else
-    echo "mutect analysis not requested"
+    echo "No mutect analysis requested"
 fi
             
-
+##################################################################################################################################
+############################################---STEP 3: HAPLOTYPECALLER.sh---######################################################
+##################################################################################################################################    
 if [ $GET_HAPLOTYPE = true ]; then
+    echo "Haplotypecaller analysis requested"
     ${CODE_DIRECTORY}/haplotypecaller.sh $SAMPLE_NAME $BWA_GREF $TWIST_SNPS
+    echo "Haplotypecaller analysis complete"
 else
     echo "No HaplotypeCaller analysis requested"
 fi
 
+##################################################################################################################################
+################################################---STEP 4: VARSCAN.sh---########################################################## 
+##################################################################################################################################    
 if [ $GET_VARSCAN = true ]; then
+    echo "Varscan analysis requested"
    ${CODE_DIRECTORY}/varscan.sh $SAMPLE_NAME $BWA_GREF $MIN_COVERAGE $MIN_VAR_FREQ $P_VALUE
+   echo "Varscan analysis complete"
 else 
     echo "No Varscan analysis requested"
 fi
