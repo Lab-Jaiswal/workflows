@@ -7,9 +7,10 @@ READGROUP=$3
 BWA_GREF=$4
 R1=$5
 R2=$6
+PARAMETER_FILE=$7
 
 echo "fastq_to_bam command used the following parameters:
-$0 $1 $2 $3 $4 $5 $6"
+$0 $1 $2 $3 $4 $5 $6 $7"
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
   echo "arguments used for the fastq_to_bam.sh script:
@@ -18,7 +19,8 @@ if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
         BWA_GREF=$4
         R1=$5
         R2=$6
-        " >> $parameter_file
+        PARAMETER_FILE=$7
+        " >> $PARAMETER_FILE
 fi
 
 if [ ! -f "${SAMPLE_NAME}.bam" ]; then
