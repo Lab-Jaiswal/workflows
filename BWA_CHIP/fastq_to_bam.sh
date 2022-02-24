@@ -1,23 +1,43 @@
 #!/bin/bash
 
-#SBATCH --time=1:00:00
-#SBATCH --account=sjaiswal
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=64GB
-#SBATCH --job-name=bam_to_fastq
-#SBATCH --array=37
+echo "entering fastq_to_bam.sh"
 
-bam_location=$1
-code_directory=$2
+SAMPLE_NAME=$1
+READGROUP=$3
+BWA_GREF=$4
+R1=$5
+R2=$6
 
-cd $bam_location
-bam_file="/labs/sjaiswal/maurertm/bam_files"
+echo "fastq_to_bam command used the following parameters:
+$0 $1 $2 $3 $4 $5 $6"
 
-line_number=$SLURM_ARRAY_TASK_ID
-bam_path="$(sed "${line_number}q; d" "${bam_file}")"
+if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
+  echo "arguments used for the fastq_to_bam.sh script:
+        SAMPLE_NAME=$1
+        READGROUP=$3
+        BWA_GREF=$4
+        R1=$5
+        R2=$6
+        " >> $parameter_file
+fi
 
-fastq_path_R1="${bam_path}_R1_001.fastq.gz"
-fastq_path_R2="${bam_path}_R2_001.fastq.gz"
+if [ ! -f "${SAMPLE_NAME}.bam" ]; then
+    echo "Aligning to reference genome..."
+    module load bwa
+    module load samtools
+    bwa mem -R "${READGROUP}" "${BWA_GREF}" "${R1}" "${R2}" | samtools view -b - | samtools sort - -o "${SAMPLE_NAME}.bam"
+    echo "...alignment complete"
+else
+    echo "Alignment already completed"
+fi
 
-samtools collate -u -O "${bam_path}.bam" | \\
-samtools fastq -1 $fastq_path_R1 -2 $fastq_path_R2 -0 /dev/null -s /dev/null -n
+if [ ! -f "${SAMPLE_NAME}.bam.bai" ]; then
+    echo "Indexing BAM file..."
+    module load samtools
+    samtools index "${SAMPLE_NAME}.bam" "${SAMPLE_NAM}.bam.bai"
+    echo "...indexing complete"
+else
+    echo "Indexing of BAM already completed"
+fi
+
+echo "fastq_to_bam.sh complete"
