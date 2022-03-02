@@ -3,9 +3,9 @@
 #SBATCH --job-name=sort
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=28
+#SBATCH --cpus-per-task=8
 #SBATCH --partition=batch
-#SBATCH --mem=500G
+#SBATCH --mem=128G
 #SBATCH --time=3:00:00
 #SBATCH --account=sjaiswal
 
