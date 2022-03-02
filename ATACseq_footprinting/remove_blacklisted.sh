@@ -31,11 +31,10 @@ if [ ! -f "$output_temp_dir/peak_calling/${PREFIX}/${PREFIX}_union_final.bed" ];
         bedtools subtract -a - -b $blacklist -A | bedtools intersect -a - -b $whitelist -wa | awk '$1 !~ /[M]/' | \
         sed "s/$/ ${PREFIX}/"  > $output_temp_dir/peak_calling/${PREFIX}/${PREFIX}_union.bed
     echo "blacklisted region removal complete"
+    rsync -vur "$output_temp_dir/" "$output_path"
 else
     echo "blacklisted regions have already been removed"
 fi
-
-rsync -vur "$output_temp_dir/" "$output_path"
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
 	echo "remove_blacklisted.sh script complete
