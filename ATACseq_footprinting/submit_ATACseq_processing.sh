@@ -98,7 +98,7 @@ else
     fi
 
     Logs="${output_path}/Logs"
-    Parameters="${output_path}/Parameters"
+    Parameters="${initial_path}/Parameters"
 
 ##################################################################################################################################
 #######################################---STEP 3: CREATE PARAMETER LOG---#########################################################
@@ -112,7 +112,7 @@ else
     
     touch $parameter_file
         
-    if [ $gsize -ne 2620345972 ]; then                                                            
+    if [ $gzise -ne 2620345972 ]; then                                                            
         set_gsize="--gsize $gsize"                                                                     
     fi
     if [ $extsize -ne 200 ]; then                                                             
@@ -140,7 +140,7 @@ else
     echo "call made to execute code: $0 $1 $2 $3 $set_gsize $set_extsize $set_shifts $set_broad $set_nomodel $set_blacklist $set_log
     " >> $parameter_file
     
-    if [ $gsize -ne 2620345972 ] || [ $extsize -ne 200 ] || [ $shifts -ne 100 ] || [ $broad != true ] || [ $nomodel != true ] || [ $blacklist != "/oak/stanford/groups/sjaiswal/kameronr/ATACseq/blacklist/mm9-blacklist.bed.gz" ] || [ $log_name != "log_" ]; then
+    if [ $gzise -ne 2620345972 ] || [ $extsize -ne 200 ] || [ $shifts -ne 100 ] || [ $broad != true ] || [ $nomodel != true ] || [ $blacklist != "/oak/stanford/groups/sjaiswal/kameronr/ATACseq/blacklist/mm9-blacklist.bed.gz" ] || [ $log_name != "log_" ]; then
         echo "you selected the following optional arguments: $set_gsize, $set_extsize, $set_shifts, $set_broad, $set_nomodel, $set_blacklist, $set_log 
             gsize is now equal to $gsize
             extsize is now equal to $extsize
@@ -192,6 +192,8 @@ else
     array_length="$number_bams"
 
     bed_file=$(find "$output_path/peak_calling" -maxdepth 2 -type f | grep "raw.bed" | sort -u | wc -l)
+
+    echo "entering the script" >> $parameter_file
 
     if [ $bed_file -lt 1 ]; then
              sbatch -o "$Logs/%A_%a.log" `#put into log` \
