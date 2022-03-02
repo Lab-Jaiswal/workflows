@@ -9,13 +9,7 @@ parameter_file=$4
 PREFIX=$5
 
 echo "coverage_file_creation.sh used the following parameters:
-            output_path=$1
-            output_temp_dir=$2
-            parameter_file=$4
-            genome_folder=$3
-            PREFIX=$5
-
-$0 $1 $2 $3 $4 $5"
+    $0 $1 $2 $3 $4 $5"
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
 	echo "#####################coverage_file_creation.sh file#####################
