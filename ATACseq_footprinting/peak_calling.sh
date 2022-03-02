@@ -67,11 +67,11 @@ fi
       
 if [ ! -f "$output_temp_dir/peak_calling/${PREFIX}/${PREFIX}_raw.bed" ]; then
       
-    cp "$output_temp_dir/peak_calling/${PREFIX}/${PREFIX}_peaks.broadPeak" "$output_dir/peak_calling/${PREFIX}/${PREFIX}_raw.bed"
+    cp "$output_temp_dir/peak_calling/${PREFIX}/${PREFIX}_peaks.broadPeak" "$output_temp_dir/peak_calling/${PREFIX}/${PREFIX}_raw.bed"
+    rsync -vur "$output_temp_dir/" "$output_path"
 
 fi
 
-rsync -vur "$output_temp_dir/" "$output_path"
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
 	echo "peak_calling.sh script complete

@@ -68,11 +68,10 @@ fi
 if [ ! -f "$output_temp_dir/${PREFIX}.merged.sorted.bai" ]; then
       samtools index "$output_temp_dir/${PREFIX}.merged.sorted.bam" "$output_temp_dir/${PREFIX}.merged.sorted.bai"
       echo "indexing of sorted merged bams complete"
+    rsync -vur "$output_temp_dir/" "$output_path"
 else
       echo "sorted merged bams already indexed"
 fi      
-
-rsync -vur "$output_temp_dir/" "$output_path"
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
 	echo "sort_merge_index.sh script complete
