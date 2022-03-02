@@ -71,4 +71,4 @@ $code_directory/peak_calling.sh $output_path $output_temp_dir $gsize $extsize $s
 
 ##########################---STEP 7: REMOVE BLACKLISTED REGIONS---######################################
 
-$code_directory/remove_blacklisted.sh $output_path $output_temp_dir $blacklist $whitelist $parameter_file $PREFIX  
+$code_directory/remove_blacklisted.sh $output_path $output_temp_dir $blacklist $whitelist $parameter_file $PREFIX
