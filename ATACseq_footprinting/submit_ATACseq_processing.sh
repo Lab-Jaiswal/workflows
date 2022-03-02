@@ -199,7 +199,6 @@ else
             -W `#indicates to the script not to move on until the sbatch operation is complete` \
                 "${code_directory}/ATACseq_processing.sh" \
                 $bam_path $output_path $gsize $extsize $shifts $broad $nomodel $blacklist $whitelist $genome_folder $parameter_file $code_directory
-            wait
         else
             echo "sorting, merging, and indexing of files already completed"
     fi
