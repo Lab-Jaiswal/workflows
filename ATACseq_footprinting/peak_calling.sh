@@ -66,10 +66,10 @@ else
 fi
       
 if [ ! -f "$output_temp_dir/peak_calling/${PREFIX}/${PREFIX}_raw.bed" ]; then
-    cp "$output_temp_dir/peak_calling/${PREFIX}/${PREFIX}_peaks.broadPeak" "$output_dir/peak_calling/${PREFIX}/${PREFIX}_raw.bed"
+      
+    cp "$output_temp_dir/peak_calling/${PREFIX}/${PREFIX}_peaks.broadPeak" "$output_temp_dir/peak_calling/${PREFIX}/${PREFIX}_raw.bed"
     rsync -vur "$output_temp_dir/" "$output_path"
-else
-    echo "raw.bed file already created"
+
 fi
 
 
