@@ -209,7 +209,7 @@ else
             -a "1-${array_length}" `#initiate job array equal to the number of bam files` \
             -W `#indicates to the script not to move on until the sbatch operation is complete` \
                 "${code_directory}/ATACseq_processing.sh" \
-                $bam_path $output_path $gsize $extsize $shifts $broad $nomodel $blacklist $whitelist $genome_folder $parameter_file $code_directory $bed_file
+                $bam_path $output_path $gsize $extsize $shifts $broad $nomodel $blacklist $whitelist $genome_folder $parameter_file $code_directory $bed_file $filter
             wait
         else
             echo "sorting, merging, and indexing of files already completed"
