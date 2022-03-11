@@ -31,4 +31,4 @@ if [ ! -f "$output_temp_dir/${PREFIX}.merged.sorted.filtered.bam" ]; then
     echo "filtering of bam file complete"
 else
     echo "filtering of bam file already completed"
-fi
+fi 
