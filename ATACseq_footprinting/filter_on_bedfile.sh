@@ -22,7 +22,7 @@ if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
             " >> $parameter_file
 fi
 
-###########################---STEP 6: FILTERING WITH BEDTOOLS INTERSECT---########################################
+###########################---STEP 1: FILTERING WITH BEDTOOLS INTERSECT---########################################
 if [ ! -f "$output_temp_dir/${PREFIX}.merged.sorted.filtered.bam" ]; then
     module load bedtools
     echo "filtering ${PREFIX}.merged.sorted.bam using $bed_file"
