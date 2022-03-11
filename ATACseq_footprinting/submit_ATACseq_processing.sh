@@ -22,7 +22,7 @@ if [ -z $1 ] || [ -z $2 ] || [ -z $3 ]; then
     exit 1
 else
 #pipeline in shell for ATACseq footprinting
-    TEMP=`getopt -o vdm: --long gsize:,extsize:,shifts:,broad:,nomodel:,blacklist:,log_name \
+    TEMP=`getopt -o vdm: --long gsize:,extsize:,shifts:,broad:,nomodel:,blacklist:,filter:,log_name \
         -n './submit_atacseq' -- "$@"`
 
        if [ $? != 0 ]; then
@@ -37,6 +37,8 @@ else
             nomodel=true
             blacklist="/oak/stanford/groups/sjaiswal/kameronr/ATACseq/blacklist/mm9-blacklist.bed.gz"
             log_name="log_"
+            filter=0
+            bed_file=0
             
         while true; do
             case "$1" in
@@ -46,6 +48,7 @@ else
                 --broad ) broad="$2"; shift 2 ;;
                 --nomodel ) nomodel="$2"; shift 2 ;;
                 --blacklist ) blacklist="$2"; shift 2 ;;
+                --filter ) filter=1; bed_file="$2"; shift 2 ;; 
                 --log_name ) log_name="$2"; shift 2;;
                 -- ) shift; break ;;
                 * ) break ;;
@@ -73,6 +76,7 @@ else
     genome_folder="$(dirname "${genome_path}")"
     output_path=$3
     echo "$genome_folder"
+    echo "bed file: $bed_file"
 
     code_directory=$( realpath . )
 
@@ -191,14 +195,21 @@ else
     number_bams=$(wc -l < "${bam_file}") #get the number of files
     array_length="$number_bams"
 
-    bed_file=$(find "$output_path/peak_calling" -maxdepth 2 -type f | grep "raw.bed" | sort -u | wc -l)
+    output_bed_files=$(find "$output_path/peak_calling" -maxdepth 2 -type f | grep "raw.bed" | sort -u | wc -l)
+    filtered_bam_files=$(find $output_path | grep "merged.sorted.filter.bam" | sort -u | wc -l)
 
-    if [ $bed_file -lt 1 ]; then
+    if [[ $filtered_bam_files -lt 1 ]] && [[ filter -eq 1 ]]; then
+        request_filter=1
+    else
+        request_filter=0
+    fi
+
+    if [[ $output_bed_files -lt 1 ]] || [[ $request_filter -eq 1 ]]; then
              sbatch -o "$Logs/%A_%a.log" `#put into log` \
             -a "1-${array_length}" `#initiate job array equal to the number of bam files` \
             -W `#indicates to the script not to move on until the sbatch operation is complete` \
                 "${code_directory}/ATACseq_processing.sh" \
-                $bam_path $output_path $gsize $extsize $shifts $broad $nomodel $blacklist $whitelist $genome_folder $parameter_file $code_directory
+                $bam_path $output_path $gsize $extsize $shifts $broad $nomodel $blacklist $whitelist $genome_folder $parameter_file $code_directory $bed_file
             wait
         else
             echo "sorting, merging, and indexing of files already completed"
