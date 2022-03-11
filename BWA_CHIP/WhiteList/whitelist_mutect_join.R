@@ -1,23 +1,23 @@
 library(readxl)
 library(magrittr)
 library(tidyverse)
+require(data.table)
 
 rename <- function(df, column, new){
-    x <- names(df)                               #Did this to avoid typing twice
-    if (is.numeric(column)) column <- x[column]  #Take numeric input by indexing
-    names(df)[x %in% column] <- new              #What you're interested in
-    return(df)
+  x <- names(df)                               #Did this to avoid typing twice
+  if (is.numeric(column)) column <- x[column]  #Take numeric input by indexing
+  names(df)[x %in% column] <- new              #What you're interested in
+  return(df)
 }
 
 
 command_args <- commandArgs(trailingOnly = TRUE)
-whitelist_coordinates <- command_args[1]
-mutect_coordinates <- command_args[2]
-output <- command_args[3]
+whitelist_coordinates <- "/home/maurertm/labs/variant_whitelist_real.xls"
+mutect_coordinates <- "/home/maurertm/smontgom/maurertm/mutect_aggregated_noWL_Mar1_1147.tsv"
+output <- "/home/maurertm/smontgom/maurertm/"
 
-
+mutect<-as.data.frame(fread(mutect_coordinates))
 white_list <- read_excel(whitelist_coordinates, col_names=T)
-mutect <- read_table(mutect_coordinates)
 
 Missense_pattern <- c("MISS", "Miss", "miss")
 Frameshift_pattern <- c("FRAME", "Frame", "frame")
@@ -33,27 +33,80 @@ Splice_site <- (grep(paste(Splice_site_pattern,collapse="|"),
 Nonsense <- (grep(paste(Nonsense_pattern,collapse="|"), 
                   mutect$Variant_Classification))
 for (i in Missense){
-  mutect[i, 8] <- 'missense'
+  mutect[i, "Variant_Classification"] <- 'missense'
 }
 for (i in Frame_shift){
-  mutect[i, 8] <- 'Frameshift'
+  mutect[i, "Variant_Classification"]  <- 'Frameshift'
 }
 for (i in Splice_site){
-  mutect[i, 8] <- 'Splicesite'
+  mutect[i, "Variant_Classification"] <- 'splice-site'
 }
 for (i in Nonsense){
-  mutect[i, 8] <- 'nonsense'
+  mutect[i, "Variant_Classification"] <- 'nonsense'
 }
 
 #Get Initial_Protein, Protein_Position, and Final_Protein column from mutect
-no_p <- do.call('rbind', strsplit(mutect$Protein_Change, split = "p.", perl = TRUE)) %>% as_tibble() %>% dplyr::select(V2) 
-colnames(no_p) <- "Protein_Change_No_P"
-mutect_joined <- bind_cols(mutect, no_p)
+#First find the values in Protein Change that contain multiple positions
+mutect_no_p <- mutate(mutect, Protein_Change_No_P = gsub("^.*\\.","", mutect$Protein_Change)) 
+normal <- dplyr::filter(mutect_no_p, !grepl("_", Protein_Change_No_P)) %>% dplyr::filter(!grepl("del", Protein_Change_No_P)) %>% dplyr::filter(!grepl("\\*", Protein_Change_No_P)) %>% dplyr::filter(Protein_Change_No_P != "")
 
+deviant_insertion <- dplyr::filter(mutect_no_p, grepl("_", Protein_Change_No_P))
+deviant_del <- dplyr::filter(mutect_no_p, grepl("del", Protein_Change_No_P))
+deviant_asterisk <- dplyr::filter(mutect_no_p, grepl("\\*", Protein_Change_No_P))
+deviant_empty <-  dplyr::filter(mutect_no_p, Protein_Change_No_P == "")
 
-first_protein <- do.call('rbind', strsplit(no_p$Protein_Change_No_P, split = "(?<=[a-zA-Z])\\s*(?=[0-9])", perl = TRUE)) %>% as_tibble()
+#split up deviant by insertion type
+deviant_ins <- dplyr::filter(deviant_insertion, grepl("ins", Protein_Change_No_P))
+deviant_no_ins <- dplyr::filter(deviant_insertion, !grepl("ins", Protein_Change_No_P))
+
+#clean deviant_ins
+    deviant_ins_split <- str_split_fixed(deviant_ins$Protein_Change_No_P, '_', 2) %>% as_tibble()
+    deviant_ins_dataframe <- mutate(deviant_ins_split, Intermediate = gsub("[[:digit:]]","", V2)) %>% 
+        mutate(Final_Protein = gsub("ins","", Intermediate)) %>% 
+        mutate(Protein_Position = gsub("[^0-9.-]", "", V2)) %>% 
+        mutate(Initial_Protein = NA) %>%
+        select(Initial_Protein, Protein_Position, Final_Protein)
+    deviant_ins <- cbind(deviant_ins, deviant_ins_dataframe)
+
+#clean deviant_no_ins
+     deviant_noins_split <- str_split_fixed(deviant_no_ins$Protein_Change_No_P, '_', 2) %>% as_tibble()
+     deviant_noins_dataframe <- mutate(deviant_noins_split, Intermediate = gsub("[[:digit:]]","", V2)) %>% 
+        mutate(Final_Protein = gsub("[^>]*>(.*)", "\\1", Intermediate)) %>% 
+        mutate(Protein_Position = gsub("[^0-9.-]", "", V2)) %>% 
+        mutate(Initial_Protein = gsub("(.*)>.*", "\\1", Intermediate) ) %>%
+        select(Initial_Protein, Protein_Position, Final_Protein)
+    deviant_no_ins <- cbind(deviant_no_ins, deviant_noins_dataframe)
+
+#clean deviant_del    
+     deviant_del_dataframe <- deviant_del %>% 
+        mutate(Final_Protein = NA) %>% 
+        mutate(Protein_Position = gsub("[^0-9.-]", "", Protein_Change_No_P)) %>% 
+        mutate(Intermediate = gsub("\\d+", "", Protein_Change_No_P)) %>%
+        mutate(Initial_Protein = gsub("del", "", Intermediate)) %>%
+        select(Initial_Protein, Protein_Position, Final_Protein)
+    deviant_del <- cbind(deviant_del, deviant_del_dataframe)
+
+#clean asterisk 
+    deviant_ast_dataframe <- deviant_asterisk %>% 
+        mutate(Final_Protein = NA) %>% 
+        mutate(Protein_Position = gsub("[^0-9.-]", "", Protein_Change_No_P)) %>% 
+        mutate(Intermediate = gsub("\\d+", "", Protein_Change_No_P)) %>%
+        mutate(Initial_Protein = gsub("\\*", "", Intermediate)) %>% 
+        select(Initial_Protein, Protein_Position, Final_Protein)
+    deviant_asterisk <- cbind(deviant_asterisk, deviant_ast_dataframe)
+
+#clean deviant empty
+    deviant_empty_dataframe <- deviant_empty %>% 
+        mutate(Final_Protein = NA) %>% 
+        mutate(Protein_Position = NA) %>% 
+        mutate(Initial_Protein = NA) %>% 
+        select(Initial_Protein, Protein_Position, Final_Protein)
+    deviant_empty <- cbind(deviant_empty, deviant_empty_dataframe)
+
+#clean normal
+first_protein <- do.call('rbind', strsplit(normal$Protein_Change_No_P, split = "(?<=[a-zA-Z])\\s*(?=[0-9])", perl = TRUE)) %>% as_tibble()
 first_protein$number <- as.integer(!grepl("^[0-9]+$", first_protein$V1)) 
-first_protein$index <- rownames(mutect_joined)
+first_protein$index <- rownames(normal)
 first_number <- filter(first_protein, number == 0)
 first_number$Initial_Protein <- NA
 first_number$Protein_Position <- first_number$V2
@@ -80,32 +133,20 @@ last_letter$Final_Protein <- last_letter$V2
 last_protein_position <- rbind(last_letter, last_number) %>% dplyr::select(Protein_Position, Final_Protein, index)
 first_protein <- first_protein %>% dplyr::select(-Protein_Position)
 
-Protein_Positions <- merge(first_protein, last_protein_position, by="index") 
+Protein_Positions <- merge(first_protein, last_protein_position, by="index")
 
-deviant <- grep("_", Protein_Positions$Protein_Position)
-
-for (i in deviant){
-  string_underscore <- Protein_Positions[i, 3]
-  split = strsplit(string_underscore, '_') %>% unlist()
-  one <- split[1]
-  two <- split[2]
-  Protein_Positions[i, 3] <- one
-  Protein_Positions <- rbind(Protein_Positions, Protein_Positions[3458,])
-  end <- nrow(Protein_Positions)
-  Protein_Positions[end, 3] <- two
-}
-
-mutect_annotated <- mutect_joined %>% dplyr::select(-Protein_Position, -Initial_Protein, -Final_Protein)
-
-mutect_annotated$index <- rownames(mutect_annotated)
-mutect_annotated_joined <- merge(mutect_annotated, Protein_Positions, by="index")
-mutect_annotated_joined <- transform(mutect_annotated_joined, Protein_Positions = as.numeric(Protein_Position))
+normal$index <- rownames(normal)
+normal <- merge(normal, Protein_Positions, by="index") %>% select(-index)
+   
+mutect_joined <- rbind(normal, deviant_del, deviant_ins, deviant_no_ins, deviant_asterisk, deviant_empty)
+mutect_annotated_joined <- transform(mutect_joined, Protein_Positions = as.numeric(Protein_Position))
+mutect_annotated_joined$index <- rownames(mutect_annotated_joined)
 
 ####################NON-MISSENSE##############################
 ##############################################################
 #Simple cases, where the p.Position does not affect if the Frame Shift, Splice Site, or Non-Sense mutation is whitelisted 
 complex_nonmissense <- c("ASXL1", "ASXL2", "TET2", "NPM1")
-non_missense_mutect_simple <- mutect %>% filter(Variant_Classification != "missense") %>% filter(!is_in(Hugo_Symbol, complex_nonmissense)) %>% dplyr::select(-whitelist, -manual_review, -notes)
+non_missense_mutect_simple <- mutect_annotated_joined %>% filter(Variant_Classification != "missense") %>% filter(!is_in(Hugo_Symbol, complex_nonmissense)) 
 non_missense_whitelist_simple <- white_list %>% filter(Variant_types!= "missense") %>% filter(!is_in(Gene_name, complex_nonmissense)) %>% dplyr::select(-missense_type, -Initial_Protein, -Protein_Position, -Final_Protein)
 
 non_missense_mutect_simple$Hugo_Variant <- paste(non_missense_mutect_simple$Hugo_Symbol, non_missense_mutect_simple$Variant_Classification, sep = "_")
@@ -116,10 +157,10 @@ WL_NonMissense_Simple_Gene_Variants <- non_missense_whitelist_simple$Hugo_Varian
 #wl <- unique(non_missense_whitelist_simple$Hugo_Variant)
 
 #intersect(wl, mutect)
-mutect_nonmissense_variants_simple <- non_missense_mutect_simple %>% filter(is_in(Hugo_Variant, WL_NonMissense_Simple_Gene_Variants)) %>% left_join(non_missense_whitelist_simple, by="Hugo_Variant") %>% dplyr::select(-Hugo_Variant)
+mutect_nonmissense_variants_simple <- non_missense_mutect_simple %>% filter(is_in(Hugo_Variant, WL_NonMissense_Simple_Gene_Variants)) %>% left_join(non_missense_whitelist_simple, by="Hugo_Variant") %>% dplyr::select(-Hugo_Variant, -Protein_Change_No_P, -Protein_Positions)
 
 #Complex cases, where the p.Position affects if the Frame Shift, Splice Site, or Non-Sense mutation is whitelisted
-non_missense_mutect_complex <- mutect_annotated_joined %>% filter(Variant_Classification != "missense") %>% filter(is_in(Hugo_Symbol, complex_nonmissense)) %>% dplyr::select(-whitelist, -manual_review, -notes)
+non_missense_mutect_complex <- mutect_annotated_joined %>% filter(Variant_Classification != "missense") %>% filter(is_in(Hugo_Symbol, complex_nonmissense)) 
 non_missense_whitelist_complex <- white_list %>% filter(Variant_types!= "missense") %>% filter(is_in(Gene_name, complex_nonmissense)) %>% dplyr::select(-missense_type, -Initial_Protein, -Final_Protein)
 
 non_missense_mutect_complex$Hugo_Variant_Position <- paste(non_missense_mutect_complex$Hugo_Symbol, non_missense_mutect_complex$Variant_Classification, non_missense_mutect_complex$Protein_Position, sep = "_")
@@ -134,7 +175,7 @@ mutect_nonmissense_variants_complex <- non_missense_mutect_complex %>% filter(is
 ####################MISSENSE####################################
 #################################################################
 #Simple Cases, where there is both a Initial_Protein and Final_Protein value
-missense_mutect <- mutect_annotated_joined %>% filter(Variant_Classification == "missense") %>% dplyr::select(-whitelist, -manual_review, -notes)
+missense_mutect <- mutect_annotated_joined %>% filter(Variant_Classification == "missense") 
 missense_whitelist_simple <- white_list %>% filter(Variant_types == "missense") %>% filter(!is.na(Initial_Protein)) %>% filter(!is.na(Final_Protein))
 missense_mutect$Hugo_ProteinChange <- paste(missense_mutect$Hugo_Symbol, missense_mutect$Protein_Change_No_P, sep = "_")
 missense_whitelist_simple$Hugo_ProteinChange <- paste(missense_whitelist_simple$Gene_name, missense_whitelist_simple$missense_type, sep = "_")
@@ -162,6 +203,7 @@ mutect_missense_variants_complex <- missense_mutect %>% filter(is_in(Hugo_Protei
 ###############JOIN MISSENSE AND NON-MISSENSE####################
 #################################################################
 whitelisted_variants <- rbind(mutect_nonmissense_variants_simple, mutect_nonmissense_variants_complex, mutect_missense_variants_simple, mutect_missense_variants_complex) %>% unique() %>% dplyr::select(-"Gene_name", -"Variant_types", -"start", -"end")
+
 whitelisted_index <- as.numeric(unlist(whitelisted_variants$index))
 mutect_no_WL <- mutect_annotated_joined %>% filter(!is_in(index, whitelisted_index))
 mutect_no_WL$whitelist <- 0
@@ -173,7 +215,7 @@ not_whitelisted <- dplyr::select(mutect_no_WL, all_of(col_WL))
 
 mutect_whitelist_annotated <- rbind(whitelisted_variants, not_whitelisted) %>% arrange(Hugo_Symbol)
 
-annotated_file_location <- str_c(output, "/mutect_annotated.tsv")
+annotated_file_location <- str_c(output, "/mutect_annotated_whitelist_Mar1_431.tsv")
 
 if (file.exists(annotated_file_location) == TRUE) {
   file.remove(annotated_file_location)
