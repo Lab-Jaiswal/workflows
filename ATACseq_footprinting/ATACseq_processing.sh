@@ -22,6 +22,8 @@ whitelist=$9
 genome_folder=${10}
 parameter_file=${11}
 code_directory=${12}
+bed_file=${13}
+filter=${14}
 
 module load samtools/1.9 #load necessary modules
 
@@ -71,4 +73,14 @@ $code_directory/peak_calling.sh $output_path $output_temp_dir $gsize $extsize $s
 
 ##########################---STEP 7: REMOVE BLACKLISTED REGIONS---######################################
 
-$code_directory/remove_blacklisted.sh $output_path $output_temp_dir $blacklist $whitelist $parameter_file $PREFIX
+$code_directory/remove_blacklisted.sh $output_path $output_temp_dir $blacklist $whitelist $parameter_file $PREFIX 
+
+#################################---STEP 7: FILTER BEDFILE---###########################################
+if [ $filter -ne 0 ]; then
+            echo "bed_file: $bed_file"
+            $code_directory/filter_on_bedfile.sh $output_path $output_temp_dir $parameter_file $PREFIX $bed_file
+else
+            echo "filtering of bam files via bed file was not requested. 
+            Please use argument "--filter bed_file_location" if this is not correct.
+            " >> $parameter_file
+fi

@@ -25,7 +25,7 @@ if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
           " >> $parameter_file
 fi
 ##########################---STEP 7: REMOVE BLACKLISTED REGIONS---######################################
-if [ ! -f "$output_temp_dir/peak_calling/${PREFIX}/${PREFIX}_union_final.bed" ]; then
+if [ ! -f "$output_temp_dir/peak_calling/${PREFIX}/${PREFIX}_union.bed" ]; then
     module load samtools/1.9
     cat $output_temp_dir/peak_calling/${PREFIX}/${PREFIX}_raw.bed | cut -f1-3 | sort -k1,1 -k2,2n | bedtools merge -d 5 | \
         bedtools subtract -a - -b $blacklist -A | bedtools intersect -a - -b $whitelist -wa | awk '$1 !~ /[M]/' | \
