@@ -1,294 +1,97 @@
 #!/bin/bash
 
-#SBATCH --time=24:00:00
+#SBATCH --time=3:00:00
 #SBATCH --account=sjaiswal
-#SBATCH --cpus-per-task=24
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=32GB
 #SBATCH --job-name=CHIP_variant_call
 
-parent_directory=$1
-output_directory="$2"
-min_coverage="$3"
-min_var_freq="$4"
-p_value="$5"
-get_mutect="$6"
-get_varscan="$7"
-get_haplotype="$8"
+##################################################################################################################################
+#############################################---STEP 1: SET UP PARAMETERS---###################################################### 
+##################################################################################################################################
+PARENT_DIRECTORY=$1
+OUTPUT_DIRECTORY="$2"
+MIN_COVERAGE="$3"
+MIN_VAR_FREQ="$4"
+P_VALUE="$5"
+GET_MUTECT="$6"
+GET_VARSCAN="$7"
+GET_HAPLOTYPE="$8"
+USE_BAM="$9"
+INTERVALS_FILE="${10}"
+PAIRED="${11}"
+NORMAL_SAMPLE="${12}"
+CODE_DIRECTORY="${13}"
+PARAMETER_FILE=${14}
+BWA_GREF=${15}
+TWIST_SNPS=${16}
+ASSEMBLY=${17}
+FUNCOTATOR_SOURCES=${18}    
+TRANSCRIPT_LIST=${19}
 
-line_number=$SLURM_ARRAY_TASK_ID #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
-fastq_file="${parent_directory}/fastq_files" #provide path to file containing list of fastq files
-fastq_prefix="$(sed "${line_number}q; d" "${fastq_file}")" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
+NORMAL_NAME=$(basename $NORMAL_SAMPLE | sed -e 's/.bam//')
 
-FILENAME=$(basename "${fastq_prefix}")
+LINE_NUMBER=$SLURM_ARRAY_TASK_ID #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
+
+if [ $USE_BAM == false ]; then
+    ARRAY_FILE="${PARENT_DIRECTORY}/fastq_files" #provide path to file containing list of fastq files
+else 
+    ARRAY_FILE="${PARENT_DIRECTORY}/bam_files" #provide path to file containing list of fastq files
+fi
+
+ARRAY_PREFIX="$(sed "${LINE_NUMBER}q; d" "${ARRAY_FILE}")" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
+FILENAME=$(basename "${ARRAY_PREFIX}")
 PREFIX=$FILENAME
 
-R1="${fastq_prefix}_R1_001.fastq.gz"
-R2="${fastq_prefix}_R2_001.fastq.gz"
+echo "FILENAME: $FILENAME"
+echo "PREFIX: $PREFIX"
+
+R1="${ARRAY_PREFIX}_R1_001.fastq.gz"
+R2="${ARRAY_PREFIX}_R2_001.fastq.gz"
 READGROUP="@RG\tID:${PREFIX}\tLB:${PREFIX}\tPL:illumina\tSM:${PREFIX}"
 
-BWA_GREF="/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa" #reference genome
-TWIST_SNPS="/labs/sjaiswal/workflows/BWA_mutect_twist/twist_snps.bed" #SNPs for germline calling
-ASSEMBLY="GRCh38" #Genome version
-
 #Run script and save files in the same location of the fastq files
-cd "${output_directory}" || exit
+cd "${OUTPUT_DIRECTORY}" || exit
 
-##align reads and index
-#if [ ! -f ${PREFIX}_${ASSEMBLY}_R1_noadapt.fastq ] | [ ! -f ${PREFIX}_${ASSEMBLY}_R2_noadapt.fastq ]; then
-    #echo "Trimming adapters with cutadapt"
-    #module load cutadapt/2.4
-    #cutadapt \
-        #-b AGATCGGAAGAGCACACGTCTGAACTCCAGTCA \
-        #-b AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT \
-        #-b TGACTGGAGTTCAGACGTGTGCTCTTCCGATCT \
-        #-b ACACTCTTTCCCTACACGACGCTCTTCCGATCT \
-        #-B AGATCGGAAGAGCACACGTCTGAACTCCAGTCA \
-        #-B AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT \
-        #-B TGACTGGAGTTCAGACGTGTGCTCTTCCGATCT \
-        #-B ACACTCTTTCCCTACACGACGCTCTTCCGATCT \
-        #--too-short-paired-output ${PREFIX}_${ASSEMBLY}_short_R2_output.fastq \
-        #--too-short-output ${PREFIX}_${ASSEMBLY}_short_R1_output.fastq \
-        #--too-long-paired-output ${PREFIX}_${ASSEMBLY}_long_R2_output.fastq \
-        #--too-long-output ${PREFIX}_${ASSEMBLY}_long_R1_output.fastq \
-        #--report=minimal \
-        #-n 3 \
-        #-m 100 \
-        #-o ${PREFIX}_${ASSEMBLY}_R1_noadapt.fastq \
-        #-p ${PREFIX}_${ASSEMBLY}_R2_noadapt.fastq \
-        #$R1 \
-        #$R2 
-    #echo "...adapters trimmed"
-#else
-    #echo "Adapters already trimmed"
-#fi
-
-if [ ! -f "${PREFIX}_${ASSEMBLY}.bam" ]; then
-    echo "Aligning to reference genome..."
-    module load bwa
-    module load samtools
-    bwa mem -R "${READGROUP}" "${BWA_GREF}" "${R1}" "${R2}" | samtools view -b - | samtools sort - -o "${PREFIX}_${ASSEMBLY}.bam"
-    echo "...alignment complete"
+SAMPLE_NAME="${PREFIX}_${ASSEMBLY}"
+if [ $USE_BAM == false ]; then
+   MUTECT_INPUT="${PREFIX}_${ASSEMBLY}"
+   ${CODE_DIRECTORY}/fastq_to_bam.sh $SAMPLE_NAME $READGROUP $BWA_GREF $R1 $R2 $PARAMETER_FILE
 else
-    echo "Alignment already completed"
+    MUTECT_INPUT="${ARRAY_PREFIX}"
 fi
 
-if [ ! -f "${PREFIX}_${ASSEMBLY}.bam.bai" ]; then
-    echo "Indexing BAM file..."
-    module load samtools
-    samtools index "${PREFIX}_${ASSEMBLY}.bam" "${PREFIX}_${ASSEMBLY}.bam.bai"
-    echo "...indexing complete"
+##################################################################################################################################
+#################################################---STEP 2: MUTECT.sh---########################################################## 
+##################################################################################################################################       
+if [ $GET_MUTECT = true ]; then
+    echo "Mutect analysis requested"
+    echo "$PARAMETER_FILE"
+
+   ${CODE_DIRECTORY}/mutect.sh $PAIRED $NORMAL_SAMPLE $NORMAL_NAME $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $FUNCOTATOR_SOURCES $TRANSCRIPT_LIST $PARAMETER_FILE
+       echo "Mutect analysis complete"
 else
-    echo "Indexing of BAM already completed"
+    echo "No mutect analysis requested"
 fi
-
-#if [ ! -f "${PREFIX}_${ASSEMBLY}_depth" ]; then
-    #echo "Computing base pair depth..."
-    #module load samtools
-    #samtools depth "${PREFIX}_${ASSEMBLY}.bam" > "${PREFIX}_${ASSEMBLY}_depth"
-    #echo "...base pair depth generated"
-#else
-    #echo "Base pair depth already generated"
-#fi
-
-#if [ ! -f "${PREFIX}_${ASSEMBLY}_depth_amplicons.txt" ]; then
-    #echo "Computing average amplicon depth..."
-    #module load R
-    #SCRIPT_PATH=$(scontrol show job "${SLURM_JOBID}" | awk -F= '/Command=/{print $2}' | cut -d ' ' -f 1)
-    #Rscript "$(dirname "${SCRIPT_PATH}")/get_amplicon_depth.R" "${PREFIX}_${ASSEMBLY}_depth" "$(dirname "${SCRIPT_PATH}")/chip_submitted_targets_Twist.xls"
-    #echo "...average amplicon depth generated"
-#else
-    #echo "Average amplicon depth already generated"
-#fi
-
-if [ $get_mutect = true ]; then
-    if [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2.vcf" ]; then
-        echo "Calling somatic variants with Mutect2..."
-        module load gatk4
-        gatk Mutect2 \
-        --input "${PREFIX}_${ASSEMBLY}.bam" \
-        -tumor "${PREFIX}" \
-        --output "${PREFIX}_${ASSEMBLY}_mutect2.vcf" \
-        --reference "${BWA_GREF}" \
-        --dont-use-soft-clipped-bases \
-        --bamout "${PREFIX}_${ASSEMBLY}_mutect2.bam"
-
-        module load samtools
-        samtools index "${PREFIX}_${ASSEMBLY}_mutect2.bam" "${PREFIX}_${ASSEMBLY}_mutect2.bam.bai"
-
-        echo "...somatic variants called."
-    else
-        echo "Mutect2 somatic variants already called"
-    fi
-
-    if [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter.vcf" ]; then
-        echo "Filtering somatic variants with FilterMutectCalls..."
-        module load gatk4
-        gatk FilterMutectCalls \
-        --variant "${PREFIX}_${ASSEMBLY}_mutect2.vcf" \
-        --output "${PREFIX}_${ASSEMBLY}_mutect2_filter.vcf" \
-        --reference "${BWA_GREF}"
-        echo "...somatic variants filtered."
-    else
-        echo "Mutect2 somatic variants already filtered"
-    fi
-
-    if [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.vcf" ]; then
-        TRANSCRIPT_LIST="/oak/stanford/groups/sjaiswal/Herra/CHIP_TWIST-PANEL_ATHEROMA/chip_transcript_list.txt" #Transcript list for Mutect
-        FUNCOTATOR_SOURCES="/labs/sjaiswal/tools/funcotator/funcotator_dataSources.v1.6.20190124s" #Reference for Funcotator
-
-        echo "Annotating Mutect2 VCF with Funcotator..."
-        module load gatk4
-        gatk Funcotator \
-        --variant "${PREFIX}_${ASSEMBLY}_mutect2_filter.vcf" \
-        --reference "${BWA_GREF}" \
-        --ref-version hg38 \
-        --data-sources-path "${FUNCOTATOR_SOURCES}" \
-        --transcript-list "${TRANSCRIPT_LIST}" \
-        --output "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.vcf" \
-        --output-file-format VCF 
-        echo "...VCF annotated."
-    else
-        echo "Mutect2 VCF already annotated"
-    fi
-
-    if  [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.vcf" ]; then
-        grep -E "^#|FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" <  "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.vcf" > "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.vcf"
-        number_nonsyn_vcf=$(grep -E "FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" < "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.vcf" | wc -l)        
-        if [ $number_nonsyn_vcf -lt 1 ]; then
-            mv "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.vcf" "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding_null.vcf"
-        fi
-
-    fi
-    
-    if  [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.maf" ]; then
-        TRANSCRIPT_LIST="/oak/stanford/groups/sjaiswal/Herra/CHIP_TWIST-PANEL_ATHEROMA/chip_transcript_list.txt" #Transcript list for Mutect
-        FUNCOTATOR_SOURCES="/labs/sjaiswal/tools/funcotator/funcotator_dataSources.v1.6.20190124s" #Reference for Funcotator
-    
-        echo "Annotating VCF with Funcotator (MAF output)..."
-        module load gatk4
-        gatk Funcotator \
-        --variant "${PREFIX}_${ASSEMBLY}_mutect2_filter.vcf" \
-        --reference "${BWA_GREF}" \
-        --ref-version hg38 \
-        --data-sources-path "${FUNCOTATOR_SOURCES}" \
-        --transcript-list "${TRANSCRIPT_LIST}" \
-        --output "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.maf" \
-        --output-file-format MAF 
-        echo "...VCF annotated (MAF ouput)."
-    else
-        echo "Mutect2 VCF already annotated (MAF output)"
-    fi
-
-    if  [ ! -f "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.maf" ]; then
-        grep -E "^#|^Hugo_Symbol|Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" <  "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator.maf" > "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.maf" 
-        number_nonsyn_maf=$(grep -E "Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" < "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.maf" | wc -l)        
-        if [ $number_nonsyn_maf -lt 1 ]; then
-            mv"${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding.maf" "${PREFIX}_${ASSEMBLY}_mutect2_filter_funcotator_coding_null.maf"
-        fi
-    fi
-    
-else 
-    echo "No Mutect analysis requested"
-fi
-
-if [ $get_haplotype = true ]; then
-    if [ ! -f "${PREFIX}_${ASSEMBLY}_haplotypecaller.gvcf" ]; then
-        echo "Calling germline variants with HaplotypeCaller..."
-        module load gatk4
-        gatk HaplotypeCaller \
-        --input "${PREFIX}_${ASSEMBLY}.bam" \
-        --output "${PREFIX}_${ASSEMBLY}_haplotypecaller.gvcf" \
-        --reference "${BWA_GREF}" \
-        --intervals "${TWIST_SNPS}" \
-        --bamout "${PREFIX}_${ASSEMBLY}_haplotypecaller.bam" \
-        --emit-ref-confidence GVCF
-    
-        module load samtools
-        samtools index "${PREFIX}_${ASSEMBLY}_haplotypecaller.bam" "${PREFIX}_${ASSEMBLY}_haplotypecaller.bam.bai"
-
-        echo "...germline variants called."
-    else
-        echo "HaplotypeCaller gVCF already exists"
-    fi
-
-    if [ ! -f "${PREFIX}_${ASSEMBLY}_haplotypecaller_genotypes.vcf" ]; then
-        echo "Genotyping germline variants in gVCF with GenotypeGVCF..."
-        module load gatk4
-        gatk GenotypeGVCFs \
-        --variant "${PREFIX}_${ASSEMBLY}_haplotypecaller.gvcf" \
-        --output "${PREFIX}_${ASSEMBLY}_haplotypecaller_genotypes.vcf" \
-        --reference "${BWA_GREF}" \
-        --intervals "${TWIST_SNPS}" \
-        --include-non-variant-sites
-    
-        echo "...germline variants genotyped."
-    else
-        echo "Germline variants already genotyped with GenotypeGVCFs"
-    fi
+            
+##################################################################################################################################
+############################################---STEP 3: HAPLOTYPECALLER.sh---######################################################
+##################################################################################################################################    
+if [ $GET_HAPLOTYPE = true ]; then
+    echo "Haplotypecaller analysis requested"
+    ${CODE_DIRECTORY}/haplotypecaller.sh $SAMPLE_NAME $BWA_GREF $TWIST_SNPS $PARAMETER_FILE
+    echo "Haplotypecaller analysis complete"
 else
     echo "No HaplotypeCaller analysis requested"
 fi
 
-if [ $get_varscan = true ]; then
-    if [ ! -f "${PREFIX}_${ASSEMBLY}.pileup" ]; then
-        module load samtools
-        echo "Generating pileup from BAM..."
-        samtools mpileup \
-        -A \
-        --max-depth 0 \
-        -C50 \
-        -f "${BWA_GREF}" \
-        "${PREFIX}_${ASSEMBLY}.bam" > "${PREFIX}_${ASSEMBLY}.pileup"
-        echo "...pileup generated"
-    else
-        echo "Pileup already generated"
-    fi
-    if [ ! -f "${PREFIX}_${ASSEMBLY}_varscan2.vcf" ]; then
-        echo "Calling variants from pileup..."
-        module load varscan
-        varscan mpileup2cns \
-        "${PREFIX}_${ASSEMBLY}.pileup" \
-        --min-coverage "${min_coverage}" \
-        --min-var-freq "${min_var_freq}" \
-        --p-value "${p_value}" \
-        --output-vcf 1 > "${PREFIX}_${ASSEMBLY}_varscan2.vcf"
-        echo "...variants called"
-    else
-        echo "Variants already called"
-    fi
-
-    if [ ! -f "${PREFIX}_${ASSEMBLY}_varscan2_filter.vcf" ]; then
-        echo "Filtering variants in VCF..."
-        varscan filter \
-        "${PREFIX}_${ASSEMBLY}_varscan2.vcf" \
-        --output-file "${PREFIX}_${ASSEMBLY}_varscan2_filter.vcf" \
-        --min-coverage "${min_coverage}" \
-        --min-var-freq "${min_var_freq}" \
-        --p-value "${p_value}"
-        echo "...variants filtered"
-    else
-        echo "Variants already filtered"
-    fi
-
-    if [ ! -f "${PREFIX}_${ASSEMBLY}_varscan2_filter_annovar.hg38_multianno.vcf" ]; then
-        echo "Annotating VCF with Annovar..."
-        ASSEMBLY_REFGENE="hg38"
-        ANNOVARROOT="/labs/sjaiswal/tools/annovar"
-        "${ANNOVARROOT}/table_annovar.pl" \
-        "${PREFIX}_${ASSEMBLY}_varscan2_filter.vcf" \
-        "${ANNOVARROOT}/humandb" \
-        --buildver "${ASSEMBLY_REFGENE}" \
-        --remove \
-        --outfile "${PREFIX}_${ASSEMBLY}_varscan2_filter_annovar" \
-        --protocol ensGene \
-        --operation g \
-        --nastring '.' \
-        --vcfinput \
-        --thread 1
-        echo "...VCF annotated"
-    else
-        echo "VCF already annotated"
-    fi
+##################################################################################################################################
+################################################---STEP 4: VARSCAN.sh---########################################################## 
+##################################################################################################################################    
+if [ $GET_VARSCAN = true ]; then
+    echo "Varscan analysis requested"
+   ${CODE_DIRECTORY}/varscan.sh $SAMPLE_NAME $BWA_GREF $MIN_COVERAGE $MIN_VAR_FREQ $P_VALUE $PARAMETER_FILE
+   echo "Varscan analysis complete"
 else 
     echo "No Varscan analysis requested"
 fi
