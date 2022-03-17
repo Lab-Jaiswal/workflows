@@ -218,6 +218,7 @@ else
 ##################################################################################################################################
 #########################---STEP 4: PEAK PROCESSING: REDUCE GENOMIC LOCATION COLUMNS AND SORT---################################## 
 ##################################################################################################################################
+    module load bedtools
     if [ ! -f "$output_path/peak_calling/all_merged.bed" ]; then
         temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
         echo "temp_path is: " $temp_path
