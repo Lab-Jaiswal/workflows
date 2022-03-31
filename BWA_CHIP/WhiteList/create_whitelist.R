@@ -8,8 +8,8 @@ library(openxlsx)
 
 string_split_slash <- function(df, split_number){
   slash_split <- str_split_fixed(df$Variant_calling_mutations, "/", split_number) %>% as_tibble()
-  slash_split_joined <- bind_cols(df, slash_split) %>% select(-Variant_calling_mutations)
-  slash_split_long <- pivot_longer(slash_split_joined, -Gene_name, names_to = "variants", values_to = "Variant_types") %>% select(-variants)
+  slash_split_joined <- bind_cols(df, slash_split) %>% dplyr::select(-Variant_calling_mutations)
+  slash_split_long <- pivot_longer(slash_split_joined, -Gene_name, names_to = "variants", values_to = "Variant_types") %>% dplyr::select(-variants)
   slash_split_long[slash_split_long==""] <-NA
   filter(slash_split_long, !is.na(Variant_types))
 }
@@ -25,8 +25,8 @@ set_columns <- function(df, start_position, end_position, WL, MR, note){
 
 string_split_comma <- function(df, split_number) {
   split_comma <- str_split_fixed(df$Variant_types, ",", split_number) %>% as_tibble()
-  split_comma_joined <- bind_cols(df, split_comma) %>% select(-Variant_types)
-  variant_type_long <- pivot_longer(split_comma_joined, -Gene_name, names_to = "variants", values_to = "Variant_types") %>% select(-variants)
+  split_comma_joined <- bind_cols(df, split_comma) %>% dplyr::select(-Variant_types)
+  variant_type_long <- pivot_longer(split_comma_joined, -Gene_name, names_to = "variants", values_to = "Variant_types") %>% dplyr::select(-variants)
   variant_type_long[variant_type_long==""] <-NA
   variant_cleaned <- filter(variant_type_long, !is.na(Variant_types))
   variant_no_qoutes <- as.data.frame(sapply(variant_cleaned, function(x) gsub("\"", "", x)))
@@ -53,11 +53,11 @@ to_char <- function(mydata){
 }
 
 command_args <- commandArgs(trailingOnly = TRUE)
-variantWL_location <- command_args[1]
-output <- command_args[2]
-variantWL <- read_excel(variantWL_location, col_names = T)
+variantWL_location <- "/Users/maurertm/Desktop/workflows/BWA_CHIP/Whitelist/variant_list_SRCAP.xlsx"
+output_dir <- "/Users/maurertm/Desktop/workflows/BWA_CHIP/Whitelist"
+variantWL <- read_excel(variantWL_location, col_names = T) %>% as_tibble()
 
-variantWL_rmAccession <- variantWL %>% select(-Accession, -...4, -...5, -...6, -...7, -...8)
+variantWL_rmAccession <- variantWL[1:2]
 names(variantWL_rmAccession) <- c("Gene_name", "Variant_calling_mutations")
 contains_pdot <- c("ASXL1", "ASXL2", "CBL","CBLB", "NPM1", "TET2")
 ZNF_domain <- c("GATA3")
@@ -303,7 +303,7 @@ TP53_expanded[291, ] <- c("TP53", "missense", "F134L", NA, NA, 1, 0, NA)
 
 TP53_final <- TP53_expanded
 
-complex_list <- list(filtered_final, ASXL_final, CBL_CBLB_final, CREBBP_final, EP300_final, FLT3_final, GATA3_final, GNAS_final, JAK2_final, KDM6A_final, KIT_final, MPL_final, NPM1_final, PPM1D_final, PRPF8_final, TET2_final, TP53_final)
+complex_list <- list(filtered_final, ASXL_final, CBL_CBLB_final, CREBBP_final, EP300_final, DNMT3A_final, FLT3_final, GATA3_final, GNAS_final, JAK2_final, KDM6A_final, KIT_final, MPL_final, NPM1_final, PPM1D_final, PRPF8_final, TET2_final, TP53_final)
 
 complex_char <- map(complex_list, to_char)
 complete<- bind_rows(complex_char)
@@ -323,7 +323,7 @@ first_letter <- filter(first_protein, number == 1)
 first_letter$Initial_Protein <- first_letter$V1
 first_letter$Protein_Position <- first_letter$V2
 
-first_protein <- rbind(first_letter, first_number) %>% select(Initial_Protein, Protein_Position, index)
+first_protein <- rbind(first_letter, first_number) %>% dplyr::select(Initial_Protein, Protein_Position, index)
 
 last_protein<-  do.call('rbind', strsplit(first_protein$Protein_Position, split = "(?<=[0-9])\\s*(?=[a-zA-Z])", perl = TRUE)) %>% as_tibble()
 last_protein$index <- first_protein$index
@@ -338,13 +338,13 @@ last_letter <- filter(last_protein, number == 1)
 last_letter$Protein_Position <- last_letter$V1
 last_letter$Final_Protein <- last_letter$V2
 
-last_protein_position <- rbind(last_letter, last_number) %>% select(Protein_Position, Final_Protein, index)
-first_protein <- first_protein %>% select(-Protein_Position)
+last_protein_position <- rbind(last_letter, last_number) %>% dplyr::select(Protein_Position, Final_Protein, index)
+first_protein <- first_protein %>% dplyr::select(-Protein_Position)
 
 Protein_Positions <- merge(first_protein, last_protein_position, by="index") 
 
 complete_transformed$index <- rownames(complete_transformed)
-final <- merge(complete_transformed, Protein_Positions, by="index") %>% transform(Protein_Position = as.numeric(Protein_Position)) %>% select(-index)
+final <- merge(complete_transformed, Protein_Positions, by="index") %>% transform(Protein_Position = as.numeric(Protein_Position)) %>% dplyr::select(-index)
 
 final_complex_missense <- final %>% filter(Variant_types == "missense") %>% filter(!is.na(start))
 CBL <- do.call("rbind", replicate(41, final_complex_missense[1,], simplify = FALSE)) %>% mutate(missense_type = c(381:421))
@@ -363,12 +363,90 @@ final_complex_merged <- rbind(CBL, CBLB, TET2_Missense, TET2_Frameshift, TET2_no
 
 final$index <- rownames(final)
 final <- final[!(final$index %in% c(904:911, 1038:1041, 1266:1272, 1073, 1090)),]
-final_merged <- final %>% select(-index) %>% rbind(final_complex_merged)
+final_merged <- final %>% dplyr::select(-index) %>% rbind(final_complex_merged)
+BCOR_frameshift <- c("BCOR", "Frameshift", NA, NA, NA, 1, 0, NA, NA, NA, NA)
+BCOR_nonsence <- c("BCOR", "nonsense", NA, NA, NA, 1, 0, NA, NA, NA, NA)
+BCOR_splicesite <- c("BCOR", "splice-site", NA, NA, NA, 1, 0, NA, NA, NA, NA)
+BCOR <- rbind(BCOR_frameshift, BCOR_nonsence, BCOR_splicesite)
+colnames(BCOR) <- c( "Gene_name","Variant_types","missense_type","start","end","whitelist","manual_review","notes","Initial_Protein","Protein_Position", "Final_Protein")
+BCORL1_FS <- c( "BCORL1","Frameshift", NA, NA, NA, 1, 0, NA, NA, NA, NA) %>% rbind()
+colnames(BCORL1_FS) <- c("Gene_name", "Variant_types", "missense_type", "start", "end", "whitelist", "manual_review", "notes", "Initial_Protein", "Protein_Position", "Final_Protein")
 
-whitelist_file_location <- str_c(output, "/variant_whitelist.xlsx")
+final_merged <- rbind(final_merged, BCOR, BCORL1_FS)
+
+rownames(final_merged) <-1:nrow(final_merged)
+
+
+#check that all proteins are expected
+final_merged_list <- final_merged$Gene_name
+input_list <- variantWL$`Gene name`
+
+setdiff(final_merged_list, input_list)
+setdiff(input_list, final_merged_list)
+
+final_merged_unique_list <- final_merged_list %>% unique()
+ordered_gene_list <- c("test", "test", "test", "test")
+check <- function(column_name){
+  a <- character(0)
+  gene <- final_merged %>% filter(Gene_name == column_name) 
+  gene_list <- gene$Variant_types %>% unique()
+  if ((identical(setdiff("Frameshift", gene_list), a)) == TRUE) {
+    ordered_gene_list[1] <- "Frameshift"
+  } else {
+    ordered_gene_list[1] <- 0
+  }
+  
+  if ((identical(setdiff("nonsense", gene_list), a)) == TRUE) {
+    ordered_gene_list[2] <- "nonsense"
+  } else {
+    ordered_gene_list[2] <- 0
+  }
+  
+  if ((identical(setdiff("missense", gene_list), a)) == TRUE) {
+    ordered_gene_list[3] <- "missense"
+  } else {
+    ordered_gene_list[3] <- 0
+  }
+  
+  if ((identical(setdiff("splice-site", gene_list), a)) == TRUE) {
+    ordered_gene_list[4] <- "splice-site"
+  } else {
+    ordered_gene_list[4] <- 0
+  }
+  ordered_gene_list
+}
+
+checking <- check("ASXL1")
+
+j <- 0
+output <-data.frame(matrix(ncol = 5, nrow = 0))
+
+for (i in final_merged_unique_list) { 
+  j <- j+1
+
+  variants <- check(i)
+  
+  output[j, 1] <- i
+  output[j, 2] <- variants[1]
+  output[j, 3] <- variants[2]
+  output[j, 4] <- variants[3]
+  output[j, 5] <- variants[4]
+}
+
+variant_types <- read_excel("/Users/maurertm/Desktop/workflows/BWA_CHIP/Whitelist/variant_types.xlsx", col_names = F) %>% as_tibble()
+colnames(variant_types) <- c("Gene_name", "Frameshift", "nonsense", "missense", "splice_site")
+variant_types_sorted <-variant_types[order(variant_types$Gene_name),]
+
+output_sorted <- output[order(output$X1),]
+colnames(output_sorted) <- c("Gene_name", "Frameshift", "nonsense", "missense", "splice_site")
+
+all_equal(output_sorted, variant_types_sorted)
+
+whitelist_file_location <- str_c(output_dir, "/variant_whitelist_real_tested.tsv")
 
 if (file.exists(whitelist_file_location) == TRUE) {
     file.remove(whitelist_file_location)
 }
 
 write.xlsx(final_merged, whitelist_file_location, keepNA = TRUE)
+write_tsv(data.frame(final_merged), whitelist_file_location)
