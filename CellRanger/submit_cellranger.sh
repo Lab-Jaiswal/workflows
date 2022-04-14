@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -z $1 ] || [ -z $2 ] || [ -z $3 ]; then
+if [ -z $1 ] || [ -z $2 ]; then
     echo "Format: ./submit_cellranger.sh [fastq_directory] [output_directory] --argument"
     echo "fastq_directory: path to raw .fastq or .fastq.gz files"
     echo "output_directory: path for CellRanger output"
