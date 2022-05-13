@@ -198,7 +198,7 @@ else
     output_bed_files=$(find "$output_path/peak_calling" -maxdepth 2 -type f | grep "raw.bed" | sort -u | wc -l)
     filtered_bam_files=$(find $output_path | grep "merged.sorted.filter.bam" | sort -u | wc -l)
 
-    if [[ $filtered_bam_files -lt 1 ]] && [[ filter -eq 1 ]]; then
+    if [[ $filtered_bam_files -lt 1 ]] && [[ $filter -eq 1 ]]; then
         request_filter=1
     else
         request_filter=0
