@@ -19,7 +19,7 @@ else
             
         while true; do
             case "$1" in
-                --genome_build ) genome_build="$2"; shift 2;;
+                --genome_build ) genome_build="$2"; shift 2 ;;
                 -- ) shift; break ;;
                 * ) break ;;
             esac
