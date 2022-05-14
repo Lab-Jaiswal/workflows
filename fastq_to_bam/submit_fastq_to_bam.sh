@@ -6,7 +6,7 @@ if [ -z $1 ] || [ -z $2 ]; then
     echo "user can use argument --genome_build to specify the genome build used when converting fastqs to bams"
     exit 1
 else
-#pipeline in shell for ATACseq footprinting
+#pipeline in shell for fastq_to_bam
     TEMP=`getopt -o vdm: --long genome_build: \
         -n './submit_fastq_to_bam' -- "$@"`
 
@@ -67,9 +67,20 @@ else
         
     echo "call made to execute code: $0 $1 $2 $set_genome_build  
     " >> $parameter_file
-            
+ 
 ##################################################################################################################################
-##########################################---STEP 4: CONVERT FASTQS TO BAMS---#################################################### 
+############################################---STEP 4: INDEX GENOME BUILD---###################################################### 
+##################################################################################################################################
+    if [ ! -f "${genome_build}.bwt" ]; then   
+            module load bwa
+            cd $genome_build
+
+            echo "indexing genome build"
+            bwa index -a bwtsw $genome_build
+    fi
+    
+##################################################################################################################################
+##########################################---STEP 5: CONVERT FASTQS TO BAMS---#################################################### 
 ##################################################################################################################################
     cd $data_directory 
     
