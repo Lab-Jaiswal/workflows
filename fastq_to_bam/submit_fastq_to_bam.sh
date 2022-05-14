@@ -7,7 +7,7 @@ if [ -z $1 ] || [ -z $2 ]; then
     exit 1
 else
 #pipeline in shell for ATACseq footprinting
-    TEMP=`getopt -o vdm: --long genome_build \
+    TEMP=`getopt -o vdm: --long genome_build: \
         -n './submit_fastq_to_bam' -- "$@"`
 
        if [ $? != 0 ]; then
