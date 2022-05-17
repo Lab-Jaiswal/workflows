@@ -2,6 +2,8 @@
 
 echo "entering remove_blacklisted.sh"
 
+module load bedtools/2.27.1
+
 output_path=$1
 output_temp_dir=$2
 blacklist=$3
