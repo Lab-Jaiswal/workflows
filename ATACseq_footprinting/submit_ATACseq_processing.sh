@@ -161,8 +161,9 @@ else
 ##################################################################################################################################
     if [ ! -f $genome_folder/chromsizes.bed ]; then
         cd $genome_folder
-        samtools faidx mm9_bgzip.fa.gz
-        cut -f1,2 mm9_bgzip.fa.gz.fai > sizes.genome
+        bgzip_genome_name=$( echo $genome_path | sed --expression='s/.fa.gz/_bgzip.fa.gz/g'   )
+        samtools faidx $bgzip_genome_name
+        cut -f1,2 $bgzip_genome_name.fai > chromsizes.txt
 
         cat chromsizes.txt | awk '{{ print $1, 0, $2 }}' | tr ' ' '\t' > chromsizes.bed
 
