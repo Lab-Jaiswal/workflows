@@ -19,14 +19,15 @@ if [ -z $1 ] || [ -z $2 ] || [ -z $3 ]; then
     echo "user can use argument --blacklist to set a black list other than /oak/stanford/groups/sjaiswal/kameronr/ATACseq/blacklist/mm9-blacklist.bed.gz"
     echo "user can use argument --force to force the code to disregard the checks preventing methylseq.sh, extract_methylation.sh & join_coverage.sh from running"
     echo "user can use argument --log_name to give the log file a unique name"
+    echo "user can use argument --genome_build to specify the genome build used when converting fastqs to bams"
     exit 1
 else
 #pipeline in shell for ATACseq footprinting
-    TEMP=`getopt -o vdm: --long gsize:,extsize:,shifts:,broad:,nomodel:,blacklist:,filter:,log_name \
+    TEMP=`getopt -o vdm: --long gsize:,extsize:,shifts:,broad:,nomodel:,blacklist:,filter:,log_name:,genome_build \
         -n './submit_atacseq' -- "$@"`
 
        if [ $? != 0 ]; then
-           echo "Unrecognized argument. Possible arguments: --gize, --extsize, shifts, --broad true, --broad false, --nomodel true, --nomodel false, --blacklist path_to_blacklist --log_name chosen_log_name." >&2 ; exit 1 ; 
+           echo "Unrecognized argument. Possible arguments: --gize, --extsize, shifts, --broad true, --broad false, --nomodel true, --nomodel false, --blacklist path_to_blacklist --log_name chosen_log_name. --genome_build path_to_genome_build." >&2 ; exit 1 ; 
        fi
            eval set -- "$TEMP"
 
@@ -39,6 +40,7 @@ else
             log_name="log_"
             filter=0
             bed_file=0
+            genome_build="/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa"
             
         while true; do
             case "$1" in
@@ -50,6 +52,7 @@ else
                 --blacklist ) blacklist="$2"; shift 2 ;;
                 --filter ) filter=1; bed_file="$2"; shift 2 ;; 
                 --log_name ) log_name="$2"; shift 2;;
+                --genome_build ) genome_build="$2"; shift 2;;
                 -- ) shift; break ;;
                 * ) break ;;
             esac
@@ -77,6 +80,8 @@ else
     output_path=$3
     echo "$genome_folder"
     echo "bed file: $bed_file"
+    
+    bwa_gref=$genome_build
 
     code_directory=$( realpath . )
 
@@ -191,7 +196,31 @@ else
             sort -u  `#sort and remove duplicate names` > ${bam_file}
 
         bam_array_length=$(wc -l < ${bam_file}) #get the number of FASTQs 
+        echo "bam array length: $bam_array_length"
+
+    fastq_list="$bam_path/fastq_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
+
+   find "${bam_path}/" -type f `#list all files in ${fastq_directory}` | \
+        grep ".*\.fq.gz$" `#only keep files with FASTQ in name (case insensitive)` | \
+        grep -v "Undetermined" `#remove Undetermined FASTQs` | \
+        sed -e 's/_R1.*$//g' | sed -e 's/_R2.*$//g' `#remove _R1/2_fastq.gz file extension`| \
+        sort -u  `#sort and remove duplicate names` > ${fastq_list} 
+    fastq_array_length=$(wc -l < ${fastq_list}) #get the number of FASTQs 
+    echo "fastq array length: $fastq_array_length"
+     
+   if [[ $bam_array_length -lt 1 ]] && [[ $fastq_array_length -ge 1 ]]; then
+        sbatch -o "$Logs/%A_%a.log" `#put into log` \
+            -a "1-${fastq_array_length}" `#initiate job array equal to the number of fastq files` \
+            -W `#indicates to the script not to move on until the sbatch operation is complete` \
+            "${code_directory}/fastq_to_bam.sh" \
+            "$bwa_gref" \
+            "$bam_path"
+
+        cp $fastq_list $bam_file
+        bam_array_length=$(wc -l < ${bam_file}) #get the number of BAMs 
         echo "$bam_array_length"
+            wait
+   fi
 
     number_bams=$(wc -l < "${bam_file}") #get the number of files
     array_length="$number_bams"
