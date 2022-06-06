@@ -47,7 +47,7 @@ reps=$(basename "${number_replicates}")
 
 echo "number of replicates for ${PREFIX}: $reps"
 
-temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
+temp_path=$(mktemp -d)
 echo "temp_path is: " $temp_path
 echo "copying bams from the data path..."
 rsync -vur "$bam_path/" $temp_path

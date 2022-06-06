@@ -40,7 +40,7 @@ fastq_temp=$(basename "${fastq_path}")
 line_count=$( wc -l < "${genetic_locations}" )
 total_genomes=$(bc -l <<< "scale=0; (($line_count / 3) - 1)")                                   #the total number of genomes requested to be mapped against
 
-temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
+temp_path=$(mktemp -d)
 echo "temp_path is: " $temp_path
 echo "copying FASTQs from the data path..."                                                     #copy data from data_path to the temp_path
 rsync -vur "$data_path/fastq/" $temp_path
