@@ -17,7 +17,17 @@ deduplicate=${10}
 parameter_file=${11}
 
 echo "map_and_deduplicate command used the following parameters:
-$0 $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10} ${11}"
+		read1_input=$1
+		read2_input=$2
+		read1_bismark=$3
+		dedup_input=$4
+		dedup_output=$5
+		genome_fasta_path=$6
+		output_temp_directory=$7
+		output_directory=$8
+		cores=$9
+		deduplicate=${10}
+		parameter_file=${11}"
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
 	echo "command given to map_and_deduplicate.sh includes the following parameters:
