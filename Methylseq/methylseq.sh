@@ -40,12 +40,6 @@ fastq_temp=$(basename "${fastq_path}")
 line_count=$( wc -l < "${genetic_locations}" )
 total_genomes=$(bc -l <<< "scale=0; (($line_count / 3) - 1)")                                   #the total number of genomes requested to be mapped against
 
-temp_path=$(mktemp -d)
-echo "temp_path is: " $temp_path
-echo "copying FASTQs from the data path..."                                                     #copy data from data_path to the temp_path
-rsync -vur "$data_path/fastq/" $temp_path
-
-cd $temp_path
 
 ##################################################################################################################################
 ###########################################---STEP 2: LOAD MODULES---######################################################
@@ -58,22 +52,53 @@ echo "Bismark and samtools modules have been loaded"
 ###############################################---STEP 3: RUN trim.sh---##########################################################
 ##########################################---Copy output data (if any exist)---###################################################
 ##################################################################################################################################
+temp_path=$(mktemp -d)
+echo "temp_path is: " $temp_path
+echo "copying sample fastq from the data path..."
+
 read1="${temp_path}/${sample_name}_R1_001.fastq.gz"
 read2="${temp_path}/${sample_name}_R2_001.fastq.gz"
+read1_name=$(basename "${read1}")
+read2_name=$(basename "${read2}")
 read1_trimmed=$(echo $read1 | sed 's/fastq.gz/trimmed.fastq.gz/')
 read2_trimmed=$(echo $read2 | sed 's/fastq.gz/trimmed.fastq.gz/')
+read1_trimmed_name=$(basename "${read1_trimmed}")
+read2_trimmed_name=$(basename "${read2_trimmed}")
+
+
+
+#copy data from data_path to the temp_path
+#copy over to the temp directory just the untrimmed and trimmed (if exists) fastqs for the sample it’s going to work on
+rsync -vur --exclude="*" --include=$("${read1_name}"|"${read2_name}"|"${read1_trimmed_name}"|"${read2_trimmed_name}") "$data_path/fastq/" $temp_path
+
+cd $temp_path
+
+echo "temp_path files":
+echo $(ls)
 
 echo "running trim.sh"
 ${code_directory}/trim.sh $read1 $read2 $read1_trimmed $read2_trimmed $data_path $parameter_file
 
 echo "copying data from the output file (if there is any)"                                      #copy data from output_path to temp_path
-rsync -vur --exclude "Logs" --exclude "Parameters" $initial_path/ $temp_path                    #done after trim.sh to simplify rsync step
+
+#the trimmed file gets saved to the temp directory and the trim script copies over the trimmed sample fastq files to the output directory so does not need to be coded in this script
+
+#remove the untrimmed files from temp directory to save space
+rm read1 read2
+
+#rsync -vur --exclude "Logs" --exclude "Parameters" $initial_path/ $temp_path                    #done after trim.sh to simplify rsync step
+
+
 
 ##################################################################################################################################
 #########################################---STEP 5: RUN map_and_deduplicate.sh---#################################################
 ################################################---sort_and_index.sh---###########################################################
 ################################################---extract_methyl.sh---###########################################################
 ##################################################################################################################################
+
+input_temp_directory="${temp_path}"
+previous_loop_output_directory="${initial_path}"
+
 for i in $(seq 0 $total_genomes); do
     number1=$(bc -l <<< "scale=0; (($i * 3) +1)")
     number2=$(bc -l <<< "scale=0; (($i * 3) +2)")
@@ -98,18 +123,8 @@ for i in $(seq 0 $total_genomes); do
         genome fasta path: $genome_fasta_path
         deduplicate status: $deduplicate "            
        
-    output_temp_directory=$(find $temp_path -type d -name "$genome_name")
-    output_directory=$(find $initial_path -type d -name "$genome_name")
-            
-    j=$(bc -l <<< "scale=0; ($i - 1)")
-    if [ $j -gt -1 ]; then            
-        number4=$(bc -l <<< "scale=0; (($j * 3) +1)")
-        genome_name_input=$(sed -n ${number4}'p' $genetic_locations)
-        input_directory=$(find $initial_path -type d -name "$genome_name_input")
-        input_temp_directory=$(find $temp_path -type d -name "$genome_name_input")
-    else
-        input_temp_directory=$temp_path
-    fi
+    output_temp_directory="${input_temp_directory}/${genome_name}"
+    output_directory="${previous_loop_output_directory}/${genome_name}"
     
     echo "copying transcriptome to the temporary file directory"
     rsync -vur "$genome_fasta_path/" "$temp_path/${genome_name}_fasta"
@@ -127,6 +142,7 @@ for i in $(seq 0 $total_genomes); do
         read2_trimmed="${sample_name}_R2_001.trimmed"
         bismark_output="${output_temp_directory}/${read1_trimmed}_bismark_bt2_PE_report.txt"
     else
+        #it remember from the previous loop
         read1_ending=${read1_ending}${read1_addition}
         read2_ending=${read2_ending}${read2_addition}
         read1_trimmed="${sample_name}_R1_001.trimmed.fastq.gz"
@@ -165,18 +181,33 @@ for i in $(seq 0 $total_genomes); do
         
     ${code_directory}/extract_methyl.sh $bismark_input $bismark_methyl_output $output_temp_directory $output_directory $temp_genome $cores $parameter_file
 
-done 
+    #make insert size plot
+    ###---STEP 10: PREVIOUSLY insert_size_analysis.sh---##
+    if [ $deduplicate == TRUE ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "TRUE" ]; then
+        picard_output="${dedup_input}_picard_insert_size_plot.pdf"
+        if [ ! -f $picard_output ]; then 
+            module load R
+            module load picard/2.9.5
+            picard CollectInsertSizeMetrics INPUT=$dedup_input OUTPUT=$dedup_input\_picard_insert_size_metrics.txt HISTOGRAM_FILE=$dedup_input\_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
+                echo "picard insert_size_analysis complete"
+            rsync -vur $output_temp_directory/ $output_directory
+        else
+            echo "picard insert size analysis already complete"
+        fi
+    else
+        echo "picard insert size analysis not done because this level of analysis did not have deduplication requested."
+    fi
 
-##################################################################################################################################
-##################################---STEP 10: PREVIOUSLY insert_size_analysis.sh---###############################################
-##################################################################################################################################
-picard_output="${dedup_input}_picard_insert_size_plot.pdf"
-if [ ! -f $picard_output ]; then 
-    module load R
-    module load picard/2.9.5
-    picard CollectInsertSizeMetrics INPUT=$dedup_input OUTPUT=$dedup_input\_picard_insert_size_metrics.txt HISTOGRAM_FILE=$dedup_input\_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
-        echo "picard insert_size_analysis complete"
+    #transfer files from tmp directory to the output directory, 
     rsync -vur $output_temp_directory/ $output_directory
-else
-    echo "picard insert size analysis already complete"
-fi
+    #Then delete the files on tmp directory that aren’t needed for the next loop step:
+    unmapped_reads_1="${read1_trimmed}${read1_ending}${read1_addition}"
+    unmapped_reads_2="${read2_trimmed}${read2_ending}${read2_addition}"
+    rm -v "${output_temp_directory}"/!("${unmapped_reads_1}"|"${unmapped_reads_2}")
+
+    #set up variables for the next possible for loop iteration
+    input_temp_directory="${output_temp_directory}"
+    previous_loop_output_directory="${output_directory}"
+
+
+done 
