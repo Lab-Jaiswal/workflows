@@ -40,7 +40,7 @@ fastq_temp=$(basename "${fastq_path}")
 line_count=$( wc -l < "${genetic_locations}" )
 total_genomes=$(bc -l <<< "scale=0; (($line_count / 3) - 1)")                                   #the total number of genomes requested to be mapped against
 
-temp_path=$(mktemp -d)
+temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
 echo "temp_path is: " $temp_path
 echo "copying FASTQs from the data path..."                                                     #copy data from data_path to the temp_path
 rsync -vur "$data_path/fastq/" $temp_path
@@ -63,7 +63,6 @@ read2="${temp_path}/${sample_name}_R2_001.fastq.gz"
 read1_trimmed=$(echo $read1 | sed 's/fastq.gz/trimmed.fastq.gz/')
 read2_trimmed=$(echo $read2 | sed 's/fastq.gz/trimmed.fastq.gz/')
 
-echo "running trim.sh"
 ${code_directory}/trim.sh $read1 $read2 $read1_trimmed $read2_trimmed $data_path $parameter_file
 
 echo "copying data from the output file (if there is any)"                                      #copy data from output_path to temp_path
