@@ -181,19 +181,15 @@ for i in $(seq 0 $total_genomes); do
 
     #make insert size plot
     ###---STEP 10: PREVIOUSLY insert_size_analysis.sh---##
-    if [ $deduplicate == TRUE ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "TRUE" ]; then
-        picard_output="${dedup_input}_picard_insert_size_plot.pdf"
-        if [ ! -f $picard_output ]; then 
-            module load R
-            module load picard/2.9.5
-            picard CollectInsertSizeMetrics INPUT=$dedup_input OUTPUT=$dedup_input\_picard_insert_size_metrics.txt HISTOGRAM_FILE=$dedup_input\_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
-                echo "picard insert_size_analysis complete"
-            rsync -vur $output_temp_directory/ $output_directory
-        else
-            echo "picard insert size analysis already complete"
-        fi
+    picard_output="${dedup_input}_picard_insert_size_plot.pdf"
+    if [ ! -f $picard_output ]; then 
+        module load R
+        module load picard/2.9.5
+        picard CollectInsertSizeMetrics INPUT=$dedup_input OUTPUT=$dedup_input\_picard_insert_size_metrics.txt HISTOGRAM_FILE=$dedup_input\_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
+            echo "picard insert_size_analysis complete"
+        rsync -vur $output_temp_directory/ $output_directory
     else
-        echo "picard insert size analysis not done because this level of analysis did not have deduplication requested."
+        echo "picard insert size analysis already complete"
     fi
 
     #transfer files from tmp directory to the output directory, 
