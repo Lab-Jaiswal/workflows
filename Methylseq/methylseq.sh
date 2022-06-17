@@ -151,6 +151,9 @@ for i in $(seq 0 $total_genomes); do
     
     ${code_directory}/map_and_deduplicate.sh $read1_input $read2_input $bismark_output $dedup_input $dedup_output $temp_genome $output_temp_directory $output_directory $cores $deduplicate $parameter_file
 
+    #transfer results as a results checkpoint
+    rsync -vur $output_temp_directory/ $output_directory
+
     cd ${code_directory}
     
     if [ $deduplicate == TRUE ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "TRUE" ]; then
@@ -165,10 +168,16 @@ for i in $(seq 0 $total_genomes); do
 
     ${code_directory}/sort_and_index.sh $sort_input $index_input $index_output $output_temp_directory $output_directory $parameter_file
 
+    #transfer results as a results checkpoint
+    rsync -vur $output_temp_directory/ $output_directory
+
     bismark_input=$index_input
     bismark_methyl_output=$(echo $bismark_input | sed 's/\(.*\).bam/\1_splitting_report.txt/')
         
     ${code_directory}/extract_methyl.sh $bismark_input $bismark_methyl_output $output_temp_directory $output_directory $temp_genome $cores $parameter_file
+
+    #transfer results as a results checkpoint
+    rsync -vur $output_temp_directory/ $output_directory
 
     #make insert size plot
     ###---STEP 10: PREVIOUSLY insert_size_analysis.sh---##
