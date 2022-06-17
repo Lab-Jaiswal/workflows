@@ -69,11 +69,11 @@ read2_trimmed_name=$(basename "${read2_trimmed}")
 
 #copy data from data_path to the temp_path
 #copy over to the temp directory just the untrimmed and trimmed (if exists) fastqs for the sample it’s going to work on
-rsync -vur --exclude="*" --include=$("${read1_name}"|"${read2_name}"|"${read1_trimmed_name}"|"${read2_trimmed_name}") "$data_path/fastq/" $temp_path
+rsync -vur --include="${read1_name}" --include="${read2_name}" --include="${read1_trimmed_name}" --include="${read2_trimmed_name}" --exclude="*" "${data_path}/fastq/" $temp_path
 
 cd $temp_path
 
-echo "temp_path files":
+echo "temp_path files:"
 echo $(ls)
 
 echo "running trim.sh"
@@ -84,7 +84,7 @@ echo "copying data from the output file (if there is any)"                      
 #the trimmed file gets saved to the temp directory and the trim script copies over the trimmed sample fastq files to the output directory so does not need to be coded in this script
 
 #remove the untrimmed files from temp directory to save space
-rm read1 read2
+rm "${read1}" "${read2}"
 
 #rsync -vur --exclude "Logs" --exclude "Parameters" $initial_path/ $temp_path                    #done after trim.sh to simplify rsync step
 
@@ -96,8 +96,15 @@ rm read1 read2
 ################################################---extract_methyl.sh---###########################################################
 ##################################################################################################################################
 
+#define constants used that bismark uses to add to the file names
+read1_addition="_unmapped_reads_1.fq.gz"
+read2_addition="_unmapped_reads_2.fq.gz"
+
 input_temp_directory="${temp_path}"
 previous_loop_output_directory="${initial_path}"
+
+read1_input_name="${sample_name}_R1_001.trimmed.fastq.gz"
+read2_input_name="${sample_name}_R2_001.trimmed.fastq.gz"
 
 for i in $(seq 0 $total_genomes); do
     number1=$(bc -l <<< "scale=0; (($i * 3) +1)")
@@ -129,33 +136,15 @@ for i in $(seq 0 $total_genomes); do
     echo "copying transcriptome to the temporary file directory"
     rsync -vur "$genome_fasta_path/" "$temp_path/${genome_name}_fasta"
     temp_genome="$temp_path/${genome_name}_fasta"
-        
-    read1_addition="_unmapped_reads_1.fq.gz"
-    read2_addition="_unmapped_reads_2.fq.gz"
-    bismark_addition="_unmapped_reads_1"
+    
+    read1_input="${input_temp_directory}/${read1_input_name}"
+    read2_input="${input_temp_directory}/${read2_input_name}"
+    read1_output_name="${read1_input_name}${read1_addition}"
+    read2_output_name="${read2_input_name}${read2_addition}"
+    read1_output_basename=$( basename -s .fastq.gz $read1_input_name | xargs -n 1 basename -s .fq.gz )
+    bismark_name="${read1_output_basename}_bismark_bt2_PE_report.txt"
+    bismark_output="${output_temp_directory}/${bismark_name}"
 
-    if [ $i -eq 0 ]; then
-        echo "level is 0"
-        read1_filename="${sample_name}_R1_001.trimmed.fastq.gz"
-        read2_filename="${sample_name}_R2_001.trimmed.fastq.gz"
-        read1_trimmed="${sample_name}_R1_001.trimmed"
-        read2_trimmed="${sample_name}_R2_001.trimmed"
-        bismark_output="${output_temp_directory}/${read1_trimmed}_bismark_bt2_PE_report.txt"
-    else
-        #it remember from the previous loop
-        read1_ending=${read1_ending}${read1_addition}
-        read2_ending=${read2_ending}${read2_addition}
-        read1_trimmed="${sample_name}_R1_001.trimmed.fastq.gz"
-        read2_trimmed="${sample_name}_R2_001.trimmed.fastq.gz"
-        read1_filename="${read1_trimmed}${read1_ending}"
-        read2_filename="${read2_trimmed}${read2_ending}"
-        bismark_file=$(echo $read1_filename | sed 's/\(.*\).fq.gz/\1/')
-        bismark_filename="${bismark_file}_bismark_bt2_PE_report.txt"
-        bismark_output="${output_temp_directory}/${bismark_filename}"
-    fi
-       
-    read1_input="${input_temp_directory}/${read1_filename}"
-    read2_input="${input_temp_directory}/${read2_filename}"
         
     dedup_input=$(echo $bismark_output | sed 's/PE_report.txt/pe.bam/')
     dedup_output=$(echo $bismark_output | sed 's/PE_report.txt/pe.deduplicated.bam/')
@@ -200,14 +189,15 @@ for i in $(seq 0 $total_genomes); do
 
     #transfer files from tmp directory to the output directory, 
     rsync -vur $output_temp_directory/ $output_directory
-    #Then delete the files on tmp directory that aren’t needed for the next loop step:
-    unmapped_reads_1="${read1_trimmed}${read1_ending}${read1_addition}"
-    unmapped_reads_2="${read2_trimmed}${read2_ending}${read2_addition}"
-    rm -v "${output_temp_directory}"/!("${unmapped_reads_1}"|"${unmapped_reads_2}")
+    #Then delete the files on tmp directory that aren’t needed for the next loop step and deletes including unmapped from previous directory from previous loop iteration if present):
+
+    find "${output_temp_directory}/" -type f -not -name "${read1_output_name}" -not -name "${read2_output_name}" -delete
 
     #set up variables for the next possible for loop iteration
     input_temp_directory="${output_temp_directory}"
     previous_loop_output_directory="${output_directory}"
+    read1_input_name="${read1_output_name}"
+    read2_input_name="${read2_output_name}"
 
 
 done 
