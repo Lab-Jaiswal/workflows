@@ -168,11 +168,13 @@ else
 
 #####################previously report_controls.sh################################
 ################################################################################
+    previous_loop_output_directory="${initial_path}"
+
     for i in $(seq 0 $total_genomes); do
         number1=$(bc -l <<< "scale=0; (($i * 3) +1)")
         genome_name=$(sed -n ${number1}'p' $genetic_locations)
 
-        output_directory=$(find $initial_path -type d -name "$genome_name")
+        output_directory="${previous_loop_output_directory}/${genome_name}"
         bismark_summary="${output_directory}/bismark_summary_report.txt" 
 
         if [ ! -f $bismark_summary ]; then
@@ -185,6 +187,9 @@ else
         else
             echo "bismark summary already complete, skipping bismark2report and bismark2summary for $genome_name"
         fi
+
+        #set previous_loop_output_directory variable for next possible loop iteration
+        previous_loop_output_directory="${output_directory}"
     done
 
 fi
