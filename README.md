@@ -56,6 +56,6 @@ add the flag --normal_sample followed *immediately* by the path to your normal s
 ### Varscan Optional Arguments
 | Optional Argument        | Default Value | Example                                                 |   
 | ------------------------ |:-------------:|:-------------------------------------------------------:| 
-| `--min_coverage value`     |10.            |`--min_coverage 100` to change the min_coverage to 100   |
-| `--min_var_freq value`     |0.001.         | `--min_var_freq 0.01` to change the min_var_freq to 0.01|  
-| `--p_value value`          |0.1            | `--p_value .05` to change the p_value to 0.1            |  
+| `--min_coverage value`     |10            |`--min_coverage 100` to change the min_coverage to 100   |
+| `--min_var_freq value`     |0.001         | `--min_var_freq 0.01` to change the min_var_freq to 0.01|  
+| `--p_value value`          |0.1           | `--p_value .05` to change the p_value to 0.1            |  
