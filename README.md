@@ -40,7 +40,7 @@ add the flag --normal_sample followed *immediately* by the path to your normal s
 #### Filtering
 | Optional Argument                               | Use Case                                                                                                                      | 
 | ------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------| 
-| `--twist                                         | If you want the downstream R analysis to be run on a Twist panel (either the default one or one specified using --twist_snps)` |
+| `--twist`                                         | If you want the downstream R analysis to be run on a Twist panel (either the default one or one specified using --twist_snps) |
 | `--filtered`                                      | If you want to only include frame shift, missense, nonsense, and splicesite mutations                                         | 
 | `--intervals path/to/interval/file.interval_list` | If you would like to only call CHIP on specific intervals*                                                                    |   
 
