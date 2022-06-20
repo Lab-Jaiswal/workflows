@@ -24,11 +24,11 @@ The BWA_CHIP workflow contains a variety of optional arguments, which allow grea
 Many of the genomes and sources in the pipeline have hardcoded default values thatn can be changed by specifying their corresponding optional argument
 | Optional Argument    | Default Value                                                                              | 
 | ---------------------|:------------------------------------------------------------------------------------------ |
-| --bwa_gref           | "/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa"| 
-| --twist_snps         | "/labs/sjaiswal/workflows/BWA_mutect_twist/twist_snps.bed"                                 | 
-| --funcotator_sources |"/labs/sjaiswal/tools/funcotator/funcotator_dataSources.v1.6.20190124s"                     |   
-| --transcript_list    | "/oak/stanford/groups/sjaiswal/Herra/CHIP_TWIST-PANEL_ATHEROMA/chip_transcript_list.txt"   | 
-| --assembly           | "GRCh38"                                                                                   |
+| `--bwa_gref`          | "/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa"| 
+| `--twist_snps`        | "/labs/sjaiswal/workflows/BWA_mutect_twist/twist_snps.bed"                                 | 
+| `--funcotator_sources`|"/labs/sjaiswal/tools/funcotator/funcotator_dataSources.v1.6.20190124s"                     |   
+| `--transcript_list`   | "/oak/stanford/groups/sjaiswal/Herra/CHIP_TWIST-PANEL_ATHEROMA/chip_transcript_list.txt"   | 
+| `--assembly`          | "GRCh38"                                                                                   |
 
 You can change any of these values, by using the optional argument followed by your replacement value. For example:
 * --bwa_gref /path/to/new/bwa/gref changes the bwa_gref variable from the default to the path you provided
@@ -40,22 +40,22 @@ add the flag --normal_sample followed *immediately* by the path to your normal s
 #### Filtering
 | Optional Argument                               | Use Case                                                                                                                      | 
 | ------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------| 
-| --twist                                         | If you want the downstream R analysis to be run on a Twist panel (either the default one or one specified using --twist_snps) |
-| --filtered                                      | If you want to only include frame shift, missense, nonsense, and splicesite mutations                                         | 
-| --intervals path/to/interval/file.interval_list | If you would like to only call CHIP on specific intervals*                                                                    |   
+| `--twist                                         | If you want the downstream R analysis to be run on a Twist panel (either the default one or one specified using --twist_snps)` |
+| `--filtered`                                      | If you want to only include frame shift, missense, nonsense, and splicesite mutations                                         | 
+| `--intervals path/to/interval/file.interval_list` | If you would like to only call CHIP on specific intervals*                                                                    |   
 
 * please note that the CHIP calls are currently only called on Chromosomes 1-22, X, and Y. If you need to analyze mutations outside of those chromosomes, please make an interval file and se --intervals 
 #### Additional Arguments
 
 | Optional Argument | Function                                                | 
 |-------------------|:--------------------------------------------------------|
-| --log_name        | To define the log name                                  |   
-| --no_funcotator   | To indicate that funcotator annotation is not required  |   
-| --no_bam_out      | To indicate that bam files do not need to be outputted  | 
+| `--log_name`        | To define the log name                                  |   
+| `--no_funcotator`   | To indicate that funcotator annotation is not required  |   
+| `--no_bam_out`      | To indicate that bam files do not need to be outputted  | 
 
 ### Varscan Optional Arguments
 | Optional Argument        | Default Value | Example                                                 |   
 | ------------------------ |:-------------:|:-------------------------------------------------------:| 
-| --min_coverage value     |10.            |`--min_coverage 100` to change the min_coverage to 100   |
-| --min_var_freq value     |0.001.         | `--min_var_freq 0.01` to change the min_var_freq to 0.01|  
-| --p_value value          |0.1            | `--p_value .05` to change the p_value to 0.1            |  
+| `--min_coverage value`     |10.            |`--min_coverage 100` to change the min_coverage to 100   |
+| `--min_var_freq value`     |0.001.         | `--min_var_freq 0.01` to change the min_var_freq to 0.01|  
+| `--p_value value`          |0.1            | `--p_value .05` to change the p_value to 0.1            |  
