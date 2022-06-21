@@ -30,8 +30,8 @@ Many of the genomes and sources in the pipeline have hardcoded default values th
 | `--transcript_list`   | "/oak/stanford/groups/sjaiswal/Herra/CHIP_TWIST-PANEL_ATHEROMA/chip_transcript_list.txt"   | 
 | `--assembly`          | "GRCh38"                                                                                   |
 
-You can change any of these values, by using the optional argument followed by your replacement value. For example:
-* --bwa_gref /path/to/new/bwa/gref changes the bwa_gref variable from the default to the path you provided
+You can change any of these values by using the optional argument followed by your replacement value. For example:
+* `--bwa_gref /path/to/new/bwa/gref` changes the bwa_gref variable from the default to the path you provided
 
 #### Tumor Normal
 In order to run mutect in [tumor-normal mode](https://gatk.broadinstitute.org/hc/en-us/articles/360037593851-Mutect2), you need to 
