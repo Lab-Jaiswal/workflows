@@ -249,7 +249,7 @@ else
 #########################---STEP 4: PEAK PROCESSING: REDUCE GENOMIC LOCATION COLUMNS AND SORT---################################## 
 ##################################################################################################################################
     if [ ! -f "$output_path/peak_calling/all_merged.bed" ]; then
-        temp_path=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
+        temp_path=$(mktemp -d)
         echo "temp_path is: " $temp_path
         mkdir $temp_path
 
