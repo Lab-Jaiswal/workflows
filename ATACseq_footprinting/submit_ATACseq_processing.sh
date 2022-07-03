@@ -4,7 +4,7 @@
 #SBATCH --account=sjaiswal
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=256GB
-#SBATCH --job-name=submit_methylseq
+#SBATCH --job-name=submit_atacseq_footprinting
 
 ##################################################################################################################################
 #############################################---STEP 1: SET UP PARAMETERS---###################################################### 
