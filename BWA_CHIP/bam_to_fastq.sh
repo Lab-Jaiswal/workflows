@@ -21,4 +21,3 @@ fastq_path_R2="${bam_path}_R2_001.fastq.gz"
 
 samtools collate -u -O "${bam_path}.bam" | \\
 samtools fastq -1 $fastq_path_R1 -2 $fastq_path_R2 -0 /dev/null -s /dev/null -n
-
