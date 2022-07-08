@@ -48,29 +48,20 @@ command_args <- commandArgs(trailingOnly = TRUE)
 panel_coordinates <- command_args[1]
 mutect_directory <- command_args[2]
 twist <- command_args[3]
-filtered <- command_args[4]
 
-if (filtered == 1){
-    vcf_pattern="*_funcotator_coding.vcf$"
-    maf_pattern="*_funcotator_coding.maf$"
-} else {
-    vcf_pattern="*_funcotator.vcf$"
-    maf_pattern="*_funcotator.maf$"
-    }
-
-split_names_vcf <- list.files(mutect_directory, pattern = vcf_pattern) %>% str_remove_all("_.*$")
-split_names_maf <- list.files(mutect_directory, pattern = maf_pattern) %>% str_remove_all("_.*$")
+split_names_vcf <- list.files(mutect_directory, pattern = "*_funcotator_coding.vcf$") %>% str_remove_all("_.*$")
+split_names_maf <- list.files(mutect_directory, pattern = "*_funcotator_coding.maf$") %>% str_remove_all("_.*$")
 if (length(unique(split_names_vcf)) >= 1){
-    sample_names_vcf <- list.files(mutect_directory, pattern = vcf_pattern) %>% str_remove_all("_G.*$")
-    sample_names_maf <- list.files(mutect_directory, pattern = maf_pattern) %>% str_remove_all("_G.*$")
+    sample_names_vcf <- list.files(mutect_directory, pattern = "*_funcotator_coding.vcf$") %>% str_remove_all("_G.*$")
+    sample_names_maf <- list.files(mutect_directory, pattern = "*_funcotator_coding.maf$") %>% str_remove_all("_G.*$")
 
     } else {
         sample_names_vcf <- split_names_vcf
         sample_names_maf <- split_names_maf
     }
 
-maf_files <- list.files(mutect_directory, pattern = maf_pattern, full.names = TRUE)
-vcf_files <- list.files(mutect_directory, pattern = vcf_pattern, full.names = TRUE)
+maf_files <- list.files(mutect_directory, pattern = "*_funcotator_coding.maf$", full.names = TRUE)
+vcf_files <- list.files(mutect_directory, pattern = "*_funcotator_coding.vcf$", full.names = TRUE)
 
 # Extract the vcf files, as well as the information in the INFO, FORMAT, and DATA columns
 # Bind all of the newly formatted vcf files together horizontally
@@ -111,11 +102,11 @@ maf_columns <- c("Hugo_Symbol", "NCBI_Build", "Chromosome", "Start_Position", "E
                  "AS_FilterStatus", "ECNT", "GERMQ", "MPOS", "POPAF", "TLOD", "RPA", "RU", "STR", "STRQ", "OREGANNO_ID", "OREGANNO_Values", "Other_Transcripts","ref_context")
 
 list_of_mafs <- maf_files %>%
-    map(read.maf) %>%
-    map(make_data) %>%
-    map(as_tibble) %>%
-    set_names(sample_names_maf) %>%
-    map(select, maf_columns)
+  map(read.maf) %>%
+  map(make_data) %>%
+  map(as_tibble) %>%
+  set_names(sample_names_maf) %>%
+  map(select, maf_columns)
 
 list_of_mafs_edited <- lapply(list_of_mafs, function(df) mutate_at(df, .vars = c("Transcript_Position", "MPOS", "POPAF", "TLOD"), as.character))
 
@@ -144,9 +135,14 @@ Modified_maf <- rbind(TSA_snp, TSA_insertion, Start_Position_Mutated)
 vcf <- unite(mutect_vcf_bind, "Chrom_Pos", c("#CHROM", "POS", "Sample"), remove = FALSE)
 maf <- unite(Modified_maf, "Chrom_Pos", c("Chromosome", "VCF_Start_Position", "Sample"), remove = FALSE)
 
-columns <- c("Chrom_Pos", "FILTER", "GT", "AD", "AF", "F1R2", "F2R1", "PGT", "PS", "SB", "PID")
-pruned_columns <- intersect(colnames(vcf), columns) 
-vcf_pruned <- select(vcf, all_of(pruned_columns))
+columns <- c(Chrom_Pos, FILTER, GT, AD, AF, F1R2, F2R1, PGT, PS, SB, PID)
+pruned_columns <- c()
+for (i in columns) {
+    if (i %in% colnames(vcf)) {
+        pruned_columns <- append(pruned_columns, i)
+    }
+}
+vcf_pruned <- select(vcf, pruned_columns)
 combined <- vcf_pruned %>%
   merge(maf, by = "Chrom_Pos") %>%
   select(-Chrom_Pos)
@@ -155,46 +151,23 @@ combined <- vcf_pruned %>%
 combined$longest_repeat <- map_int(combined$ref_context, detect_repeat)
 
 # Filter out all variant's based on Variant_Classification; remove all rows blank Protein_Change values
-if (filtered == 1){
-    variant_classification <- filter(combined, is_in(Variant_Classification, c("Frame_Shift_Del", "Frame_Shift_Ins", "Missense_Mutation", "Nonsense_Mutation" ,"Splice_Site"))) %>% filter(nchar(Protein_Change) > 0) } else {
-    variant_classification <- combined
-    }
+variant_classification <- filter(combined, is_in(Variant_Classification, c("Frame_Shift_Del", "Frame_Shift_Ins", "Missense_Mutation", "Nonsense_Mutation" ,"Splice_Site"))) %>% 
+  filter(nchar(Protein_Change) > 0)
 
 # Apply the Split_Columns function to AD, tumor_f, F2R1, F1R2, MBQ, MMQ, and MFRL columns
 mutect_vcf_ncol <- str_split(variant_classification$AD, ",") %>% 
   map_int(length) %>% 
   max
 
-max_ncol <- function(argument) {
-    number_args <- str_split(argument, ",") %>%
-        map_int(length) %>%
-        max
-           }
-  
-AD_vcf_ncol <- max(map_int(variant_classification$AD, max_ncol)) 
-mutect_vcf_ad <- split_columns(variant_classification$AD, AD_vcf_ncol, "t_ref_count", "t_alt_count_")
-
-
-AF_vcf_ncol <- max(map_int(variant_classification$tumor_f, max_ncol)) 
-mutect_vcf_af <- split_columns(variant_classification$tumor_f, AF_vcf_ncol, "tumor_f", "")
-
-F2R1_vcf_ncol <- max(map_int(variant_classification$F2R1, max_ncol)) 
-mutect_vcf_f2r1 <- split_columns(variant_classification$F2R1, F2R1_vcf_ncol, "f2r1_reference", "f2r1_alternate")
-
-F1R2_vcf_ncol <- max(map_int(variant_classification$F1R2, max_ncol)) 
-mutect_vcf_f1r2 <- split_columns(variant_classification$F1R2, F1R2_vcf_ncol, "f1r2_reference", "f1r2_alternate")
-
-MBQ_vcf_ncol <- max(map_int(variant_classification$MBQ, max_ncol)) 
-mutect_vcf_mbq <- split_columns(variant_classification$MBQ, MBQ_vcf_ncol, "mbq_reference", "mbq_alternate")
-
-MMQ_vcf_ncol <- max(map_int(variant_classification$MMQ, max_ncol)) 
-mutect_vcf_mmq <- split_columns(variant_classification$MMQ, MMQ_vcf_ncol, "mmq_reference", "mmq_alternate")
-
-MFRL_vcf_ncol <- max(map_int(variant_classification$MFRL, max_ncol)) 
-mutect_vcf_mfrl <- split_columns(variant_classification$MFRL, MFRL_vcf_ncol, "mfrl_reference", "mfrl_alternate")
-
-mutect_vcf_sb <- str_remove_all(variant_classification$AS_SB_TABLE, "\\[|\\]") %>% str_split_fixed( "\\|", 3) %>% as_tibble 
-colnames(mutect_vcf_sb) <- c("sb_reference", str_c("sb_alt", seq(1:(3 - 1))))
+mutect_vcf_ad <- split_columns(variant_classification$AD, mutect_vcf_ncol, "t_ref_count", "t_alt_count_")
+mutect_vcf_af <- split_columns(variant_classification$tumor_f, mutect_vcf_ncol, "tumor_f", "")
+mutect_vcf_f2r1 <- split_columns(variant_classification$F2R1, mutect_vcf_ncol, "f2r1_reference", "f2r1_alternate")
+mutect_vcf_f1r2 <- split_columns(variant_classification$F1R2, mutect_vcf_ncol, "f1r2_reference", "f1r2_alternate")
+mutect_vcf_mbq <- split_columns(variant_classification$MBQ, mutect_vcf_ncol, "mbq_reference", "mbq_alternate")
+mutect_vcf_mmq <- split_columns(variant_classification$MMQ, mutect_vcf_ncol, "mmq_reference", "mmq_alternate")
+mutect_vcf_mfrl <- split_columns(variant_classification$MFRL, mutect_vcf_ncol, "mfrl_reference", "mfrl_alternate")
+mutect_vcf_sb <- str_remove_all(variant_classification$AS_SB_TABLE, "\\[|\\]") %>% str_split_fixed( "\\|", mutect_vcf_ncol) %>% as_tibble 
+colnames(mutect_vcf_sb) <- c("sb_reference", str_c("sb_alt", seq(1:(mutect_vcf_ncol - 1))))
 
 # Remove all rows with a t_ref_count == "0"
 mutect_vcf_filter <- select(variant_classification, -AD, -tumor_f, -F2R1, -F1R2, -MBQ, -MMQ, -MFRL, -AS_SB_TABLE) %>% 
@@ -202,14 +175,29 @@ mutect_vcf_filter <- select(variant_classification, -AD, -tumor_f, -F2R1, -F1R2,
   filter(t_ref_count != "0")
 
 # Select relevant columns for the final output
-final_columns <- c("Sample", "Hugo_Symbol", "NCBI_Build", "Chromosome", "Start_Position", "End_Position", "Variant_Classification", "Variant_Type", "Protein_Change", "FILTER", "tumor_f", "t_ref_count", "Reference_Allele", "Tumor_Seq_Allele1", "Transcript_Exon", "Transcript_Position", "cDNA_Change", "Codon_Change", "gc_content", "longest_repeat", "DP", "f1r2_reference", "gc_content", "longest_repeat", "f1r2_reference", "f2r1_reference", "mbq_reference", "mfrl_reference",  "mmq_reference", "sb_reference", "AS_FilterStatus", "ECNT", "GERMQ", "MPOS", "POPAF", "TLOD", "RPA", "RU", "STR", "STRQ", "GT", "PGT", "PID", "PS", "OREGANNO_ID", "OREGANNO_Values", "Other_Transcripts", "ref_context")
+final_columns <- (Sample, Hugo_Symbol, NCBI_Build, Chromosome, Start_Position,
+                                                 End_Position, Variant_Classification, Variant_Type, Protein_Change,
+                                                 FILTER, tumor_f, t_ref_count, contains("t_alt_count"),
+                                                 Reference_Allele, Tumor_Seq_Allele1, Transcript_Exon, Transcript_Position,
+                                                 cDNA_Change, Codon_Change, gc_content, longest_repeat, DP, f1r2_reference,
+                                                 gc_content, longest_repeat, f1r2_reference,
+                                                 contains("f1r2_alternate"), f2r1_reference, contains("f2r1_alternate"),      
+                                                 mbq_reference, contains("mbq_alternate"),  
+                                                 mfrl_reference, contains("mfrl_alternate"), mmq_reference,        
+                                                 contains("mmq_alternate" ), sb_reference, contains("sb_alt"),               
+                                                 AS_FilterStatus, ECNT, GERMQ, MPOS, POPAF, TLOD, RPA, RU, STR, STRQ, GT,                  
+                                                 PGT, PID, PS, OREGANNO_ID, OREGANNO_Values, Other_Transcripts, ref_context)
+pruned_final_columns <- c()
+for (i in final_columns) {
+    if (i %in% colnames(mutect_vcf_filter)) {
+        pruned_final_columns <- append(pruned_final_columns, i)
+    }
+}
 
-pruned_final_columns <- intersect(colnames(mutect_vcf_filter), final_columns) 
+mutect_vcf_select <- select(mutect_vcf_filter, pruned_final_columns)
 
-mutect_vcf_select <- select(mutect_vcf_filter, c(all_of(pruned_final_columns), contains("t_alt_count"), contains("f1r2_alternate"), contains("sb_alt"), contains("mfrl_alternate"), contains("mmq_alternate"), contains("f2r1_alternate"), contains("mbq_alternate")))
 
-directory <- dirname(mutect_directory)
-mutect_simple_file <- str_c("/home/maurertm/smontgom/maurertm", "/mutect_aggregated_noWL_Mar1_1147.tsv")
+mutect_simple_file <- str_c(mutect_directory, "/mutect_aggregated_simple.tsv")
 
 # write output into tsv file
 write_tsv(mutect_vcf_select, mutect_simple_file)
