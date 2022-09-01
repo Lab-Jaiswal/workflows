@@ -70,11 +70,10 @@ fi
 
 ARRAY_PREFIX="$(sed "${LINE_NUMBER}q; d" "${ARRAY_FILE}")" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
 
-#CHR_INTERVALS="/oak/stanford/groups/smontgom/maurertm/workflows/Interval_filtering/whole_genome_intervals.interval_list"
-CHR_INTERVALS="/oak/stanford/groups/smontgom/maurertm/workflows/Interval_filtering/chr21_chr22.interval_list"
+CHR_INTERVALS="/oak/stanford/groups/smontgom/maurertm/ADRC/workflows/Interval_filtering/whole_genome_intervals.interval_list"
+#CHR_INTERVALS="/oak/stanford/groups/smontgom/maurertm/ADRC/workflows/Interval_filtering/chr21_chr22.interval_list"
 
 #Run script and save files in the same location of the fastq files
-cd "${OUTPUT_DIRECTORY}" || exit
 
 FILENAME=$(basename "${ARRAY_PREFIX}")
 SAMPLE_NAME="${FILENAME}_${ASSEMBLY}"
@@ -91,6 +90,11 @@ if [ $USE_BAM = false ]; then
 else
     MUTECT_INPUT_FILENAME="${ARRAY_PREFIX}"
 fi
+
+OUTPUT_DIRECTORY=${OUTPUT_DIRECTORY}/${SAMPLE_NAME}
+mkdir $OUTPUT_DIRECTORY
+
+cd "${OUTPUT_DIRECTORY}" || exit
 
 temp_dir="/tmp/sjaiswal"
 INPUT="${TMPDIR}/Inputs"
@@ -163,7 +167,7 @@ if [ $GET_MUTECT = true ]; then
                   NORMAL PILEUPS: $NORMAL_PILEUPS" >> $PARAMETER_FILE
             rsync -vurPhlt "$NORMAL_PILEUPS_FILENAME" $NORMAL_PILEUPS
             NORMAL_PILEUPS_PATTERN=${NORMAL_PILEUPS_BASENAME%.*}
-            rsync -vurPhlt $NORMAL_PILEUPS_DIRNAME/$NORMAL_PILEUPS_PATTERN* $NORMAL/
+            rsync -vurPhlt /$NORMAL_PILEUPS_DIRNAME/$NORMAL_PILEUPS_PATTERN* $NORMAL/
         else
             NORMAL_PILEUPS=false
         fi
@@ -200,16 +204,23 @@ if [ $GET_MUTECT = true ]; then
        module load gatk4
        chr_vcfs=$(find $OUTPUT_DIRECTORY/vcfs -type f | sort -V)
 
-       if [[ $(echo "${chr_vcfs}" | wc -l) -lt ${num_intervals} ]] && [[ -d "${OUTPUT_DIRECTORY}/vcfs" ]]; then
+       #if [[ $(echo "${chr_vcfs}" | wc -l) -lt ${num_intervals} ]] && [[ -d "${OUTPUT_DIRECTORY}/vcfs" ]]; then
+       if [ -d "${OUTPUT_DIRECTORY}/vcfs" ]; then
           rsync -vurPhlt "${OUTPUT_DIRECTORY}/vcfs" "${OUTPUTS}"
        fi
        chr_pileups=$(find $OUTPUT_DIRECTORY/pileups -type f | sort -V)
-       if [[ $(echo "${chr_pileups}" | wc -l) -lt ${num_intervals} ]] && [[ -d "${OUTPUT_DIRECTORY}/pileups" ]]; then
-          rsync -vurPhlt "${OUTPUT_DIRECTORY}/pileups" "${OUTPUTS}"
+       #if [[ $(echo "${chr_pileups}" | wc -l) -lt ${num_intervals} ]] && [[ -d "${OUTPUT_DIRECTORY}/pileups" ]]; then
+       if [ -d "${OUTPUT_DIRECTORY}/pileups" ]; then
+            rsync -vurPhlt "${OUTPUT_DIRECTORY}/pileups" "${OUTPUTS}"
        fi
        # Change to MergeVCFs
-       echo "bcftools concat $(find $OUTPUTS/vcfs -type f | sort -V) > ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf"
+       echo "bcftools concat $(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf$" | sort -V) > ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf"
        bcftools concat $(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf$" | sort -V) > ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf
+
+       vcf_stats=$(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf.stats$" | sed -e 's/^/--stats /g' | tr '\n' ' ')
+       gatk MergeMutectStats ${vcf_stats} -O "${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf.stats"
+
+       echo "gatk MergeMutectStats ${vcf_stats} -O ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf.stats"
        # Add GatherPileupSummaries for pileups
        pileup_tables=$(find $OUTPUTS/pileups -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
        echo "gatk GatherPileupSummaries --sequence-dictionary "/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa.dict" ${pileup_tables} -O ${OUTPUTS}/${SAMPLE_NAME}_pileups.table"
