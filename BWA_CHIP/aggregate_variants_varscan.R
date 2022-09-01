@@ -1,86 +1,73 @@
-#!/bin/bash
+library(GenomicRanges)
+library(readxl)
+library(magrittr)
+library(tidyverse)
 
-echo "entering varscan.sh script"
+# Function input: row of semicolon separated variant effects
+# Function goal: split the variant effects into separate columns,
+# and each effect on its own line
+MakeTibble <- function(rows) {
+    # If there is only one variant effect, only make one row. Otherwise, return
+    # a tibble of all variant effects.
+    if (is.null(dim(rows))) {
+        row_df <- data.frame("Gene" = NA, "Transcript" = NA, "Exon" = NA, "DNA_Change" = NA, "Protein_change" = NA)
+        as_tibble_row(row_df, .name_repair = "minimal")
+        
+    } else {
+        row_df <- set_colnames(rows, c("Gene", "Transcript", "Exon", "DNA_change", "Protein_change")) %>% 
+            as_tibble
+    }
+    row_df
+}
 
-SAMPLE_NAME=$1
-BWA_GREF=$2
-min_coverage=$3
-min_var_freq=$4
-p_value=$5
-PARAMETER_FILE=$6
+command_args <- commandArgs(trailingOnly = TRUE)
+panel_coordinates <- command_args[1]
+varscan_directory <- command_args[2]
 
-echo "varscan command used the following parameters:
-$0 $1 $2 $3 $4 $5 $6"
+varscan_files <- list.files(varscan_directory, pattern = "*multianno.txt", full.names = TRUE)
+varscan_data_list <- map(varscan_files, read_tsv, skip = 1, col_names = F)
 
-if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-        echo "arguments used for the varscan.sh script:
-            SAMPLE_NAME=$1
-            BWA_GREF=$2
-            min_coverage=$3
-            min_var_freq=$4
-            p_value=$5
-            PARAMETER_FILE=$6
-            " >> $PARAMETER_FILE
-fi
+sample_names <- list.files(varscan_directory, pattern = "*multianno.txt") %>% str_remove_all("_.*$")
+names(varscan_data_list) <- sample_names
 
-if [ ! -f "${SAMPLE_NAMEY}.pileup" ]; then
-    module load samtools
-    echo "Generating pileup from BAM..."
-    samtools mpileup \
-    -A \
-    --max-depth 0 \
-    -C50 \
-    -f "${BWA_GREF}" \
-    "${SAMPLE_NAME}.bam" > "${SAMPLE_NAME}.pileup"
-    echo "...pileup generated"
-else
-    echo "Pileup already generated"
-fi
-if [ ! -f "${SAMPLE_NAME}_varscan2.vcf" ]; then
-    echo "Calling variants from pileup..."
-    module load varscan
-    varscan mpileup2cns \
-    "${SAMPLE_NAME}.pileup" \
-    --min-coverage "${min_coverage}" \
-    --min-var-freq "${min_var_freq}" \
-    --p-value "${p_value}" \
-    --output-vcf 1 > "${SAMPLE_NAME}_varscan2.vcf"
-    echo "...variants called"
-else
-    echo "Variants already called"
-fi
+varscan_data <- bind_rows(varscan_data_list, .id = "Sample")
+varscan_data_basic <- select(varscan_data, Sample, X1:X10)
+colnames(varscan_data_basic) <- c("Sample", "Chr", "Start", "End", "Ref", "Alt", "Func.ensGene", "Gene.ensGene", "GeneDetail.ensGene", "ExonicFunc.ensGene", "AAChange.ensGene")
+varscan_data_basic$ExonicFunc.ensGene %<>% str_replace_all(" ", "_")
 
-if [ ! -f "${SAMPLE_NAME}_varscan2_filter.vcf" ]; then
-    echo "Filtering variants in VCF..."
-    varscan filter \
-    "${SAMPLE_NAME}_varscan2.vcf" \
-    --output-file "${SAMPLE_NAME}_varscan2_filter.vcf" \
-    --min-coverage "${min_coverage}" \
-    --min-var-freq "${min_var_freq}" \
-    --p-value "${p_value}"
-    echo "...variants filtered"
-else
-    echo "Variants already filtered"
-fi
+varscan_data_other <- select(varscan_data, X11:X21)
+colnames(varscan_data_other) <- c("Genotype", "NC", "ADP", "CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO")
 
-if [ ! -f "${SAMPLE_NAME}_varscan2_filter_annovar.hg38_multianno.vcf" ]; then
-    echo "Annotating VCF with Annovar..."
-    ASSEMBLY_REFGENE="hg38"
-    ANNOVARROOT="/labs/sjaiswal/tools/annovar"
-    "${ANNOVARROOT}/table_annovar.pl" \
-    "${SAMPLE_NAME}_varscan2_filter.vcf" \
-    "${ANNOVARROOT}/humandb" \
-    --buildver "${ASSEMBLY_REFGENE}" \
-    --remove \
-    --outfile "${SAMPLE_NAME}_varscan2_filter_annovar" \
-    --protocol ensGene \
-    --operation g \
-    --nastring '.' \
-    --vcfinput \
-    --thread 1
-    echo "...VCF annotated"
-else
-    echo "VCF already annotated"
-fi
+varscan_info_names <- unique(varscan_data$X22) %>% str_split(":") %>% extract2(1)
+varscan_info <- select(varscan_data, X23) %>% separate(X23, sep = ":", into = varscan_info_names)
+varscan_data_basic$VAF <- str_remove_all(varscan_info$FREQ, "%") %>% as.numeric %>% divide_by(100) %>% signif(digits = 5)
 
-echo "varscan analysis complete"
+varscan_final <- bind_cols(varscan_data_basic, varscan_data_other, varscan_info)
+
+# Get twist panel (in same folder as aggregate variants mutect script)
+twist_panel <- read_excel(panel_coordinates, col_names = F)
+
+colnames(twist_panel) <- c("chr", "start", "end", "Transcript", "X5", "Strand", "Gene", "X8")
+twist_panel_granges <- select(twist_panel, chr:end) %>% makeGRangesFromDataFrame
+
+varscan_granges <- select(varscan_final, Chr:End) %>% 
+  set_colnames(c("chr", "start", "end")) %>% 
+  makeGRangesFromDataFrame
+varscan_overlaps <- findOverlaps(twist_panel_granges, varscan_granges) %>% as_tibble
+varscan_overlaps_sorted <- sort(varscan_overlaps$subjectHits)
+
+# filter for all variants within the genomic ranges specified in the twist_panel
+varscan_vcf_filter <- dplyr::slice(varscan_final, varscan_overlaps_sorted) %>% 
+  dplyr::filter(is_in(Gene.ensGene, unique(twist_panel$Gene))) %>% 
+  arrange(Sample, Chr, Start)
+
+varscan_aachange <- str_split(varscan_vcf_filter$AAChange.ensGene, ",") %>%
+    map(str_split, ":") %>% map(reduce, rbind) %>% map(MakeTibble) 
+
+varscan_vcf_filter$AAChange_split <- varscan_aachange
+# Use the unnest command to create separate rows
+varscan_vcf_filter %<>% select(-AAChange.ensGene) %>% unnest(AAChange_split)
+
+# write output into tsv file
+varscan_final_file <- str_c(varscan_directory, "/varscan_aggregated.tsv")
+write_tsv(varscan_vcf_filter, varscan_final_file)
