@@ -13,16 +13,19 @@ rename <- function(df, column, new){
 
 command_args <- commandArgs(trailingOnly = TRUE)
 whitelist_coordinates <- "/home/maurertm/labs/variant_whitelist_real.xls"
-mutect_coordinates <- "/home/maurertm/smontgom/maurertm/mutect_aggregated_noWL_Mar1_1147.tsv"
-output <- "/home/maurertm/smontgom/maurertm/"
+mutect_coordinates <- "/oak/stanford/groups/smontgom/maurertm/mutect_aggregated_noWL_Apr25.tsv"
+output <- "/labs/sjaiswal/maurertm/ADRC_results"
 
+mutect <- read_tsv(mutect_coordinates)
 mutect<-as.data.frame(fread(mutect_coordinates))
 white_list <- read_excel(whitelist_coordinates, col_names=T)
 
 Missense_pattern <- c("MISS", "Miss", "miss")
-Frameshift_pattern <- c("FRAME", "Frame", "frame")
+Frameshift_pattern <- c("FRAME_SHIFT", "Frame_Shift", "frame_shift")
 Splice_site_pattern <- c("SPLICE", "Splice", "splice")
 Nonsense_pattern <- c("NONSENSE", "Nonsense", "NonSense", "nonsense")
+
+mutect$Variant_Classification_Preserved <- mutect$Variant_Classification
 
 Missense <- (grep(paste(Missense_pattern,collapse="|"), 
                   mutect$Variant_Classification))
@@ -54,6 +57,13 @@ deviant_insertion <- dplyr::filter(mutect_no_p, grepl("_", Protein_Change_No_P))
 deviant_del <- dplyr::filter(mutect_no_p, grepl("del", Protein_Change_No_P))
 deviant_asterisk <- dplyr::filter(mutect_no_p, grepl("\\*", Protein_Change_No_P))
 deviant_empty <-  dplyr::filter(mutect_no_p, Protein_Change_No_P == "")
+deviant_NA <- dplyr::filter(mutect_no_p, is.na(Protein_Change_No_P))
+
+#clean deviant_NA
+    deviant_na <- mutate(deviant_NA, Initial_Protein = NA) %>%
+        mutate(Protein_Position = NA) %>%
+        mutate(Final_Protein = NA) %>%
+        select(-joined)
 
 #split up deviant by insertion type
 deviant_ins <- dplyr::filter(deviant_insertion, grepl("ins", Protein_Change_No_P))
@@ -138,7 +148,7 @@ Protein_Positions <- merge(first_protein, last_protein_position, by="index")
 normal$index <- rownames(normal)
 normal <- merge(normal, Protein_Positions, by="index") %>% select(-index)
    
-mutect_joined <- rbind(normal, deviant_del, deviant_ins, deviant_no_ins, deviant_asterisk, deviant_empty)
+mutect_joined <- rbind(normal, deviant_del, deviant_ins, deviant_no_ins, deviant_na, deviant_asterisk, deviant_empty)
 mutect_annotated_joined <- transform(mutect_joined, Protein_Positions = as.numeric(Protein_Position))
 mutect_annotated_joined$index <- rownames(mutect_annotated_joined)
 
@@ -215,10 +225,19 @@ not_whitelisted <- dplyr::select(mutect_no_WL, all_of(col_WL))
 
 mutect_whitelist_annotated <- rbind(whitelisted_variants, not_whitelisted) %>% arrange(Hugo_Symbol)
 
-annotated_file_location <- str_c(output, "/mutect_annotated_whitelist_Mar1_431.tsv")
+names(mutect_whitelist_annotated)[names(mutect_whitelist_annotated) == 'Variant_Classification'] <- 'Variant_Classification_Altered'
+names(mutect_whitelist_annotated)[names(mutect_whitelist_annotated) == 'Variant_Classification_Preserved'] <- 'Variant_Classification'
+mutect_whitelist_pruned <- mutect_whitelist_annotated %>% select(-index, -Variant_Classification_Altered)
+mutect_whitelist_rearranged <- mutect_whitelist_pruned[,c(2,3,1,21,58,5:61,4,62:64)]
 
-if (file.exists(annotated_file_location) == TRUE) {
-  file.remove(annotated_file_location)
-}
 
-write_tsv(mutect_whitelist_annotated, annotated_file_location)
+annotated_file_location <- str_c(output, "/mutect_annotated_whitelist_Apr25.tsv")
+
+#if (file.exists(annotated_file_location) == TRUE) {
+  #file.remove(annotated_file_location)
+#}
+
+write_tsv(mutect_whitelist_rearranged, annotated_file_location)
+differences <- c("84472.hg38 30712677", "39393.hg38 17834569", "84472.hg38 25234421", "84478.hg38 25240300", "39395.hg38 140734772", "39388.hg38 124051120", "39378.hg38 124066174")
+
+odd <- mutect %>% filter(is_in(joined, differences))
