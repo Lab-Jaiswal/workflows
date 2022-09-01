@@ -8,10 +8,10 @@ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
     echo "output_directory: path for BWA and mutect output"
     echo "argument: indicates requested analysis technique(s) (--mutect, --varscan, --haplotypecaller, or --all)."
     echo "If --varscan is selected, you may use the optional arguments --p_value, --min_var_freq, and --min_coverage (if so desired)." 
-    echo "If --mutect is selected, you may use --twist to indicate you would like your results filtered by the Twist panel"
+    echo "If --mutect is selected, you may use --twist to indicate you would like your results remove_silent by the Twist panel"
     exit 1
 else
-    TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,bwa_gref:,twist_snps:,assembly:,funcotator_sources:,transcript_list:,bam,twist,filtered,mutect,varscan,haplotypecaller,all,no_funcotator,no_bam_out,realign \
+    TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,bam,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,bam,fastq,realign,normal_pileups,calculate_contamination \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
 
    if [ $? != 0 ]; then
@@ -28,20 +28,22 @@ else
         run_funcotator=true
         bam_out=true
         realign=false
-        filtered="0"
+        remove_silent="0"
         log_name="log_"
-        bwa_gref="/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa"
-        twist_snps="/labs/sjaiswal/workflows/BWA_mutect_twist/twist_snps.bed"
+        reference_genome="/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa"
+        #twist_snps="/labs/sjaiswal/workflows/BWA_mutect_twist/twist_snps.bed"
         assembly="GRCh38"
         funcotator_sources="/labs/sjaiswal/tools/funcotator/funcotator_dataSources.v1.6.20190124s"
         #funcotator_sources="/home/maurertm/smontgom/maurertm/funcotator_dataSources.v1.6.20190124s"
         transcript_list="/oak/stanford/groups/sjaiswal/Herra/CHIP_TWIST-PANEL_ATHEROMA/chip_transcript_list.txt"
-        use_bam=false
-        echo "use_bam: $use_bam"
-        twist="0"
+        panel=false
         min_coverage="10"
         min_var_freq="0.001"
         p_value="0.1"
+        bam=false
+        fastq=false
+        normal_pileups=false
+        calculate_contamination=false
         
     while true; do
         case "$1" in
@@ -51,28 +53,45 @@ else
             --intervals ) intervals="$2"; shift 2 ;;
             --normal_sample ) normal_sample="$2"; shift 2 ;; 
             --log_name ) log_name="$2"; shift 2;;
-            --bwa_gref ) bwa_gref="$2"; shift 2;;
-            --twist_snps ) twist_snps="$2"; shift 2;;
+            --reference_genome ) reference_genome="$2"; shift 2;;
+            --panel ) panel="$2"; shift 2;;
             --assembly ) assembly="$2"; shift 2;;
             --funcotator_sources ) funcotator_sources="$2"; shift 2;;
             --transcript_list ) transcript_list="$2"; shift 2;;
-            --bam ) use_bam=true; shift ;;
-            --twist ) twist="1"; shift ;;      
-            --filtered ) filtered="1"; shift ;; 
+            --normal_pileups ) normal_pileups="$2"; shift 2;;
+            --remove_silent ) remove_silent="1"; shift ;; 
             -m | --mutect ) get_mutect=true; shift ;;
             -v | --varscan ) get_varscan=true; shift ;;
             -h | --haplotypecaller ) get_haplotype=true; shift ;;
-            --no_funcotator ) run_funcotator=false; shift ;;
+            --skip_funcotator ) run_funcotator=false; shift ;;
             --no_bam_out ) bam_out=false; shift ;;
             --all ) get_mutect=true; get_varscan=true; get_haplotype=true; shift ;;
             --realign ) realign=true; shift ;;
+            --bam ) bam=true; shift ;; 
+            --fastq ) fastq=true; shift ;;
+            --calculate_contamination ) calculate_contamination=true; shift ;;
             -- ) shift; break ;;
             * ) break ;;
         esac
     done
 
-    echo "use_bam: $use_bam"
     echo "realign: $realign"
+
+    if [[ $calculate_contamination = true ]] && [[ $normal_pileups = false ]] && [[ $normal_sample != false ]]; then
+        echo "if contamination calculation is requested while using tumor normal mode, an additonal argument containing --normal_pileups /path/to/pileups_file.pileups must be provided"
+    fi
+
+    if [[ $bam = false ]] && [[ $fastq = false ]]; then
+        echo "please use either --bam or --fastq to indicate the file type of your data"
+        echo "if your bam data is not aligned to hg38, please use the following arguments: --bam --realign"
+        exit 1
+    fi
+
+    if [[ $bam = false ]] && [[ $realign = true ]]; then
+        echo "all fastq files are aligned to hg38"
+        echo "please remove --relign from your argument list. It cannot be used with --fastq"
+        exit 1
+    fi
 
     echo "intervals: $intervals"
     if ( [[ $min_coverage != "10" ]] || [[ $min_var_freq != "0.001" ]] || [[ $p_value != "0.1" ]] ) && \
@@ -80,9 +99,9 @@ else
         echo "The p_value, min_coverage, and min_var_freq arguments are not used in the mutect and haplotypecaller workflows"; exit 1
     fi
 
-    if ( [[ $twist = true ]] ) && \
+    if ( [[ $panel != false ]] ) && \
         ( [[ $get_mutect = false ]] || [[ $all = false ]] ); then
-        echo "The --twist argument is not applicable to the varscan and haplotypecaller workflows"; exit 1
+        echo "The --panel argument is not applicable to the varscan and haplotypecaller workflows"; exit 1
     fi
 
 
@@ -144,50 +163,46 @@ else
 #############################################--STEP 4: GET ARRAY LENGTHS---####################################################### 
 ##################################################################################################################################
 
-    find -L "${data_directory}" -type f `#list all files in ${fastq_directory}` | \
-            grep ".*\.bam$" `#only keep files with FASTQ in name (case insensitive)` | \
-            grep -v ".*\.bai$" `#remove Undetermined FASTQs` | \
-            sed -e 's/\.bam$//g' `#remove _R1/2_fastq.gz file extension` | \
-            sort -u  `#sort and remove duplicate names` > ${bam_list}
-                #| \
-            #head -n -1 > ${bam_list} `#remove the last line and generate a list of unique FASTQs`
-    bam_array_length=$(wc -l < ${bam_list}) #get the number of FASTQs
-    echo "bam array length: $bam_array_length"
-    
-   find -L "${data_directory}" -type f `#list all files in ${fastq_directory}` | \
-        grep ".*\.fastq.gz$" `#only keep files with FASTQ in name (case insensitive)` | \
-        grep -v "Undetermined" `#remove Undetermined FASTQs` | \
-        sed -e 's/_R1.*$//g' | sed -e 's/_R2.*$//g' `#remove _R1/2_fastq.gz file extension`| \
-        sort -u  `#sort and remove duplicate names` > ${fastq_list} 
-            #| \
-        #head -n -1 > ${fastq_list} `#remove the last line and generate a list of unique FASTQs`
-    fastq_array_length=$(wc -l < ${fastq_list}) #get the number of FASTQs 
-    echo "fastq array length: $fastq_array_length" 
+    if [ $bam = true ]; then
+        find -L "${data_directory}" -type f `#list all files in ${fastq_directory}` | \
+                    grep ".*\.bam$" `#only keep files with FASTQ in name (case insensitive)` | \
+                    grep -v ".*\.bai$" `#remove Undetermined FASTQs` | \
+                    sed -e 's/\.bam$//g' `#remove _R1/2_fastq.gz file extension` | \
+                    sort -u  `#sort and remove duplicate names` > ${bam_list}
+                        #| \
+                    #head -n -1 > ${bam_list} `#remove the last line and generate a list of unique FASTQs`
+            bam_array_length=$(wc -l < ${bam_list}) #get the number of FASTQs
+            echo "bam array length: $bam_array_length"
 
-##################################################################################################################################
-################################################--STEP 5: BAM TO FASTQ---######################################################### 
-##################################################################################################################################
-    echo "use_bam: $use_bam"
-  #if [[ $bam_array_length -ge 1 ]] && [[ $use_bam == false ]]; then 
-  if [[ $use_bam == false ]]; then 
-       #echo "use_bam right before running script: $use_bam"
-        #echo "entering bam_to_fastq.sh script"
-        #sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
-            #-a "1-${bam_array_length}" `#initiate job array equal to the number of fastq files` \
-            #-W `#indicates to the script not to move on until the sbatch operation is complete` \
-            #"${code_directory}/bam_to_fastq.sh" \
-            #"$data_directory" \
-            #"$code_directory"
+        if [ $realign = true ]; then 
+            echo "entering bam_to_fastq.sh script"
+            sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
+                -a "1-${bam_array_length}" `#initiate job array equal to the number of fastq files` \
+                -W `#indicates to the script not to move on until the sbatch operation is complete` \
+                "${code_directory}/bam_to_fastq.sh" \
+                "$data_directory" \
+                "$code_directory"
 
-        #cp $bam_list $fastq_list
-        fastq_array_length=$(wc -l < ${fastq_list}) #get the number of FASTQs 
-        echo "$fastq_array_length"
-            wait
+            cp $bam_list $fastq_list
+            array_length=$(wc -l < ${fastq_list}) #get the number of FASTQs 
+            echo "array length: $array_length" 
+            $bam=false
 
-        array_length=$fastq_array_length
+        else 
+            array_length=$bam_array_length
+        fi
     else
-        array_length=$bam_array_length
-    fi 
+       find -L "${data_directory}" -type f `#list all files in ${fastq_directory}` | \
+            grep ".*\.fastq.gz$" `#only keep files with FASTQ in name (case insensitive)` | \
+            grep -v "Undetermined" `#remove Undetermined FASTQs` | \
+            sed -e 's/_R1.*$//g' | sed -e 's/_R2.*$//g' `#remove _R1/2_fastq.gz file extension`| \
+            sort -u  `#sort and remove duplicate names` > ${fastq_list} 
+                #| \
+            #head -n -1 > ${fastq_list} `#remove the last line and generate a list of unique FASTQs`
+        array_length=$(wc -l < ${fastq_list}) #get the number of FASTQs 
+        echo "fastq array length: $array_length" 
+    fi
+
 ##################################################################################################################################
 ##################################################--STEP 4: BWA_CHIP.sh---######################################################## 
 ##################################################################################################################################
@@ -203,19 +218,21 @@ else
     get_mutect${get_mutect} \
     get_varscan ${get_varscan} \
     get_haplotype ${get_haplotype} \
-    use_bam ${use_bam} \
+    bam ${bam} \
     intervals ${intervals} \
     normal_sample ${normal_sample} \
     code_directory ${code_directory} \
     parameter_file ${parameter_file} \
-    bwa_gref ${bwa_gref} \
-   twist_snps  ${twist_snps} \
+    reference_genome ${reference_genome} \
+   panel  ${panel} \
     assembly ${assembly} \
     funcotato sources ${funcotator_sources} \
     transcript lists ${transcript_list} \
-    filtered ${filtered} \
+    remove_silent ${remove_silent} \
     run funcotator ${run_funcotator} \
-    bam out ${bam_out} "
+    bam out ${bam_out} \
+    normal_pileups ${normal_pileups} \
+    calculate_contamination ${calculate_contamination}"
 
     sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
     -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
@@ -229,19 +246,21 @@ else
     ${get_mutect} \
     ${get_varscan} \
     ${get_haplotype} \
-    ${use_bam} \
+    ${bam} \
     ${intervals} \
     ${normal_sample} \
     ${code_directory} \
     ${parameter_file} \
-    ${bwa_gref} \
-    ${twist_snps} \
+    ${reference_genome} \
+    ${panel} \
     ${assembly} \
     ${funcotator_sources} \
     ${transcript_list} \
-    ${filtered} \
+    ${remove_silent} \
     ${run_funcotator} \
-    ${bam_out} 
+    ${bam_out} \
+    ${normal_pileups} \
+    ${calculate_contamination}
 
     wait
 fi
@@ -253,7 +272,7 @@ module load R/4.0
 
 if [ $get_mutect = true ]; then
     Rscript aggregate_variants_mutect.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
-        "$output_directory" "$twist" "$filtered" > "$output_directory/Logs/mutectOutFile.Rout" 2>&1
+        "$output_directory" "$panel" "$remove_silent" > "$output_directory/Logs/mutectOutFile.Rout" 2>&1
         
     Rscript WhiteList/whitelist_mutect_join.R "/labs/sjaiswal/variant_whitelist.xlsx" \
         "$output_directory/mutect_aggregated_simple.tsv" "$output_directory" > "$output_directory/Logs/annotationOutFile.Rout" 2>&1
