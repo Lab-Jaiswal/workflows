@@ -31,36 +31,49 @@ FILTERED=${19}
 RUN_FUNCOTATOR=${20}
 BAM_OUT=${21}
 NORMAL_PILEUPS_FILENAME="${22}"
-CALCULATE_CONTAMINATION=${23}
+MODE=${23}
+DOCKER_IMAGE=${24}
+CONTAINER_ENGINE=${25}
+SPLIT_BY_CHR=${26}
+SEQUENCE_DICT=${27}
+CHR_INTERVALS=${28}
 
-echo "PARENT_DIRECTORY=$1 \
-    OUTPUT_DIRECTORY=$2 \
-    MIN_COVERAGE=$3 \
-    MIN_VAR_FREQ=$4 \
-    P_VALUE=$5 \
-    GET_MUTECT=$6 \
-    GET_VARSCAN=$7 \
-    GET_HAPLOTYPE=$8 \
-    USE_BAM=$9 \
-    INTERVALS_FILE=${10} \
-    NORMAL_SAMPLE_FILENAME=${11} \
-    CODE_DIRECTORY=${12} \
-    PARAMETER_FILE=${13} \
-    BWA_GREF_FILENAME=${14} \
-    TWIST_SNPS=${15} \
-    ASSEMBLY=${16} \
-    FUNCOTATOR_SOURCES_FILENAME=${17} \ 
-    TRANSCRIPT_LIST_FILENAME=${18} \
-    FILTERED=${19} \
-    RUN_FUNCOTATOR=${20} \
-    BAM_OUT=${21}
-    NORMAL_PILEUPS_FILENAME=${22}
-    CALCULATE_CONTAMINATION=${23}" >> $PARAMETER_FILE
+if [[ $MODE == "slurm" ]]; then
+    LINE_NUMBER=$SLURM_ARRAY_TASK_ID #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
+else
+    LINE_NUMBER=${TASK_ID}
+fi
 
-
-#NORMAL_NAME=$(basename $NORMAL_SAMPLE | sed -e 's/.bam//')
-
-LINE_NUMBER=$SLURM_ARRAY_TASK_ID #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
+if [ $LINE_NUMBER -eq 1 ]; then
+    echo "PARENT_DIRECTORY=$1 \
+        OUTPUT_DIRECTORY=$2 \
+        MIN_COVERAGE=$3 \
+        MIN_VAR_FREQ=$4 \
+        P_VALUE=$5 \
+        GET_MUTECT=$6 \
+        GET_VARSCAN=$7 \
+        GET_HAPLOTYPE=$8 \
+        USE_BAM=$9 \
+        INTERVALS_FILE=${10} \
+        NORMAL_SAMPLE_FILENAME=${11} \
+        CODE_DIRECTORY=${12} \
+        PARAMETER_FILE=${13} \
+        BWA_GREF_FILENAME=${14} \
+        TWIST_SNPS=${15} \
+        ASSEMBLY=${16} \
+        FUNCOTATOR_SOURCES_FILENAME=${17} \ 
+        TRANSCRIPT_LIST_FILENAME=${18} \
+        FILTERED=${19} \
+        RUN_FUNCOTATOR=${20} \
+        BAM_OUT=${21}
+        NORMAL_PILEUPS_FILENAME=${22}
+        MODE=${23}
+        DOCKER_IMAGE=${24}
+        CONTAINER_ENGINE=${25}
+        SPLIT_BY_CHR=${26}
+        SEQUENCE_DICT=${27}
+        CHR_INTERVALS=${28}" >> $PARAMETER_FILE
+fi
 
 if [ $USE_BAM = false ]; then
     ARRAY_FILE="${PARENT_DIRECTORY}/fastq_files" #provide path to file containing list of fastq files
@@ -70,7 +83,7 @@ fi
 
 ARRAY_PREFIX="$(sed "${LINE_NUMBER}q; d" "${ARRAY_FILE}")" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
 
-CHR_INTERVALS="/oak/stanford/groups/smontgom/maurertm/ADRC/workflows/Interval_filtering/whole_genome_intervals.interval_list"
+#CHR_INTERVALS="${CODE_DIRECTORY}/whole_genome_intervals.interval_list"
 #CHR_INTERVALS="/oak/stanford/groups/smontgom/maurertm/ADRC/workflows/Interval_filtering/chr21_chr22.interval_list"
 
 #Run script and save files in the same location of the fastq files
@@ -82,7 +95,7 @@ if [ $USE_BAM = false ]; then
    R2="${ARRAY_PREFIX}_R2_001.fastq.gz"
    READGROUP="@RG\tID:${FILENAME}\tLB:${FILENAME}\tPL:illumina\tSM:${FILENAME}"
    echo "$READGROUP"
-   MUTECT_INPUT="${FILENAME}_${ASSEMBLY}"
+   MUTECT_INPUT_FILENAME="${FILENAME}_${ASSEMBLY}"
 
    echo "FILENAME: $FILENAME"
 
@@ -96,39 +109,58 @@ mkdir $OUTPUT_DIRECTORY
 
 cd "${OUTPUT_DIRECTORY}" || exit
 
-temp_dir="/tmp/sjaiswal"
-INPUT="${TMPDIR}/Inputs"
-OUTPUTS="${TMPDIR}/Outputs"
-PARAMS="${temp_dir}/Params"
+if [[ $MODE == "slurm" ]]; then
+    temp_dir="/tmp/sjaiswal"
+    INPUT="${TMPDIR}/Inputs"
+    OUTPUTS="${TMPDIR}/Outputs"
+    PARAMS="${TMPDIR}/Params"
+
+    mkdir -p $INPUT
+    mkdir -p $OUTPUTS
+    mkdir -p $PARAMS
+
+    echo "temp_path is: " $temp_dir
+    echo "copying FASTQs from the data path..." #copy data from data_path to the temp_path
+
+    MUTECT_INPUT_DIRNAME=$(dirname "${MUTECT_INPUT_FILENAME}")
+    MUTECT_INPUT_BASENAME=$(basename "${MUTECT_INPUT_FILENAME}")
+    MUTECT_INPUT="${INPUT}/${MUTECT_INPUT_BASENAME}"
+
+    if [ $LINE_NUMBER -eq 1 ]; then
+        echo "MUTECT_INPUT_BASENAME: $MUTECT_INPUT_BASENAME
+              MUTECT_INPUT: $MUTECT_INPUT" >> $PARAMETER_FILE
+    fi
+
+    rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.bam" "${MUTECT_INPUT}.bam"
+    MUTECT_INPUT_PATTERN=${MUTECT_INPUT_BASENAME%.*}
+    rsync -vurPhlt $MUTECT_INPUT_DIRNAME/$MUTECT_INPUT_PATTERN* $INPUT/
+
+    BWA_GREF_DIRNAME=$(dirname "${BWA_GREF_FILENAME}")
+    BWA_GREF_BASENAME=$(basename "${BWA_GREF_FILENAME}")
+    BWA_GREF="${PARAMS}/${BWA_GREF_BASENAME}"
+
+    if [ $LINE_NUMBER -eq 1 ]; then
+        echo "BWA_GREF_BASENAME: $BWA_GREF_BASENAME
+            BWA_GREF: $BWA_GREF" >> $PARAMETER_FILE
+    fi
+
+    rsync -vurPhlt "$BWA_GREF_FILENAME" $BWA_GREF
+    BWA_GREF_PATTERN=${BWA_GREF_BASENAME%.*}
+    rsync -vurPhlt $BWA_GREF_DIRNAME/$BWA_GREF_PATTERN* $PARAMS/
 
 
-mkdir -p $INPUT
-mkdir -p $OUTPUTS
-mkdir -p $PARAMS
+else
+    INPUT="${PARENT_DIRECTORY}"
+    OUTPUTS="${OUTPUT_DIRECTORY}"
+    PARAMS="${PARENT_DIRECTORY}/References"
 
+    MUTECT_INPUT_BASENAME=$(basename "${MUTECT_INPUT_FILENAME}")
+    MUTECT_INPUT=$INPUT/$MUTECT_INPUT_BASENAME
+    mkdir -p $MUTECT_INPUT
+    mv $MUTECT_INPUT_FILENAME $MUTECT_INPUT/
 
-echo "temp_path is: " $temp_dir
-echo "copying FASTQs from the data path..."                                                     #copy data from data_path to the temp_path
-
-MUTECT_INPUT_DIRNAME=$(dirname "${MUTECT_INPUT_FILENAME}")
-MUTECT_INPUT_BASENAME=$(basename "${MUTECT_INPUT_FILENAME}")
-MUTECT_INPUT="${INPUT}/${MUTECT_INPUT_BASENAME}"
-echo "MUTECT_INPUT_BASENAME: $MUTECT_INPUT_BASENAME
-      MUTECT_INPUT: $MUTECT_INPUT" >> $PARAMETER_FILE
-rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.bam" "${MUTECT_INPUT}.bam"
-MUTECT_INPUT_PATTERN=${MUTECT_INPUT_BASENAME%.*}
-rsync -vurPhlt $MUTECT_INPUT_DIRNAME/$MUTECT_INPUT_PATTERN* $INPUT/
-
-BWA_GREF_DIRNAME=$(dirname "${BWA_GREF_FILENAME}")
-BWA_GREF_BASENAME=$(basename "${BWA_GREF_FILENAME}")
-BWA_GREF="${PARAMS}/${BWA_GREF_BASENAME}"
-echo "BWA_GREF_BASENAME: $BWA_GREF_BASENAME
-      BWA_GREF: $BWA_GREF" >> $PARAMETER_FILE
-rsync -vurPhlt "$BWA_GREF_FILENAME" $BWA_GREF
-BWA_GREF_PATTERN=${BWA_GREF_BASENAME%.*}
-rsync -vurPhlt $BWA_GREF_DIRNAME/$BWA_GREF_PATTERN* $PARAMS/
-
-
+    BWA_GREF=$BWA_GREF_FILENAME
+fi
 
 ##################################################################################################################################
 #################################################---STEP 2: MUTECT.sh---########################################################## 
@@ -137,80 +169,122 @@ if [ $GET_MUTECT = true ]; then
     echo "Mutect analysis requested"
     echo "$PARAMETER_FILE"
 
-    NORMAL="${temp_dir}/Normal"
-    
-    mkdir -p $NORMAL
-    
-    if [ $RUN_FUNCOTATOR = true ]; then
-        FUNCTATOR_SOURCES_BASENAME=$(basename $FUNCOTATOR_SOURCES_FILENAME)
-        rsync -vurPhlt $FUNCOTATOR_SOURCES_FILENAME $PARAMS
-        FUNCOTATOR_SOURCES=$PARAMS/$FUNCOTATOR_SOURCES_BASENAME
-    else 
-        FUNCOTATOR_SOURCES=false
-    fi
-    
-    if [ $NORMAL_SAMPLE_FILENAME != false ]; then 
-        NORMAL_SAMPLE_DIRNAME=$(dirname "${NORMAL_SAMPLE_FILENAME}")
-        NORMAL_SAMPLE_BASENAME=$(basename "${NORMAL_SAMPLE_FILENAME}")
-        NORMAL_SAMPLE="${NORMAL}/${NORMAL_SAMPLE_BASENAME}"
-        echo "NORMAL_SAMPLE_BASENAME: $NORMAL_SAMPLE_BASENAME
-              NORMAL SAMPLE: $NORMAL_SAMPLE" >> $PARAMETER_FILE
-        rsync -vurPhlt "$NORMAL_SAMPLE_FILENAME" $NORMAL_SAMPLE
-        NORMAL_SAMPLE_PATTERN=${NORMAL_SAMPLE_BASENAME%.*}
-        rsync -vurPhlt $NORMAL_SAMPLE_DIRNAME/$NORMAL_SAMPLE_PATTERN* $NORMAL/
+    if [[ $MODE != "slurm" ]]; then
+         TRANSCRIPT_LIST=$TRANSCRIPT_LIST_FILENAME
+
+         if [ $RUN_FUNCOTATOR = true ]; then
+            FUNCOTATOR_SOURCES=$FUNCOTATOR_SOURCES_FILENAME
+         else
+            FUNCOTATOR_SOURCES=false
+         fi
         
-        if [ $CALCULATE_CONTAMINATION != false ]; then
+         if [ $NORMAL_SAMPLE_FILENAME != false ]; then
+            NORMAL_SAMPLE=$NORMAL_SAMPLE_FILENAME
+         else
+            NORMAL_SAMPLE=false
+        fi
+
+        if [ $NORMAL_PILEUPS_FILENAME != false ]; then
+            NORMAL_PILEUPS=$NORMAL_PILEUPS_FILENAME
+        else
+            NORMAL_PILEUPS=false
+        fi
+    fi
+
+    if [[ $MODE = "slurm" ]]; then
+        
+        TRANSCRIPT_LIST_BASENAME=$(basename "${TRANSCRIPT_LIST_FILENAME}")
+        TRANSCRIPT_LIST="${PARAMS}/${TRANSCRIPT_LIST_BASENAME}"
+
+        if [ $LINE_NUMBER -eq 1 ]; then
+            echo "TRANSCRIPT_LIST_BASENAME: $TRANSCRIPT_LIST_BASENAME
+                  TRANSCRIPT_LIST: $TRANSCRIPT_LIST" >> $PARAMETER_FILE
+        fi
+
+        rsync -vurPhlt "$TRANSCRIPT_LIST_FILENAME" $TRANSCRIPT_LIST
+
+
+        NORMAL="${temp_dir}/Normal"
+        mkdir -p $NORMAL
+    
+        if [ $RUN_FUNCOTATOR = true ]; then
+            FUNCTATOR_SOURCES_BASENAME=$(basename $FUNCOTATOR_SOURCES_FILENAME)
+            rsync -vurPhlt $FUNCOTATOR_SOURCES_FILENAME $PARAMS
+            FUNCOTATOR_SOURCES=$PARAMS/$FUNCOTATOR_SOURCES_BASENAME
+        else
+            FUNCOTATOR_SOURCES=false
+        fi
+    
+        if [ $NORMAL_SAMPLE_FILENAME != false ]; then 
+            NORMAL_SAMPLE_DIRNAME=$(dirname "${NORMAL_SAMPLE_FILENAME}")
+            NORMAL_SAMPLE_BASENAME=$(basename "${NORMAL_SAMPLE_FILENAME}")
+            NORMAL_SAMPLE="${NORMAL}/${NORMAL_SAMPLE_BASENAME}"
+
+            if [ $LINE_NUMBER -eq 1 ]; then
+                echo "NORMAL_SAMPLE_BASENAME: $NORMAL_SAMPLE_BASENAME
+                      NORMAL SAMPLE: $NORMAL_SAMPLE" >> $PARAMETER_FILE
+            fi
+
+            rsync -vurPhlt "$NORMAL_SAMPLE_FILENAME" $NORMAL_SAMPLE
+            NORMAL_SAMPLE_PATTERN=${NORMAL_SAMPLE_BASENAME%.*}
+            rsync -vurPhlt $NORMAL_SAMPLE_DIRNAME/$NORMAL_SAMPLE_PATTERN* $NORMAL/
+        else
+            NORMAL_SAMPLE=false
+        fi
+        
+        if [ $NORMAL_PILEUPS_FILENAME != false ]; then
             NORMAL_PILEUPS_DIRNAME=$(dirname "${NORMAL_PILEUPS_FILENAME}")
             NORMAL_PILEUPS_BASENAME=$(basename "${NORMAL_PILEUPS_FILENAME}")
             NORMAL_PILEUPS="${NORMAL}/${NORMAL_PILEUPS_BASENAME}"
-            echo "NORMAL_PILEUPS_BASENAME: $NORMAL_PILEUPS_BASENAME
-                  NORMAL PILEUPS: $NORMAL_PILEUPS" >> $PARAMETER_FILE
+
+            if [ $LINE_NUMBER -eq 1 ]; then
+                echo "NORMAL_PILEUPS_BASENAME: $NORMAL_PILEUPS_BASENAME
+                        NORMAL PILEUPS: $NORMAL_PILEUPS" >> $PARAMETER_FILE
+            fi
+
             rsync -vurPhlt "$NORMAL_PILEUPS_FILENAME" $NORMAL_PILEUPS
             NORMAL_PILEUPS_PATTERN=${NORMAL_PILEUPS_BASENAME%.*}
             rsync -vurPhlt /$NORMAL_PILEUPS_DIRNAME/$NORMAL_PILEUPS_PATTERN* $NORMAL/
         else
-            NORMAL_PILEUPS=false
+             NORMAL_PILEUPS=false
         fi
-
-    else
-        NORMAL_SAMPLE=false
-        NORMAL_PILEUPS=false
+         
     fi
-    
-    TRANSCRIPT_LIST_BASENAME=$(basename "${TRANSCRIPT_LIST_FILENAME}")
-    TRANSCRIPT_LIST="${PARAMS}/${TRANSCRIPT_LIST_BASENAME}"
-    echo "TRANSCRIPT_LIST_BASENAME: $TRANSCRIPT_LIST_BASENAME
-          TRANSCRIPT_LIST: $TRANSCRIPT_LIST" >> $PARAMETER_FILE
-    rsync -vurPhlt "$TRANSCRIPT_LIST_FILENAME" $TRANSCRIPT_LIST
 
-    ls $OUTPUTS
-
-    if [ $INTERVALS_FILE = false ]; then
+    if [ $SPLIT_BY_CHR = true ]; then
         num_intervals=$(grep -v "@" < $CHR_INTERVALS | wc -l)
-        seq 1 ${num_intervals} | parallel -j8 --progress --ungroup "${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $CALCULATE_CONTAMINATION {}"
+        seq 1 ${num_intervals} | parallel -j8 --progress --ungroup "${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS {}"
 
-        echo "arguments passed to mutect_and_pileups.sh: seq 1 ${num_intervals} | parallel -j8 --group --progress ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $CALCULATE_CONTAMINATION {}">> $PARAMETER_FILE
-    
+        if [ $LINE_NUMBER -eq 1 ]; then
+            echo "arguments passed to mutect_and_pileups.sh: seq 1 ${num_intervals} | parallel -j8 --group --progress ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS {}">> $PARAMETER_FILE
+        fi
     else
-        ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GRE  $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $CALCULATE_CONTAMINATION
-        echo "arguments passed to mutect_and_pileups.sh: ${CODE_DIRECTORY}/mutect_and_pileups.sh $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GRE  $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $CALCULATE_CONTAMINATION" >> $PARAMETER_FILE
+        ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF  $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS
+
+        if [ $LINE_NUMBER -eq 1 ]; then
+            echo "arguments passed to mutect_and_pileups.sh: ${CODE_DIRECTORY}/mutect_and_pileups.sh $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF  $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS" >> $PARAMETER_FILE
+        fi
     
     fi
    
    echo "mutect_and_pileups.sh analysis complete"
   
-   if [ $INTERVALS_FILE = false ]; then
-       module load bcftools
-       module load gatk4
+   if [ $SPLIT_BY_CHR = true ]; then
+       if [[ $MODE = "slurm" ]]; then
+           module load bcftools
+           module load gatk4
+        fi
        chr_vcfs=$(find $OUTPUT_DIRECTORY/vcfs -type f | sort -V)
 
        #if [[ $(echo "${chr_vcfs}" | wc -l) -lt ${num_intervals} ]] && [[ -d "${OUTPUT_DIRECTORY}/vcfs" ]]; then
-       if [ -d "${OUTPUT_DIRECTORY}/vcfs" ]; then
+       if ( [[ -d "${OUTPUT_DIRECTORY}/vcfs" ]] || [[ $MODE = "slrum" ]] ); then
           rsync -vurPhlt "${OUTPUT_DIRECTORY}/vcfs" "${OUTPUTS}"
        fi
+
        chr_pileups=$(find $OUTPUT_DIRECTORY/pileups -type f | sort -V)
        #if [[ $(echo "${chr_pileups}" | wc -l) -lt ${num_intervals} ]] && [[ -d "${OUTPUT_DIRECTORY}/pileups" ]]; then
-       if [ -d "${OUTPUT_DIRECTORY}/pileups" ]; then
+       
+       if ( [[ -d "${OUTPUT_DIRECTORY}/pileups" ]] || [[$MODE = "slurm" ]] ); then
             rsync -vurPhlt "${OUTPUT_DIRECTORY}/pileups" "${OUTPUTS}"
        fi
        # Change to MergeVCFs
@@ -223,21 +297,21 @@ if [ $GET_MUTECT = true ]; then
        echo "gatk MergeMutectStats ${vcf_stats} -O ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf.stats"
        # Add GatherPileupSummaries for pileups
        pileup_tables=$(find $OUTPUTS/pileups -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
-       echo "gatk GatherPileupSummaries --sequence-dictionary "/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa.dict" ${pileup_tables} -O ${OUTPUTS}/${SAMPLE_NAME}_pileups.table"
+       echo "gatk GatherPileupSummaries --sequence-dictionary $SEQUENCE_DICT ${pileup_tables} -O ${OUTPUTS}/${SAMPLE_NAME}_pileups.table"
 
-       gatk GatherPileupSummaries --sequence-dictionary "/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa.dict" ${pileup_tables} -O ${OUTPUTS}/${SAMPLE_NAME}_pileups.table
+       gatk GatherPileupSummaries --sequence-dictionary $SEQUENCE_DICT ${pileup_tables} -O ${OUTPUTS}/${SAMPLE_NAME}_pileups.table
    fi
     echo "$OUTPUTS folder contains:"
     tree -h $OUTPUTS
 
-    ${CODE_DIRECTORY}/mutect_filter.sh $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE $OUTPUTS $OUTPUT_DIRECTORY $NORMAL_SAMPLE $CALCULATE_CONTAMINATION $NORMAL_PILEUPS
+    ${CODE_DIRECTORY}/mutect_filter.sh $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE $OUTPUTS $OUTPUT_DIRECTORY $NORMAL_SAMPLE $NORMAL_PILEUPS $MODE $LINE_NUMBER
 
-    ${CODE_DIRECTORY}/funcotator.sh $SAMPLE_NAME $BWA_GREF $FUNCOTATOR_SOURCES $TRANSCRIPT_LIST $PARAMETER_FILE $FILTERED $OUTPUTS $RUN_FUNCOTATOR $OUTPUT_DIRECTORY
-
-   rsync -vurPhlt $OUTPUTS/ $OUTPUT_DIRECTORY
-
-
-   echo "Results copied over to specified output directory"
+    ${CODE_DIRECTORY}/funcotator.sh $SAMPLE_NAME $BWA_GREF $FUNCOTATOR_SOURCES $TRANSCRIPT_LIST $PARAMETER_FILE $FILTERED $OUTPUTS $RUN_FUNCOTATOR $OUTPUT_DIRECTORY $MODE $LINE_NUMBER
+    
+   if [[ $MODE = "slurm" ]]; then 
+        rsync -vurPhlt $OUTPUTS/ $OUTPUT_DIRECTORY
+        echo "Results copied over to specified output directory"
+   fi
 else
     echo "No mutect analysis requested"
 fi
@@ -247,8 +321,14 @@ fi
 ##################################################################################################################################    
 if [ $GET_HAPLOTYPE = true ]; then
     echo "Haplotypecaller analysis requested"
-    ${CODE_DIRECTORY}/haplotypecaller.sh $SAMPLE_NAME $BWA_GREF $TWIST_SNPS $PARAMETER_FILE
+    ${CODE_DIRECTORY}/haplotypecaller.sh $SAMPLE_NAME $BWA_GREF $TWIST_SNPS $PARAMETER_FILE $MODE
     echo "Haplotypecaller analysis complete"
+
+    if [[ $MODE = "slurm" ]]; then 
+        rsync -vurPhlt $OUTPUTS/ $OUTPUT_DIRECTORY
+        echo "Results copied over to specified output directory"
+   fi
+
 else
     echo "No HaplotypeCaller analysis requested"
 fi
@@ -258,8 +338,14 @@ fi
 ##################################################################################################################################    
 if [ $GET_VARSCAN = true ]; then
     echo "Varscan analysis requested"
-   ${CODE_DIRECTORY}/varscan.sh $SAMPLE_NAME $BWA_GREF $MIN_COVERAGE $MIN_VAR_FREQ $P_VALUE $PARAMETER_FILE
+   ${CODE_DIRECTORY}/varscan.sh $SAMPLE_NAME $BWA_GREF $MIN_COVERAGE $MIN_VAR_FREQ $P_VALUE $PARAMETER_FILE $MODE
    echo "Varscan analysis complete"
+
+    if [[ $MODE = "slurm" ]]; then 
+        rsync -vurPhlt $OUTPUTS/ $OUTPUT_DIRECTORY
+        echo "Results copied over to specified output directory"
+   fi
+
 else 
     echo "No Varscan analysis requested"
 fi
