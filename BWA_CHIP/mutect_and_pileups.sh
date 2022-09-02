@@ -11,12 +11,17 @@ PARAMETER_FILE="${6}"
 OUTPUTS=${7}
 BAM_OUT=${8}
 OUTPUT_DIRECTORY=${9}
-CALCULATE_CONTAMINATION=${10}
-INTERVAL_NUMBER=${11}
-CHR_INTERVALS="/oak/stanford/groups/smontgom/maurertm/ADRC/workflows/Interval_filtering/whole_genome_intervals.interval_list"
+MODE=${10}
+SPLIT_BY_CHR=${11}
+LINE_NUMBER=${12}
+CHR_INTERVALS=${13}
+INTERVAL_NUMBER=${14}
+
+
+#CHR_INTERVALS="/oak/stanford/groups/smontgom/maurertm/ADRC/workflows/Interval_filtering/whole_genome_intervals.interval_list"
 #CHR_INTERVALS="/oak/stanford/groups/smontgom/maurertm/ADRC/workflows/Interval_filtering/chr21_chr22.interval_list"
 
-if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
+if [ $LINE_NUMBER -eq 1 ]; then
          echo "arguments used for the mutect.sh script:
                NORMAL_SAMPLE=$1
                INTERVALS_FILE=$2
@@ -27,8 +32,11 @@ if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
                OUTPUTS=${7}
                BAM_OUT=${8}
                OUTPUT_DIRECTORY=${9}
-               CALCULATE_CONTAMINATION=${10}
-               INTERVAL_NUMBER=${11}
+               MODE=${10}
+               SPLIT_BY_CHR=${11}
+               LINE_NUMBER=${12}
+               CHR_INTERVALS=${13}
+               INTERVAL_NUMBER=${14}
                 " >> $PARAMETER_FILE
 fi
 
@@ -37,7 +45,9 @@ cd $OUTPUTS
 INPUTS="--input "$MUTECT_INPUT.bam""
 
 if [ $NORMAL_SAMPLE != false ]; then
-    module load samtools
+    if [[ $MODE = "slurm" ]]; then
+        module load samtools
+    fi
     NORMAL_NAME=$(samtools samples -h $NORMAL_SAMPLE | tail -n 1 | cut -f 1)
     echo "normal name $NORMAL_NAME"
 
@@ -47,9 +57,7 @@ else
     INPUTS_MUTECT="$INPUTS"
 fi
 
-if [ $INTERVALS_FILE != false ]; then
-    OPTIONAL_ARGS="--intervals $INTERVALS_FILE --dont-use-soft-clipped-bases"
-else
+if [ $SPLIT_BY_CHR = true ]; then
     mkdir -p Intervals
     interval_line=$(grep -v "@" < $CHR_INTERVALS | sed "${INTERVAL_NUMBER}q; d" ) # Remove header from interval list and choose appropriate line
     interval_name=$(echo "${interval_line}" | cut -f 1) # Extract chromosome name from interval line
@@ -58,6 +66,8 @@ else
     echo "${interval_line}" >> $new_interval_file # Append line after header in new interval list
     SAMPLE_NAME="${interval_name}_${SAMPLE_NAME}"
     OPTIONAL_ARGS="--intervals $new_interval_file --dont-use-soft-clipped-bases" # Tell Mutect2 to use new interval list
+else
+    OPTIONAL_ARGS="--intervals $INTERVALS_FILE --dont-use-soft-clipped-bases"
 fi
 
 if [ $BAM_OUT = true ]; then
@@ -73,30 +83,28 @@ if [ $INTERVALS_FILE = false ]; then
     OUTPUT_TEMP_NAME="$OUTPUTS/vcfs/${SAMPLE_NAME}"
     OUTPUT_NAME="$OUTPUT_DIRECTORY/vcfs/${SAMPLE_NAME}"
     
-    if [ $CALCULATE_CONTAMINATION = true ]; then
         if [ ! -d ${OUTPUTS}/pileups ]; then
                 mkdir -p pileups
         fi
         PILEUP_TEMP_NAME="$OUTPUTS/pileups/${SAMPLE_NAME}"
         PILEUP_NAME="${OUTPUT_DIRECTORY}/pileups/${SAMPLE_NAME}"
-    fi
 
 else
     OUTPUT_TEMP_NAME=${SAMPLE_NAME}
     OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
     
-    if [ $CALCULATE_CONTAMINATION != false ]; then
         PILEUP_TEMP_NAME="${SAMPLE_NAME}"
         PILEUP_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
-    fi
 
 fi
 
 if [ ! -f "${OUTPUT_NAME}_mutect2.vcf" ]; then
     echo "output name: ${OUTPUT_NAME}_mutect2.vcf"
     echo "mutect analysis requested"
-
-    module load gatk4
+    
+    if [[ $MODE = "slurm" ]]; then
+        module load gatk4
+    fi
 
     echo "Calling somatic variants with Mutect2 with the following command:
             gatk Mutect2 \
@@ -114,7 +122,9 @@ if [ ! -f "${OUTPUT_NAME}_mutect2.vcf" ]; then
     --annotation OrientationBiasReadCounts
 
     if [ $BAM_OUT = true ]; then
-        module load samtools
+        if [[ $MODE = "slurm" ]]; then
+            module load samtools
+        fi
         samtools index "${SAMPLE_NAME}_mutect2.bam" "${SAMPLE_NAME}_mutect2.bam.bai"
     fi
 
@@ -125,7 +135,7 @@ else
 fi
 
 
-if [[ $CALCULATE_CONTAMINATION != false ]]  && [[ ! -f "${PILEUP_NAME}_pileups.table" ]]; then
+if  [[ ! -f "${PILEUP_NAME}_pileups.table" ]]; then
     echo "$PILEUP_NAME: $PILEUP_NAME"
     if [ $INTERVALS_FILE != "false" ]; then
         pileup_intervals="${INTERVALS_FILE}"
@@ -133,7 +143,9 @@ if [[ $CALCULATE_CONTAMINATION != false ]]  && [[ ! -f "${PILEUP_NAME}_pileups.t
         pileup_intervals="${new_interval_file}"
     fi
     echo "Getting pileup summaries with GetPileupSummaries..."
-    module load gatk4
+    if [[ $MODE = "slurm" ]]; then
+        module load gatk4
+    fi
     # Need to make gnome_common_variants.vcf.bgz a variable
     echo "command: gatk GetPileupSummaries \
         $INPUTS \

@@ -8,6 +8,7 @@ min_coverage=$3
 min_var_freq=$4
 p_value=$5
 PARAMETER_FILE=$6
+MODE=$7
 
 echo "varscan command used the following parameters:
 $0 $1 $2 $3 $4 $5 $6"
@@ -20,11 +21,14 @@ if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
             min_var_freq=$4
             p_value=$5
             PARAMETER_FILE=$6
+            MODE=$7
             " >> $PARAMETER_FILE
 fi
 
 if [ ! -f "${SAMPLE_NAMEY}.pileup" ]; then
-    module load samtools
+    if [[ $MODE = "slurm" ]]; then
+        module load samtools
+    fi
     echo "Generating pileup from BAM..."
     samtools mpileup \
     -A \
@@ -38,7 +42,9 @@ else
 fi
 if [ ! -f "${SAMPLE_NAME}_varscan2.vcf" ]; then
     echo "Calling variants from pileup..."
-    module load varscan
+    if [[ $MODE = "slurm" ]]; then
+        module load varscan
+    fi
     varscan mpileup2cns \
     "${SAMPLE_NAME}.pileup" \
     --min-coverage "${min_coverage}" \
