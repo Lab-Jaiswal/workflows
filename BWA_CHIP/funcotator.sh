@@ -11,6 +11,7 @@ FILTERED=${6}
 OUTPUTS=${7}
 RUN_FUNCOTATOR=${8}
 OUTPUT_DIRECTORY=${9}
+MODE=${10}
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
          echo "arguments used for the mutect.sh script:
@@ -23,6 +24,7 @@ if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
                OUTPUTS=${7}
                RUN_FUNCOTATOR=${8}
                OUTPUT_DIRECTORY=${9}
+               MODE=${10}
                 " >> $PARAMETER_FILE
 fi
 
@@ -34,7 +36,9 @@ OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
 if [ $RUN_FUNCOTATOR = true ]; then
     if [ ! -f "${SAMPLE_NAME}_mutect2_filter_funcotator.vcf" ]; then
         echo "Annotating Mutect2 VCF with Funcotator..."
-        module load gatk4
+        if [[ $MODE = "slurm" ]]; then
+            module load gatk4
+        fi
         gatk Funcotator \
         --variant "${OUTPUT_NAME}_mutect2_filter.vcf" \
         --reference "${BWA_GREF}" \
@@ -68,7 +72,9 @@ if [ $RUN_FUNCOTATOR = true ]; then
     
     if  [ ! -f "${SAMPLE_NAME}_mutect2_filter_funcotator.maf" ]; then
         echo "Annotating VCF with Funcotator (MAF output)..."
-        module load gatk4
+        if [[ $MODE = "slurm" ]]; then
+            module load gatk4
+        fi
         gatk Funcotator \
         --variant "${OUTPUT_NAME}_mutect2_filter.vcf" \
         --reference "${BWA_GREF}" \
