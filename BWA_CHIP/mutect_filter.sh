@@ -11,6 +11,7 @@ NORMAL_SAMPLE=${6}
 NORMAL_PILEUPS=${7}
 MODE=${8}
 LINE_NUMBER=${9}
+GATK_COMMAND=${10}
 
 if [ $LINE_NUMBER -eq 1 ]; then
          echo "arguments used for the mutect.sh script:
@@ -23,6 +24,7 @@ if [ $LINE_NUMBER -eq 1 ]; then
                NORMAL_PILEUPS=${7}
                MODE=${8}
                LINE_NUMBER=${9}
+               GATK_COMMAND=${10}
                 " >> $PARAMETER_FILE
 fi
 
@@ -34,15 +36,13 @@ OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
 if [[ ! -f "${OUTPUT_NAME}_contamination.table" ]] ; then
     INPUTS="${SAMPLE_NAME}_pileups.table"
 
+    # Uncomment this when testing tumor-normal
     #if [ "${NORMAL_SAMPLE}" != "false" ]; then
         #INPUTS="${INPUTS} -matched ${NORMAL_PILEUPS}"
     #fi
 
     echo "Getting contamination rate with CalculateContamination"
-    if [[ $MODE = "slurm" ]]; then
-        module load gatk4
-    fi
-    gatk CalculateContamination \
+    ${GATK_COMMAND} CalculateContamination \
         --input "${INPUTS}" \
         --output "${SAMPLE_NAME}_contamination.table"
 else
@@ -52,14 +52,12 @@ fi
 
 if [ ! -f "${OUTPUT_NAME}_mutect2_filter.vcf" ]; then
     echo "Filtering somatic variants with FilterMutectCalls..."
-    if [[ $MODE = "slurm" ]]; then
-        module load gatk4
-    fi
-    gatk FilterMutectCalls \
-    --variant "${SAMPLE_NAME}_mutect2.vcf" \
-    --output "${SAMPLE_NAME}_mutect2_filter.vcf" \
-    --contamination-table ${SAMPLE_NAME}_contamination.table \
-    --reference "${BWA_GREF}"
+    ${GATK_COMMAND} FilterMutectCalls \
+        --variant "${SAMPLE_NAME}_mutect2.vcf" \
+        --output "${SAMPLE_NAME}_mutect2_filter.vcf" \
+        --contamination-table ${SAMPLE_NAME}_contamination.table \
+        --ob-priors  ${SAMPLE_NAME}_mutect2_artifact_prior.tar.gz \
+        --reference "${BWA_GREF}"
     #need to change so is dependent on if need contamination, CANNOT USE QOUTE TRICK
 
     echo "...somatic variants filtered."

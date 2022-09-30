@@ -15,28 +15,32 @@ MODE=${10}
 SPLIT_BY_CHR=${11}
 LINE_NUMBER=${12}
 CHR_INTERVALS=${13}
-INTERVAL_NUMBER=${14}
+GNOMAD_GENOMES=${14}
+RUN_MUTECT=${15}
+GATK_COMMAND="${16}"
+INTERVAL_NUMBER=${17}
 
-
-#CHR_INTERVALS="/oak/stanford/groups/smontgom/maurertm/ADRC/workflows/Interval_filtering/whole_genome_intervals.interval_list"
-#CHR_INTERVALS="/oak/stanford/groups/smontgom/maurertm/ADRC/workflows/Interval_filtering/chr21_chr22.interval_list"
-
-if [ $LINE_NUMBER -eq 1 ]; then
-         echo "arguments used for the mutect.sh script:
-               NORMAL_SAMPLE=$1
-               INTERVALS_FILE=$2
-               MUTECT_INPUT=$3
-               SAMPLE_NAME=$4
-               BWA_GREF=$5
-               PARAMETER_FILE=${6}
-               OUTPUTS=${7}
-               BAM_OUT=${8}
-               OUTPUT_DIRECTORY=${9}
-               MODE=${10}
-               SPLIT_BY_CHR=${11}
-               LINE_NUMBER=${12}
-               CHR_INTERVALS=${13}
-               INTERVAL_NUMBER=${14}
+if [ $LINE_NUMBER = "1" ]; then
+         echo "###########################################################
+               arguments used for the mutect_and_pileups.sh script: 
+                    NORMAL_SAMPLE=$1
+                    INTERVALS_FILE=$2
+                    MUTECT_INPUT=$3
+                    SAMPLE_NAME=$4
+                    BWA_GREF=$5
+                    PARAMETER_FILE=${6}
+                    OUTPUTS=${7}
+                    BAM_OUT=${8}
+                    OUTPUT_DIRECTORY=${9}
+                    MODE=${10}
+                    SPLIT_BY_CHR=${11}
+                    LINE_NUMBER=${12}
+                    CHR_INTERVALS=${13}
+                    GNOMAD_GENOMES=${14}
+                    RUN_MUTECT=${15}
+                    GATK_COMMAND="${16}"
+                    INTERVAL_NUMBER=${17}
+                ########################################################
                 " >> $PARAMETER_FILE
 fi
 
@@ -45,9 +49,6 @@ cd $OUTPUTS
 INPUTS="--input "$MUTECT_INPUT.bam""
 
 if [ $NORMAL_SAMPLE != false ]; then
-    if [[ $MODE = "slurm" ]]; then
-        module load samtools
-    fi
     NORMAL_NAME=$(samtools samples -h $NORMAL_SAMPLE | tail -n 1 | cut -f 1)
     echo "normal name $NORMAL_NAME"
 
@@ -98,13 +99,14 @@ else
 
 fi
 
-if [ ! -f "${OUTPUT_NAME}_mutect2.vcf" ]; then
+if [[ ! -f "${OUTPUT_NAME}_mutect2.vcf" ]] && [[ $RUN_MUTECT == true ]]; then
     echo "output name: ${OUTPUT_NAME}_mutect2.vcf"
     echo "mutect analysis requested"
     
-    if [[ $MODE = "slurm" ]]; then
-        module load gatk4
-    fi
+    F1R2="${OUTPUTS}/f1r2"
+    mkdir -p $F1R2
+    F1R2_TEMP_NAME="${OUTPUTS}/f1r2/${SAMPLE_NAME}"
+    echo "F1R2 TEMP NAME: $F1R2_TEMP_NAME"
 
     echo "Calling somatic variants with Mutect2 with the following command:
             gatk Mutect2 \
@@ -112,23 +114,25 @@ if [ ! -f "${OUTPUT_NAME}_mutect2.vcf" ]; then
             --output "${OUTPUT_TEMP_NAME}_mutect2.vcf" \
             --reference "${BWA_GREF}" \
             "${OPTIONAL_ARGS}" \
+            --f1r2-tar-gz "${F1R2_TEMP_NAME}_f1r2.tar.gz" \
             --annotation OrientationBiasReadCounts"
+
+    # Next time sleep inf, log in to node.
     
-    gatk Mutect2 \
-    $INPUTS_MUTECT \
-    --output "${OUTPUT_TEMP_NAME}_mutect2.vcf" \
-    --reference "${BWA_GREF}" \
-    $OPTIONAL_ARGS \
-    --annotation OrientationBiasReadCounts
+    #gatk Mutect2 \
+    ${GATK_COMMAND} Mutect2 \
+        $INPUTS_MUTECT \
+        --output "${OUTPUT_TEMP_NAME}_mutect2.vcf" \
+        --reference "${BWA_GREF}" \
+        $OPTIONAL_ARGS \
+        --f1r2-tar-gz "${F1R2_TEMP_NAME}_f1r2.tar.gz" \
+        --annotation OrientationBiasReadCounts
 
     if [ $BAM_OUT = true ]; then
-        if [[ $MODE = "slurm" ]]; then
-            module load samtools
-        fi
-        samtools index "${SAMPLE_NAME}_mutect2.bam" "${SAMPLE_NAME}_mutect2.bam.bai"
+        ${GATK_COMMAND} BuildBamIndex \
+        --INPUT "${SAMPLE_NAME}_mutect2.bam"
     fi
-
-    echo "...somatic variants called."
+        echo "...somatic variants called."
 else
     echo "output name: ${OUTPUT_TEMP_NAME}_mutect2.vcf"
     echo "Mutect2 somatic variants already called"
@@ -143,19 +147,17 @@ if  [[ ! -f "${PILEUP_NAME}_pileups.table" ]]; then
         pileup_intervals="${new_interval_file}"
     fi
     echo "Getting pileup summaries with GetPileupSummaries..."
-    if [[ $MODE = "slurm" ]]; then
-        module load gatk4
-    fi
     # Need to make gnome_common_variants.vcf.bgz a variable
-    echo "command: gatk GetPileupSummaries \
+    echo "command: ${GATK_COMMAND} GetPileupSummaries \
         $INPUTS \
-        -V "/oak/stanford/groups/smontgom/dnachun/workflows/gnomad.genomes.v3.1.2.sites.maf05.vcf.bgz" \
+        -V ${GNOMAD_GENOMES} \
         -L "${pileup_intervals}" \
         -O "${PILEUP_TEMP_NAME}_pileups.table"
 "
-    gatk GetPileupSummaries \
+    #gatk GetPileupSummaries \
+   ${GATK_COMMAND} GetPileupSummaries \
         $INPUTS \
-        -V "/oak/stanford/groups/smontgom/dnachun/workflows/gnomad.genomes.v3.1.2.sites.maf05.vcf.bgz" \
+        -V ${GNOMAD_GENOMES} \
         -L "${pileup_intervals}" \
         -O "${PILEUP_TEMP_NAME}_pileups.table"
 elif [ -f "${PILEUP_NAME}_pileups.table" ]; then

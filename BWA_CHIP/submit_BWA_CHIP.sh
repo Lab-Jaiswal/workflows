@@ -11,7 +11,7 @@ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
     echo "If --mutect is selected, you may use --twist to indicate you would like your results remove_silent by the Twist panel"
     exit 1
 else
-    TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,bam,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,bam,fastq,realign,normal_pileups,split_by_chr \
+    TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,bam,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,bam,fastq,realign,normal_pileups,split_by_chr \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
 
    if [ $? != 0 ]; then
@@ -46,11 +46,13 @@ else
         mode="slurm"
         docker_image="path"
         container_engine="path"
-        split_by_chr=false"/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa.dict"
+        split_by_chr=false
         sequence_dictionary="/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa.dict"
         code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )  #specify location of star_align_and_qc.sh
         chr_intervals="${code_directory}/whole_genome_intervals.interval_list"
         intervals="${code_directory}/CHIP_exons.interval_list"
+        gnomad_genomes="/oak/stanford/groups/smontgom/dnachun/workflows/gnomad.genomes.v3.1.2.sites.maf05.vcf.bgz"
+        n_jobs=1
         
     while true; do
         case "$1" in
@@ -66,11 +68,13 @@ else
             --funcotator_sources ) funcotator_sources="$2"; shift 2 ;;
             --transcript_list ) transcript_list="$2"; shift 2 ;;
             --normal_pileups ) normal_pileups="$2"; shift 2 ;;
-            --mode ) mode ="$2"; shift 2 ;;
+            --mode ) mode="$2"; shift 2 ;;
             --docker_image ) docker_image="$2"; shift 2 ;;
             --container_engine ) container_engine="$2"; shift 2 ;;
             --chr_intervals | --whole_genome_intervals | --WG_intervals ) chr_intervals="$2"; shift 2 ;;
             --sequence_dictionary | --sequence_dict ) sequence_dictionary="$2"; shift 2 ;;
+            --gnomad_genomes | --gnomad ) gnomad_genomes="$2"; shift 2 ;;
+            --n_jobs ) n_jobs="$2"; shift 2 ;;
             --remove_silent ) remove_silent="1"; shift ;; 
             -m | --mutect ) get_mutect=true; shift ;;
             -v | --varscan ) get_varscan=true; shift ;;
@@ -89,6 +93,7 @@ else
     done
 
     echo "realign: $realign"
+    echo "###################MODE##################: $mode"
 
     if [[ $calculate_contamination = true ]] && [[ $normal_pileups = false ]] && [[ $normal_sample != false ]]; then
         echo "if contamination calculation is requested while using tumor normal mode, an additonal argument containing --normal_pileups /path/to/pileups_file.pileups must be provided"
@@ -126,7 +131,7 @@ else
         echo "--mode "cloud" to run on cloud from a docker image"
     fi
 
-    if ( [[ $mode != "slurm" ]] || [[ $mode != "cloud" ]] ); then
+    if [[ $mode != "slurm" ]] || [[ $mode != "cloud" ]]; then
         echo "You did not select a recognizable option for mode."
         echo "Please select --mode cloud or --mode slurm"
     fi
@@ -143,6 +148,21 @@ else
     TEMPS=${TEMP[0]} 
     TEMP_ARGUMENTS=${TEMPS::-$sum}
     echo "$TEMP_ARGUMENTS"
+
+    if [[ ! -d $data_directory ]]; then
+        echo "data directory does not exist"
+    elif [[ ! -f $reference_genome ]]; then
+        echo "refrence genome path does not exist"
+    elif [[ ! -f $funcotator_sources ]]; then
+        echo "funcotator sources path does not exist"
+    elif [[ ! -f $transcript_list ]]; then
+        echo "transcript_list path dos not exist"
+    elif [[ ! -f $chr_intervals ]]; then
+        echo "chr_intervals path does not exist"
+    elif [[ ! -f $intervals ]]; then
+        echo "intervals path does not exist"
+    fi
+
 
 ##################################################################################################################################
 #######################################---STEP 2: CREATE NECESSARY FOLDERS---#####################################################
@@ -185,59 +205,104 @@ else
 ##################################################################################################################################
 #############################################--STEP 4: GET NORMAL PILEUPS---####################################################### 
 ##################################################################################################################################
-if ( [[ $normal_sample != false ]] && [[ $normal_pileups != false ]] ); then
-            
-    NORMAL_SAMPLE_BASENAME=$(basename $NORMAL_SAMPLE)
-    NORMAL_SAMPLE_NAME=${SAMPLE_BASENAME%.*}
+    if [[ $normal_sample != false ]]; then
+        #singularity
+                
+        NORMAL_SAMPLE_BASENAME=$(basename "${normal_sample}")
+        NORMAL_SAMPLE_DIRNAME=$(dirname "${normal_sample}")
+        NORMAL_SAMPLE_NAME=${NORMAL_SAMPLE_BASENAME%.*}
 
-    if [[ $split_by_chr = true ]]; then
-            
-            #CHR_INTERVALS="/oak/stanford/groups/smontgom/maurertm/ADRC/workflows/Interval_filtering/whole_genome_intervals.interval_list"
-            num_intervals=$(grep -v "@" < $chr_intervals | wc -l)
-            
-            if [[ $mode = "slurm" ]]; then
-                module load bcftools
-                module load gatk4 
-     
-                seq 1 ${num_intervals} | parallel -j8 --progress --ungroup "${CODE_DIRECTORY}/calculate_pileups.sh $normal_sample $intervals $parameter_file $code_directory $output_directory $split_by_chr {}"
-            
-            else
-                echo "some other command"
-            fi
+        array_length=1
+        line_number=1
+        run_mutect=false
+        normal_sample_path="${parent_directory}/normal_sample_path"
 
-            pileup_tables=$(find $output_directory/Normal_Pileups/pileups_by_chr -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
-            
-            gatk GatherPileupSummaries --sequence-dictionary $sequence_dictionary ${pileup_tables} -O ${output_directory}/Normal_Pileups/${NORMAL_SAMPLE_NAME}_pileups.table
-
-        else
-            if [[ $mode = "slurm" ]]; then
-                array_length=1
-
-                sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
+        find -L "${NORMAL_SAMPLE_DIRNAME}" -type f `#list all files in ${fastq_directory}` | \
+                grep "$NORMAL_SAMPLE_BASENAME" `#only keep files with FASTQ in name (case insensitive)` > $normal_sample_path
+         
+        
+        if [[ $mode == "slurm" ]]; then
+            sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
                 -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
                 -W `#indicates to the script not to move on until the sbatch operation is complete` \
-                "${code_directory}/calculate_pileups.sh" \
-                ${normal_sample} \
-                ${intervals} \
-                ${parameter_file} \
-                ${code_directory} \
+                "${code_directory}/BWA_CHIP.sh" \
+                ${parent_directory} \
                 ${output_directory} \
-                ${split_by_chr}
-
+                ${min_coverage} \
+                ${min_var_freq} \
+                ${p_value} \
+                ${get_mutect} \
+                ${get_varscan} \
+                ${get_haplotype} \
+                ${bam} \
+                ${intervals} \
+                ${normal_sample} \
+                ${code_directory} \
+                ${parameter_file} \
+                ${reference_genome} \
+                ${panel} \
+                ${assembly} \
+                ${funcotator_sources} \
+                ${transcript_list} \
+                ${remove_silent} \
+                ${run_funcotator} \
+                ${bam_out} \
+                ${normal_pileups} \
+                ${mode} \
+                ${docker_image} \
+                ${container_engine} \
+                ${split_by_chr} \
+                ${sequence_dictionary} \
+                ${chr_intervals} \
+                ${gnomad_genomes} \
+                ${run_mutect}
                 wait
-            else
-                echo "some other command"
-            fi
-
+        else
+            "${code_directory}/BWA_CHIP.sh" \
+                ${parent_directory} \
+                ${output_directory} \
+                ${min_coverage} \
+                ${min_var_freq} \
+                ${p_value} \
+                ${get_mutect} \
+                ${get_varscan} \
+                ${get_haplotype} \
+                ${bam} \
+                ${intervals} \
+                ${normal_sample} \
+                ${code_directory} \
+                ${parameter_file} \
+                ${reference_genome} \
+                ${panel} \
+                ${assembly} \
+                ${funcotator_sources} \
+                ${transcript_list} \
+                ${remove_silent} \
+                ${run_funcotator} \
+                ${bam_out} \
+                ${normal_pileups} \
+                ${mode} \
+                ${docker_image} \
+                ${container_engine} \
+                ${split_by_chr} \
+                ${sequence_dictionary} \
+                ${chr_intervals} \
+                ${gnomad_genomes} \
+                ${run_mutect}
         fi
 
-            normal_pileups="${output_directory}/Normal_Pileups/${NORMAL_SAMPLE_NAME}_pileups.table"    
-fi
+            normal_pileups="${output_directory}/NORMAL_PILEUPS/${NORMAL_SAMPLE_NAME}_${assembly}_pileups.table" 
+            echo "$normal_pileups"
+            
+            if [ ! -f ${normal_pileups} ]; then
+                echo "${normal_pileups} does not exist"
+            fi
+    fi
 
 ##################################################################################################################################
 #############################################--STEP 4: GET ARRAY LENGTHS---####################################################### 
 ##################################################################################################################################
-
+    run_mutect=true
     if [ $bam = true ]; then
         find -L "${data_directory}" -type f `#list all files in ${fastq_directory}` | \
                     grep ".*\.bam$" `#only keep files with FASTQ in name (case insensitive)` | \
@@ -284,41 +349,43 @@ fi
 ##################################################################################################################################
 ##################################################--STEP 4: BWA_CHIP.sh---######################################################## 
 ##################################################################################################################################
-    if [[ $mode == "slurm" ]]; then 
-        echo "sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
-        -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
-        -W `#indicates to the script not to move on until the sbatch operation is complete` \
-        "${code_directory}/BWA_CHIP.sh" \
-        parent_directory ${parent_directory} \
-        output_directory ${output_directory} \
-        min_coverage ${min_coverage} \
-        min_var_freq ${min_var_freq} \
-        p_value ${p_value} \
-        get_mutect${get_mutect} \
-        get_varscan ${get_varscan} \
-        get_haplotype ${get_haplotype} \
-        bam ${bam} \
-        intervals ${intervals} \
-        normal_sample ${normal_sample} \
-        code_directory ${code_directory} \
-        parameter_file ${parameter_file} \
-        reference_genome ${reference_genome} \
-        panel  ${panel} \
-        assembly ${assembly} \
-        funcotato sources ${funcotator_sources} \
-        transcript lists ${transcript_list} \
-        remove_silent ${remove_silent} \
-        run funcotator ${run_funcotator} \
-        bam out ${bam_out} \
-        normal_pileups ${normal_pileups} \
-        calculate_contamination ${calculate_contamination} \
-        mode ${mode} \
-        docker_image ${docker_image} \
-        container_image ${container_engine} \
-        split_by_chr ${split_by_chr} \
-        sequence_dictionary ${sequence_dictionary} \
-        chr_intervals ${chr_intervals}"         
+    echo "sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
+    -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
+    -W `#indicates to the script not to move on until the sbatch operation is complete` \
+    "${code_directory}/BWA_CHIP.sh" \
+    parent_directory ${parent_directory} \
+    output_directory ${output_directory} \
+    min_coverage ${min_coverage} \
+    min_var_freq ${min_var_freq} \
+    p_value ${p_value} \
+    get_mutect${get_mutect} \
+    get_varscan ${get_varscan} \
+    get_haplotype ${get_haplotype} \
+    bam ${bam} \
+    intervals ${intervals} \
+    normal_sample ${normal_sample} \
+    code_directory ${code_directory} \
+    parameter_file ${parameter_file} \
+    reference_genome ${reference_genome} \
+    panel  ${panel} \
+    assembly ${assembly} \
+    funcotato sources ${funcotator_sources} \
+    transcript lists ${transcript_list} \
+    remove_silent ${remove_silent} \
+    run funcotator ${run_funcotator} \
+    bam out ${bam_out} \
+    normal_pileups ${normal_pileups} \
+    calculate_contamination ${calculate_contamination} \
+    mode ${mode} \
+    docker_image ${docker_image} \
+    container_image ${container_engine} \
+    split_by_chr ${split_by_chr} \
+    sequence_dictionary ${sequence_dictionary} \
+    chr_intervals ${chr_intervals} \
+    gnomad_genomes ${gnomad_genomes} \
+    run_mutect ${run_mutect}"         
 
+    if [[ $mode == "slurm" ]]; then 
         sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
         -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
         -W `#indicates to the script not to move on until the sbatch operation is complete` \
@@ -345,51 +412,79 @@ fi
         ${run_funcotator} \
         ${bam_out} \
         ${normal_pileups} \
-        ${calculate_contamination} \
         ${mode} \
         ${docker_image} \
         ${container_engine} \
         ${split_by_chr} \
         ${sequence_dictionary} \
-        ${chr_intervals}
-
-        wait
-
+        ${chr_intervals} \
+        ${gnomad_genomes} \
+        ${run_mutect}
     else
-        #gnu parallele command
+        seq 1 ${array_length} | parallel --ungroup --progress -j ${n_jobs} 'TASK_ID={} ${code_directory}/BWA_CHIP.sh \
+        ${parent_directory} \
+        ${output_directory} \
+        ${min_coverage} \
+        ${min_var_freq} \
+        ${p_value} \
+        ${get_mutect} \
+        ${get_varscan} \
+        ${get_haplotype} \
+        ${bam} \
+        ${intervals} \
+        ${normal_sample} \
+        ${code_directory} \
+        ${parameter_file} \
+        ${reference_genome} \
+        ${panel} \
+        ${assembly} \
+        ${funcotator_sources} \
+        ${transcript_list} \
+        ${remove_silent} \
+        ${run_funcotator} \
+        ${bam_out} \
+        ${normal_pileups} \
+        ${mode} \
+        ${docker_image} \
+        ${container_engine} \
+        ${split_by_chr} \
+        ${sequence_dictionary} \
+        ${chr_intervals} \
+        ${gnomad_genomes} \
+        ${run_mutect}'
         echo "Test"
     fi
-fi
-    
+    wait
 ##################################################################################################################################
 ################################################--STEP 4: RUN R SCRIPTS---######################################################## 
 ##################################################################################################################################
-if [[ $mode = "slurm" ]]; then
-    module load R/4.0
+    if [[ $mode = "slurm" ]]; then
+        module load R/4.0
 
-    if [ $get_mutect = true ]; then
-        Rscript aggregate_variants_mutect.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
-            "$output_directory" "$panel" "$remove_silent" > "$output_directory/Logs/mutectOutFile.Rout" 2>&1
-            
-        Rscript WhiteList/whitelist_mutect_join.R "/labs/sjaiswal/variant_whitelist.xlsx" \
-            "$output_directory/mutect_aggregated_simple.tsv" "$output_directory" > "$output_directory/Logs/annotationOutFile.Rout" 2>&1
+        if [ $get_mutect = true ]; then
+            Rscript aggregate_variants_mutect.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
+                "$output_directory" "$panel" "$remove_silent" > "$output_directory/Logs/mutectOutFile.Rout" 2>&1
+                
+            Rscript WhiteList/whitelist_mutect_join.R "/labs/sjaiswal/variant_whitelist.xlsx" \
+                "$output_directory/mutect_aggregated_simple.tsv" "$output_directory" > "$output_directory/Logs/annotationOutFile.Rout" 2>&1
 
-    fi
+        fi
 
-    if [ $get_varscan = true ]; then
-        Rscript aggregate_variants_varscan.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
-            "$output_directory" > "$output_directory/Logs/mutectOutFile.Rout" 2>&1
-        Rscript WhiteList/whitelist_varscan_join.R "/labs/sjaiswal/variant_whitelist.xlsx" \
-            "$output_directory/varscan_aggregated.tsv" "$output_directory" > "$output_directory/Logs/annotationOutFile.Rout" 2>&1
-    fi 
+        if [ $get_varscan = true ]; then
+            Rscript aggregate_variants_varscan.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
+                "$output_directory" > "$output_directory/Logs/mutectOutFile.Rout" 2>&1
+            Rscript WhiteList/whitelist_varscan_join.R "/labs/sjaiswal/variant_whitelist.xlsx" \
+                "$output_directory/varscan_aggregated.tsv" "$output_directory" > "$output_directory/Logs/annotationOutFile.Rout" 2>&1
+        fi 
 
-    if [ $get_haplotype = true ]; then
-        Rscript aggregate_variants_haplotypecaller.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
-            "$output_directory" > "$output_directory/Logs/haplotypeOutFile.Rout" 2>&1
-    fi
+        if [ $get_haplotype = true ]; then
+            Rscript aggregate_variants_haplotypecaller.R /labs/sjaiswal/chip_submitted_targets_Twist.xls \
+                "$output_directory" > "$output_directory/Logs/haplotypeOutFile.Rout" 2>&1
+        fi
 
-    mutectRout="$output_directory/Logs/mutectOutFile.Rout"
-    if grep -q "Can't combine" "$mutectRout"; then
-        echo "There is an issue with the list containing maf dataframes. The column type varies from data frame to dataframe within list_of_mafs. Check mutectOutFile.Rout to determine which column(s) are causing this error. All columns sharing the same name must share the same type in order for the bind_rows function line 108 to work."
+        mutectRout="$output_directory/Logs/mutectOutFile.Rout"
+        if grep -q "Can't combine" "$mutectRout"; then
+            echo "There is an issue with the list containing maf dataframes. The column type varies from data frame to dataframe within list_of_mafs. Check mutectOutFile.Rout to determine which column(s) are causing this error. All columns sharing the same name must share the same type in order for the bind_rows function line 108 to work."
+        fi
     fi
 fi
