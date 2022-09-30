@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "entering mutect script"
+echo "entering funcotator script"
 
 SAMPLE_NAME=$1
 BWA_GREF=$2
@@ -12,9 +12,11 @@ OUTPUTS=${7}
 RUN_FUNCOTATOR=${8}
 OUTPUT_DIRECTORY=${9}
 MODE=${10}
+LINE_NUMBER=${11}
+GATK_COMMAND=${12}
 
-if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-         echo "arguments used for the mutect.sh script:
+if [ $LINE_NUMBER = "1" ]; then
+         echo "arguments used for the funcotator.sh script:
                SAMPLE_NAME=$1
                BWA_GREF=$2
                FUNCOTATOR_SOURCES=$3
@@ -25,27 +27,41 @@ if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
                RUN_FUNCOTATOR=${8}
                OUTPUT_DIRECTORY=${9}
                MODE=${10}
+               LINE_NUMBER=${11}
+               GATK_COMMAND=${12}
                 " >> $PARAMETER_FILE
 fi
 
+echo "!!!!!!!RUN_FUNCOTATOR: $RUN_FUNCOTATOR !!!!!!!!!!!!!!!^^^^^^^^^"
+
 cd $OUTPUTS
 
-OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
+#change outputs to output temp
+OUTPUT_NAME="${OUTPUTS}/${SAMPLE_NAME}"
+echo " OUTPUT DIRECTORY"
 
 # Move to funcotator.sh
 if [ $RUN_FUNCOTATOR = true ]; then
-    if [ ! -f "${SAMPLE_NAME}_mutect2_filter_funcotator.vcf" ]; then
+    if [ ! -f "${OUTPUT_NAME}_mutect2_filter_funcotator.vcf" ]; then
+        MUTECT_FILTER="${OUTPUT_NAME}_mutect2_filter.vcf"
+        NEW_HEADER="${OUTPUT_NAME}_new_header"
+        MUTECT_REHEADERED="${OUTPUT_NAME}_mutect2_filter_reheadered.vcf"
+                  
+        grep "^#" < ${MUTECT_FILTER} | grep -v -E "chrM|chr.*_|HLA|chrEBV" > ${NEW_HEADER} 
+        
+        echo "incorrect header filtered"
+
+        ${GATK_COMMAND} FixVcfHeader --INPUT ${MUTECT_FILTER} --OUTPUT ${MUTECT_REHEADERED} --HEADER ${NEW_HEADER}
+
+echo "incorrect header replaced"
         echo "Annotating Mutect2 VCF with Funcotator..."
-        if [[ $MODE = "slurm" ]]; then
-            module load gatk4
-        fi
-        gatk Funcotator \
-        --variant "${OUTPUT_NAME}_mutect2_filter.vcf" \
+        ${GATK_COMMAND} Funcotator \
+        --variant "${MUTECT_REHEADERED}" \
         --reference "${BWA_GREF}" \
         --ref-version hg38 \
         --data-sources-path "${FUNCOTATOR_SOURCES}" \
         --transcript-list "${TRANSCRIPT_LIST}" \
-        --output "${SAMPLE_NAME}_mutect2_filter_funcotator.vcf" \
+        --output "${OUTPUT_NAME}_mutect2_filter_funcotator.vcf" \
         --output-file-format VCF 
         
         echo "...VCF annotated."
@@ -55,33 +71,30 @@ if [ $RUN_FUNCOTATOR = true ]; then
 
 
 
-    if [[ $FILTERED -eq 1 ]] && [[ ! -f "${SAMPLE_NAME}_mutect2_filter_funcotator_coding.vcf" ]] ; then
-        grep -E "^#|FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" <  "${SAMPLE_NAME}_mutect2_filter_funcotator.vcf" > "${SAMPLE_NAME}_mutect2_filter_funcotator_coding.vcf"
+    if [[ $FILTERED -eq 1 ]] && [[ ! -f "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.vcf" ]] ; then
+        grep -E "^#|FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" <  "${OUTPUT_NAME}_mutect2_filter_funcotator.vcf" > "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.vcf"
 
-        number_nonsyn_vcf=$(grep -E "FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" < "${SAMPLE_NAME}_mutect2_filter_funcotator_coding.vcf" | wc -l)        
+        number_nonsyn_vcf=$(grep -E "FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" < "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.vcf" | wc -l)        
         if [ $number_nonsyn_vcf -lt 1 ]; then
-            mv "${SAMPLE_NAME}_mutect2_filter_funcotator_coding.vcf" "${SAMPLE_NAME}_mutect2_filter_funcotator_coding_null.vcf"
+            mv "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.vcf" "${OUTPUT_NAME}_mutect2_filter_funcotator_coding_null.vcf"
         fi
     else 
-        number_nonsyn_vcf=$(grep -E "FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" < "${SAMPLE_NAME}_mutect2_filter_funcotator.vcf" | wc -l)        
+        number_nonsyn_vcf=$(grep -E "FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" < "${OUTPUT_NAME}_mutect2_filter_funcotator.vcf" | wc -l)        
         if [ $number_nonsyn_vcf -lt 1 ]; then
-            mv "${SAMPLE_NAME}_mutect2_filter_funcotator.vcf" "${SAMPLE_NAME}_mutect2_filter_funcotator_null.vcf"
+            mv "${OUTPUT_NAME}_mutect2_filter_funcotator.vcf" "${OUTPUT_NAME}_mutect2_filter_funcotator_null.vcf"
         fi
 
     fi
     
-    if  [ ! -f "${SAMPLE_NAME}_mutect2_filter_funcotator.maf" ]; then
+    if  [ ! -f "${OUTPUT_NAME}_mutect2_filter_funcotator.maf" ]; then
         echo "Annotating VCF with Funcotator (MAF output)..."
-        if [[ $MODE = "slurm" ]]; then
-            module load gatk4
-        fi
-        gatk Funcotator \
-        --variant "${OUTPUT_NAME}_mutect2_filter.vcf" \
+        ${GATK_COMMAND} Funcotator \
+        --variant "${MUTECT_REHEADERED}" \
         --reference "${BWA_GREF}" \
         --ref-version hg38 \
         --data-sources-path "${FUNCOTATOR_SOURCES}" \
         --transcript-list "${TRANSCRIPT_LIST}" \
-        --output "${SAMPLE_NAME}_mutect2_filter_funcotator.maf" \
+        --output "${OUTPUT_NAME}_mutect2_filter_funcotator.maf" \
         --output-file-format MAF
             echo "...VCF annotated (MAF ouput)."
     else
@@ -90,17 +103,17 @@ if [ $RUN_FUNCOTATOR = true ]; then
 
       
 
-    if  [[ $FILTERED -eq 1 ]] && [[ ! -f "${SAMPLE_NAME}_mutect2_filter_funcotator_coding.maf" ]]; then
-        grep -E "^#|^Hugo_Symbol|Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" <  "${SAMPLE_NAME}_mutect2_filter_funcotator.maf" > "${SAMPLE_NAME}_mutect2_filter_funcotator_coding.maf" 
-        number_nonsyn_maf=$(grep -E "Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" < "${SAMPLE_NAME}_mutect2_filter_funcotator_coding.maf" | wc -l)        
+    if  [[ $FILTERED -eq 1 ]] && [[ ! -f "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.maf" ]]; then
+        grep -E "^#|^Hugo_Symbol|Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" <  "${OUTPUT_NAME}_mutect2_filter_funcotator.maf" > "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.maf" 
+        number_nonsyn_maf=$(grep -E "Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" < "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.maf" | wc -l)        
         if [ $number_nonsyn_maf -lt 1 ]; then
-            mv "${SAMPLE_NAME}_mutect2_filter_funcotator_coding.maf" "${SAMPLE_NAME}_mutect2_filter_funcotator_coding_null.maf"
+            mv "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.maf" "${OUTPUT_NAME}_mutect2_filter_funcotator_coding_null.maf"
         fi
 
     else
-        number_nonsyn_maf=$(grep -E "Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" < "${SAMPLE_NAME}_mutect2_filter_funcotator.maf" | wc -l) 
+        number_nonsyn_maf=$(grep -E "Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" < "${OUTPUT_NAME}_mutect2_filter_funcotator.maf" | wc -l) 
         if [ $number_nonsyn_maf -lt 1 ]; then
-            mv "${SAMPLE_NAME}_mutect2_filter_funcotator.maf" "${SAMPLE_NAME}_mutect2_filter_funcotator_null.maf"
+            mv "${OUTPUT_NAME}_mutect2_filter_funcotator.maf" "${OUTPUT_NAME}_mutect2_filter_funcotator_null.maf"
         fi
 
     fi
