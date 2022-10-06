@@ -2,7 +2,7 @@
 ##################################################################################################################################
 #############################################---STEP 1: SET UP PARAMETERS---###################################################### 
 ##################################################################################################################################
-if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
     echo "Format: ./submit_BWA_CHIP.sh [fastq_directory] [output_directory] --argument"
     echo "fastq_directory: path to raw .fastq or .fastq.gz files"
     echo "output_directory: path for BWA and mutect output"
@@ -11,7 +11,10 @@ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
     echo "If --mutect is selected, you may use --twist to indicate you would like your results remove_silent by the Twist panel"
     exit 1
 else
-    TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,bam,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,bam,fastq,realign,normal_pileups,split_by_chr \
+    code_directory=$(realpath .)  #specify location of star_align_and_qc.sh
+    echo "CODE_DIRECTORY: $code_directory"
+
+    TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,normal_sample:,log_name:,panel:,assembly:,mode:,docker_image:,container_engine:,normal_pileups:,n_jobs:,bam,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,bam,fastq,realign,normal_pileups,split_by_chr \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
 
    if [ $? != 0 ]; then
@@ -29,12 +32,8 @@ else
         realign=false
         remove_silent="0"
         log_name="log_"
-        reference_genome="/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa"
         #twist_snps="/labs/sjaiswal/workflows/BWA_mutect_twist/twist_snps.bed"
         assembly="GRCh38"
-        funcotator_sources="/labs/sjaiswal/tools/funcotator/funcotator_dataSources.v1.6.20190124s"
-        #funcotator_sources="/home/maurertm/smontgom/maurertm/funcotator_dataSources.v1.6.20190124s"
-        transcript_list="/oak/stanford/groups/sjaiswal/Herra/CHIP_TWIST-PANEL_ATHEROMA/chip_transcript_list.txt"
         calculate_contamination=false
         panel=false
         min_coverage="10"
@@ -47,11 +46,6 @@ else
         docker_image="path"
         container_engine="path"
         split_by_chr=false
-        sequence_dictionary="/oak/stanford/groups/sjaiswal/Herra/CHIP_Panel_AmpliSeq/GRCh38.p12.genome.u2af1l5_mask.fa.dict"
-        code_directory=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )  #specify location of star_align_and_qc.sh
-        chr_intervals="${code_directory}/whole_genome_intervals.interval_list"
-        intervals="${code_directory}/CHIP_exons.interval_list"
-        gnomad_genomes="/oak/stanford/groups/smontgom/dnachun/workflows/gnomad.genomes.v3.1.2.sites.maf05.vcf.bgz"
         n_jobs=1
         
     while true; do
@@ -59,21 +53,14 @@ else
             --min_coverage ) min_coverage="$2"; shift 2 ;;
             --min_var_freq ) min_var_freq="$2"; shift 2 ;;
             --p_value ) p_value="$2"; shift 2 ;;
-            --intervals ) intervals="$2"; shift 2 ;;
             --normal_sample ) normal_sample="$2"; shift 2 ;; 
             --log_name ) log_name="$2"; shift 2;;
-            --reference_genome ) reference_genome="$2"; shift 2 ;;
             --panel ) panel="$2"; shift 2;;
             --assembly ) assembly="$2"; shift 2;;
-            --funcotator_sources ) funcotator_sources="$2"; shift 2 ;;
-            --transcript_list ) transcript_list="$2"; shift 2 ;;
             --normal_pileups ) normal_pileups="$2"; shift 2 ;;
             --mode ) mode="$2"; shift 2 ;;
             --docker_image ) docker_image="$2"; shift 2 ;;
             --container_engine ) container_engine="$2"; shift 2 ;;
-            --chr_intervals | --whole_genome_intervals | --WG_intervals ) chr_intervals="$2"; shift 2 ;;
-            --sequence_dictionary | --sequence_dict ) sequence_dictionary="$2"; shift 2 ;;
-            --gnomad_genomes | --gnomad ) gnomad_genomes="$2"; shift 2 ;;
             --n_jobs ) n_jobs="$2"; shift 2 ;;
             --remove_silent ) remove_silent="1"; shift ;; 
             -m | --mutect ) get_mutect=true; shift ;;
@@ -131,7 +118,7 @@ else
         echo "--mode "cloud" to run on cloud from a docker image"
     fi
 
-    if [[ $mode != "slurm" ]] || [[ $mode != "cloud" ]]; then
+    if [[ $mode != "slurm" ]] && [[ $mode != "cloud" ]]; then
         echo "You did not select a recognizable option for mode."
         echo "Please select --mode cloud or --mode slurm"
     fi
@@ -147,7 +134,40 @@ else
     sum=$(($data_count + $output_count + 9))
     TEMPS=${TEMP[0]} 
     TEMP_ARGUMENTS=${TEMPS::-$sum}
-    echo "$TEMP_ARGUMENTS"
+    echo "$TEMP_ARGUMENTS"  
+
+    source "${code_directory}/config.sh"
+    echo "$reference_genome"
+
+    if [[ -z "$reference_genome" ]]; then
+        echo "You must provide a path to the reference_genome in config.sh"
+        exit 1
+    elif [[ -z "$gnomad_genomes" ]]; then
+        echo "You must provide a path to the gnomad_genomes in config.sh"
+        exit 1
+    fi
+
+    if [[ $run_funcotator == true ]] && [[ -z "$funcotator_sources" ]]; then
+        echo "You did not use the flag --skip_funcotator, which means you would like to run funcotator"
+        echo "In order to run funcotator, you must include a path to the folder containing the funcotator sources in config.sh"
+        exit 1
+    fi
+
+    if [[ $split_by_chr == true ]] && [[ -z "$sequence_dictionary" ]]; then
+        echo "You used one of the following flags: --whole_genome, -WG, --Whole_Genome, --split_by_chr, --split"
+        echo "These flags indicate that you would like you data to be split up by its chromosomes, which will  increase speed"
+        echo "In order to split the data into chromosomal segments, you must provide a path to the sequence dictionary in config.sh"
+        exit 1
+    fi
+
+    if [[ -z "$chr_intervals" ]]; then
+        chr_intervals="${code_directory}/whole_genome_intervals.interval_list"
+    fi
+    
+    if [[ -z "$intervals" ]]; then
+        intervals="${code_directory}/CHIP_exons.interval_list"
+    fi
+
 
     if [[ ! -d $data_directory ]]; then
         echo "data directory does not exist"
@@ -258,7 +278,8 @@ else
                 ${run_mutect}
                 wait
         else
-            "${code_directory}/BWA_CHIP.sh" \
+            echo "CODE_DIRECTORY: $code_directory"
+            TASK_ID=1 ${code_directory}/BWA_CHIP.sh \
                 ${parent_directory} \
                 ${output_directory} \
                 ${min_coverage} \
@@ -421,7 +442,9 @@ else
         ${gnomad_genomes} \
         ${run_mutect}
     else
-        seq 1 ${array_length} | parallel --ungroup --progress -j ${n_jobs} 'TASK_ID={} ${code_directory}/BWA_CHIP.sh \
+        echo "CODE DIRECTORY: $code_directory"
+        #. `which env_parallel.bash`
+        seq 1 ${array_length} | parallel --ungroup --progress -j ${n_jobs} TASK_ID={} ${code_directory}/BWA_CHIP.sh \
         ${parent_directory} \
         ${output_directory} \
         ${min_coverage} \
@@ -451,7 +474,7 @@ else
         ${sequence_dictionary} \
         ${chr_intervals} \
         ${gnomad_genomes} \
-        ${run_mutect}'
+        ${run_mutect}
         echo "Test"
     fi
     wait
