@@ -13,10 +13,16 @@
 else
     code_directory=$(realpath .)  #specify location of star_align_and_qc.sh
     echo "CODE_DIRECTORY: $code_directory"
+    
+    #input, output, and working directory using -- 
+    #input and output for slurm
+    #working for cloud
+    #add in failsafes and checks
+    #all refrence data must be within the reference folder, inputs in inputs, and outputs will be made into a folder called utputs
 
     TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,normal_sample:,log_name:,panel:,assembly:,mode:,docker_image:,container_engine:,normal_pileups:,n_jobs:,bam,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,bam,fastq,realign,normal_pileups,split_by_chr \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
-
+     
    if [ $? != 0 ]; then
        echo "Unrecognized argument. Possible arguments: mutect, varscan, haplotypecaller, all, min_coverage, min_var_freq, p_value, and twist." >&2 ; exit 1 ; 
    fi
@@ -78,6 +84,10 @@ else
             * ) break ;;
         esac
     done
+    
+    if [[ ! -f "/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/variant_calling/workflows/BWA_CHIP/Params/GRCh38.p12.genome.u2af1l5_mask.fa" ]]; then
+        echo "THE FILE ISN'T THERE"
+    fi
 
     echo "realign: $realign"
     echo "###################MODE##################: $mode"
