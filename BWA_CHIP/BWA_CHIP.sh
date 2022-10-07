@@ -141,33 +141,37 @@ if [[ $MODE == "slurm" ]]; then
     OUTPUTS="${TMPDIR}/Outputs"
     PARAMS="${TMPDIR}/Params"
     NORMAL="${TMPDIR}/Normal"
+    mkdir -p $INPUT
+    mkdir -p $PARAMS
+    mkdir -p $NORMAL
+
     #COPY_COMMAND="rsync -vurPhlt"
 else
     INPUT="${OUTPUT_DIRECTORY}/Inputs"
-    OUTPUTS="${OUTPUT_DIRECTORY}/Outputs"
+    OUTPUTS="${OUTPUT_DIRECTORY}/Outputs/${SAMPLE_NAME}"
     PARAMS="${OUTPUT_DIRECTORY}/Params"
     NORMAL="${OUTPUT_DIRECTORY}/Normal"
 fi
 
-mkdir -p $INPUT
 mkdir -p $OUTPUTS
-mkdir -p $PARAMS
-mkdir -p $NORMAL
 
 echo "copying FASTQs from the data path..." #copy data from data_path to the temp_path
 
-MUTECT_INPUT_DIRNAME=$(dirname "${MUTECT_INPUT_FILENAME}")
-MUTECT_INPUT_BASENAME=$(basename "${MUTECT_INPUT_FILENAME}")
-MUTECT_INPUT="${INPUT}/${MUTECT_INPUT_BASENAME}"
-
-if [[ $LINE_NUMBER == 1 ]]; then
-    echo "MUTECT_INPUT_BASENAME: $MUTECT_INPUT_BASENAME
-          MUTECT_INPUT: $MUTECT_INPUT" >> $PARAMETER_FILE
-fi
 
 if [[ $MODE == "slurm" ]]; then
+    MUTECT_INPUT_DIRNAME=$(dirname "${MUTECT_INPUT_FILENAME}")
+    MUTECT_INPUT_BASENAME=$(basename "${MUTECT_INPUT_FILENAME}")
+    MUTECT_INPUT="${INPUT}/${MUTECT_INPUT_BASENAME}"
+
+    if [[ $LINE_NUMBER == 1 ]]; then
+        echo "MUTECT_INPUT_BASENAME: $MUTECT_INPUT_BASENAME
+              MUTECT_INPUT: $MUTECT_INPUT" >> $PARAMETER_FILE
+    fi
+
     rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.bam" "${MUTECT_INPUT}.bam"
     rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.bai" "${MUTECT_INPUT}.bai"
+else
+    MUTECT_INPUT=$MUTECT_INPUT_FILENAME
 fi
 
 if [[ $RUN_MUTECT == true ]] && [[ $MODE == "slurm" ]]; then
@@ -235,8 +239,20 @@ fi
 ##################################################################################################################################       
 
 #Note: will need changes to also work with Docker
+echo "OUTPUT_DIRECTORY (before running singularity): $(readlink -f $OUTPUT_DIRECTORY)"
+
 if [[ $CONTAINER_ENGINE == "singularity" ]]; then
-    singularity instance start -B $(readlink -f $TMPDIR) docker://broadinstitute/gatk:latest gatk_container
+    if [[ "$(grep -c "gatk_container" <(singularity instance list))" -ge 1 ]]; then
+        echo "deleting running instance"
+        singularity instance stop gatk_container
+        singularity delete --force gatk_container
+    fi
+
+    if [[ $MODE == "slurm" ]]; then
+        singularity instance start -B $(readlink -f $TMPDIR) docker://broadinstitute/gatk:latest gatk_container
+    else
+        singularity instance start -B $(readlink -f $OUTPUT_DIRECTORY) docker://broadinstitute/gatk:latest gatk_container
+    fi
 fi
 
 if [ $GET_MUTECT = true ]; then
