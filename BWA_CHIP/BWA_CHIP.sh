@@ -75,16 +75,16 @@ if [[ $LINE_NUMBER == 1 ]]; then
         TRANSCRIPT_LIST_FILENAME=${18} \
         FILTERED=${19} \
         RUN_FUNCOTATOR=${20} \
-        BAM_OUT=${21}
-        NORMAL_PILEUPS_FILENAME=${22}
-        MODE=${23}
-        DOCKER_IMAGE=${24}
-        CONTAINER_ENGINE=${25}
-        SPLIT_BY_CHR=${26}
-        SEQUENCE_DICT_FILENAME=${27}
-        CHR_INTERVALS_FILENAME=${28}
-        GNOMAD_GENOMES_FILENAME=${29}
-        RUN_MUTECT=${30}" >> $PARAMETER_FILE
+        BAM_OUT=${21} \
+        NORMAL_PILEUPS_FILENAME=${22} \
+        MODE=${23} \
+        DOCKER_IMAGE=${24} \
+        CONTAINER_ENGINE=${25} \
+        SPLIT_BY_CHR=${26} \
+        SEQUENCE_DICT_FILENAME=${27} \
+        CHR_INTERVALS_FILENAME=${28} \
+        GNOMAD_GENOMES_FILENAME=${29} \
+        RUN_MUTECT=${30}" # >> $PARAMETER_FILE
 fi
 
 if [[ $RUN_MUTECT == false ]]; then
@@ -126,9 +126,12 @@ else
     MUTECT_INPUT_FILENAME="${ARRAY_PREFIX}"
 fi
 
-
-OUTPUT_DIRECTORY=${OUTPUT_DIRECTORY}/${SAMPLE_NAME}
-mkdir -p $OUTPUT_DIRECTORY
+#maybe don't there two lines in cloud mode
+#maybe need to fix regex
+if [[ $MODE == "slurm" ]]; then
+    OUTPUT_DIRECTORY=${OUTPUT_DIRECTORY}/${SAMPLE_NAME}
+    mkdir -p $OUTPUT_DIRECTORY
+fi
 
 cd "${OUTPUT_DIRECTORY}" || exit
 
@@ -136,18 +139,28 @@ echo "MODE: $MODE !!!!!!!!!!!!!!!"
 echo "RUN_FUNCOTATOR: $RUN_FUNCOTATOR"
 
 if [[ $MODE == "slurm" ]]; then
-    temp_dir="/tmp/sjaiswal"
     INPUT="${TMPDIR}/Inputs"
     OUTPUTS="${TMPDIR}/Outputs"
     PARAMS="${TMPDIR}/Params"
-
+    NORMAL="${TMPDIR}/Normal"
     mkdir -p $INPUT
-    mkdir -p $OUTPUTS
     mkdir -p $PARAMS
+    mkdir -p $NORMAL
 
-    echo "temp_path is: " $temp_dir
-    echo "copying FASTQs from the data path..." #copy data from data_path to the temp_path
+    #COPY_COMMAND="rsync -vurPhlt"
+else
+    INPUT="${OUTPUT_DIRECTORY}/Inputs"
+    OUTPUTS="${OUTPUT_DIRECTORY}/Outputs/${SAMPLE_NAME}"
+    PARAMS="${OUTPUT_DIRECTORY}/Params"
+    NORMAL="${OUTPUT_DIRECTORY}/Normal"
+fi
 
+mkdir -p $OUTPUTS
+
+echo "copying FASTQs from the data path..." #copy data from data_path to the temp_path
+
+
+if [[ $MODE == "slurm" ]]; then
     MUTECT_INPUT_DIRNAME=$(dirname "${MUTECT_INPUT_FILENAME}")
     MUTECT_INPUT_BASENAME=$(basename "${MUTECT_INPUT_FILENAME}")
     MUTECT_INPUT="${INPUT}/${MUTECT_INPUT_BASENAME}"
@@ -159,163 +172,156 @@ if [[ $MODE == "slurm" ]]; then
 
     rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.bam" "${MUTECT_INPUT}.bam"
     rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.bai" "${MUTECT_INPUT}.bai"
-    MUTECT_INPUT_PATTERN=${MUTECT_INPUT_BASENAME%.*}
-    rsync -vurPhlt $MUTECT_INPUT_DIRNAME/$MUTECT_INPUT_PATTERN* $INPUT/
+else
+    MUTECT_INPUT=$MUTECT_INPUT_FILENAME
+fi
 
-    if [[ $RUN_MUTECT == true ]]; then
-        BWA_GREF_DIRNAME=$(dirname "${BWA_GREF_FILENAME}")
-        BWA_GREF_BASENAME=$(basename "${BWA_GREF_FILENAME}")
-        BWA_GREF="${PARAMS}/${BWA_GREF_BASENAME}"
+if [[ $RUN_MUTECT == true ]] && [[ $MODE == "slurm" ]]; then
+    BWA_GREF_DIRNAME=$(dirname "${BWA_GREF_FILENAME}")
+    BWA_GREF_BASENAME=$(basename "${BWA_GREF_FILENAME}")
+    BWA_GREF="${PARAMS}/${BWA_GREF_BASENAME}"
 
-        rsync -vurPhlt "$BWA_GREF_FILENAME" $BWA_GREF
-        BWA_GREF_PATTERN=${BWA_GREF_BASENAME%.*}
-        rsync -vurPhlt $BWA_GREF_DIRNAME/$BWA_GREF_PATTERN* $PARAMS/
-    
-    else
-        BWA_GREF=$BWA_GREF_FILENAME
-    fi
+    rsync -vurPhlt "$BWA_GREF_FILENAME" $BWA_GREF
+    BWA_GREF_PATTERN=${BWA_GREF_BASENAME%.*}
+    rsync -vurPhlt $BWA_GREF_DIRNAME/$BWA_GREF_PATTERN* $PARAMS/
 
-    if [[ $SPLIT_BY_CHR == true ]]; then
-        SEQUENCE_DICT_DIRNAME=$(dirname "${SEQUENCE_DICT_FILENAME}")
-        SEQUENCE_DICT_BASENAME=$(basename "${SEQUENCE_DICT_FILENAME}")
-        SEQUENCE_DICT="${PARAMS}/${SEQUENCE_DICT_BASENAME}"
+else
+    BWA_GREF=$BWA_GREF_FILENAME
+fi
 
-        rsync -vurPhlt "$SEQUENCE_DICT_FILENAME" $SEQUENCE_DICT
-        SEQUENCE_DICT_PATTERN=${SEQUENCE_DICT_BASENAME%.*}
-        rsync -vurPhlt $SEQUENCE_DICT_DIRNAME/$SEQUENCE_DICT_PATTERN* $PARAMS/
-    fi
-    
+if [[ $SPLIT_BY_CHR == true ]] && [[ $MODE == "slurm" ]]; then
+    SEQUENCE_DICT_DIRNAME=$(dirname "${SEQUENCE_DICT_FILENAME}")
+    SEQUENCE_DICT_BASENAME=$(basename "${SEQUENCE_DICT_FILENAME}")
+    SEQUENCE_DICT="${PARAMS}/${SEQUENCE_DICT_BASENAME}"
+    rsync -vurPhlt "$SEQUENCE_DICT_FILENAME" $SEQUENCE_DICT
+else
+    SEQUENCE_DICT=$SEQUENCE_DICT_FILENAME
+fi
+
+if [[ $MODE == "slurm" ]]; then
     INTERVALS_FILE_DIRNAME=$(dirname "${INTERVALS_FILENAME}")
     INTERVALS_FILE_BASENAME=$(basename "${INTERVALS_FILENAME}")
     INTERVALS_FILE="${PARAMS}/${INTERVALS_FILE_BASENAME}"
-
     rsync -vurPhlt "$INTERVALS_FILENAME" $INTERVALS_FILE
-    INTERVALS_FILE_PATTERN=${INTERVALS_FILE_BASENAME%.*}
-    rsync -vurPhlt $INTERVALS_FILE_DIRNAME/$INTERVALS_FILE_PATTERN* $PARAMS/
 
     CHR_INTERVALS_DIRNAME=$(dirname "${CHR_INTERVALS_FILENAME}")
     CHR_INTERVALS_BASENAME=$(basename "${CHR_INTERVALS_FILENAME}")
     CHR_INTERVALS="${PARAMS}/${CHR_INTERVALS_BASENAME}"
-
     rsync -vurPhlt "$CHR_INTERVALS_FILENAME" $CHR_INTERVALS
-    CHR_INTERVALS_PATTERN=${CHR_INTERVALS_BASENAME%.*}
-    rsync -vurPhlt $CHR_INTERVALS_DIRNAME/$CHR_INTERVALS_PATTERN* $PARAMS/
 
     GNOMAD_GENOMES_DIRNAME=$(dirname "${GNOMAD_GENOMES_FILENAME}")
     GNOMAD_GENOMES_BASENAME=$(basename "${GNOMAD_GENOMES_FILENAME}")
     GNOMAD_GENOMES="${PARAMS}/${GNOMAD_GENOMES_BASENAME}"
-
+    GNOMAD_GENOMES_INDEX="${PARAMS}/${GNOMAD_GENOMES_BASENAME}.tbi"
     rsync -vurPhlt "$GNOMAD_GENOMES_FILENAME" $GNOMAD_GENOMES
-    GNOMAD_GENOMES_PATTERN=${GNOMAD_GENOMES_BASENAME%.*}
-    rsync -vurPhlt $GNOMAD_GENOMES_DIRNAME/$GNOMAD_GENOMES_PATTERN* $PARAMS/
-
-    echo "GNOMAD_GENOMES: $GNOMAD_GENOMES"
-
-
+    rsync -vurPhlt "${GNOMAD_GENOMES_FILENAME}.tbi" $GNOMAD_GENOMES_INDEX
 else
-    INPUT="${PARENT_DIRECTORY}"
-    OUTPUTS="${OUTPUT_DIRECTORY}"
-    PARAMS="${PARENT_DIRECTORY}/References"
-
-    MUTECT_INPUT_BASENAME=$(basename "${MUTECT_INPUT_FILENAME}")
-    MUTECT_INPUT=$INPUT/$MUTECT_INPUT_BASENAME
-    mkdir -p $MUTECT_INPUT
-    mv $MUTECT_INPUT_FILENAME $MUTECT_INPUT/
-
-    BWA_GREF=$BWA_GREF_FILENAME
-    SEQUENCE_DICT=$SEQUENCE_DICT_FILENAME
     INTERVALS_FILE=$INTERVALS_FILENAME
     CHR_INTERVALS=$CHR_INTERVALS_FILENAME
     GNOMAD_GENOMES=$GNOMAD_GENOMES_FILENAME
 fi
+
+    #INPUT="${PARENT_DIRECTORY}"
+    #OUTPUTS="${OUTPUT_DIRECTORY}"
+    #PARAMS="${PARENT_DIRECTORY}/References"
+
+    #MUTECT_INPUT_BASENAME=$(basename "${MUTECT_INPUT_FILENAME}")
+    #MUTECT_INPUT=$INPUT/$MUTECT_INPUT_BASENAME
+    #mkdir -p $MUTECT_INPUT
+    #mv $MUTECT_INPUT_FILENAME $MUTECT_INPUT/
+
+    #BWA_GREF=$BWA_GREF_FILENAME
+    #SEQUENCE_DICT=$SEQUENCE_DICT_FILENAME
+    #INTERVALS_FILE=$INTERVALS_FILENAME
+    #CHR_INTERVALS=$CHR_INTERVALS_FILENAME
+    #GNOMAD_GENOMES=$GNOMAD_GENOMES_FILENAME
 
 ##################################################################################################################################
 #################################################---STEP 2: MUTECT.sh---########################################################## 
 ##################################################################################################################################       
 
 #Note: will need changes to also work with Docker
+echo "OUTPUT_DIRECTORY (before running singularity): $(readlink -f $OUTPUT_DIRECTORY)"
+
 if [[ $CONTAINER_ENGINE == "singularity" ]]; then
-    singularity instance start -B $(readlink -f $TMPDIR) docker://broadinstitute/gatk:latest gatk_container
+    if [[ "$(grep -c "gatk_container" <(singularity instance list))" -ge 1 ]]; then
+        echo "deleting running instance"
+        singularity instance stop gatk_container
+        singularity delete --force gatk_container
+    fi
+    if [[ $MODE == "slurm" ]]; then
+        singularity instance start -B $(readlink -f $TMPDIR) docker://broadinstitute/gatk:latest gatk_container
+    else
+        singularity instance start -B $(readlink -f $OUTPUT_DIRECTORY) docker://broadinstitute/gatk:latest gatk_container
+    fi
 elif [[ $CONTAINER_ENGINE == "docker" ]]; then
     docker run --rm --detach --name gatk_container --volume /home/dnanexus:/home/dnanexus broadinstitute/gatk: latest
 fi
-
+    
 if [ $GET_MUTECT = true ]; then
     echo "Mutect analysis requested"
     echo "$PARAMETER_FILE"
 
-    if [[ $MODE != "slurm" ]]; then
-         TRANSCRIPT_LIST=$TRANSCRIPT_LIST_FILENAME
+     TRANSCRIPT_LIST=$TRANSCRIPT_LIST_FILENAME
 
-         if [ $RUN_FUNCOTATOR = true ]; then
-            FUNCOTATOR_SOURCES=$FUNCOTATOR_SOURCES_FILENAME
-         else
-            FUNCOTATOR_SOURCES=false
-         fi
-        
-         if [ $NORMAL_SAMPLE_FILENAME != false ]; then
-            NORMAL_SAMPLE=$NORMAL_SAMPLE_FILENAME
-         else
-            NORMAL_SAMPLE=false
-        fi
-
-        if [ $NORMAL_PILEUPS_FILENAME != false ]; then
-            NORMAL_PILEUPS=$NORMAL_PILEUPS_FILENAME
-        else
-            NORMAL_PILEUPS=false
-        fi
+     if [ $RUN_FUNCOTATOR == false ]; then
+        FUNCOTATOR_SOURCES=false
+     fi
+    
+     if [ $NORMAL_SAMPLE_FILENAME == false ]; then
+        NORMAL_SAMPLE=false
     fi
 
-    if [[ $MODE == "slurm" ]]; then
-        
+    if [ $NORMAL_PILEUPS_FILENAME == false ]; then
+        NORMAL_PILEUPS=false
+    fi
+
+    if [[ $MODE == "slurm" ]]; then     
         TRANSCRIPT_LIST_BASENAME=$(basename "${TRANSCRIPT_LIST_FILENAME}")
         TRANSCRIPT_LIST="${PARAMS}/${TRANSCRIPT_LIST_BASENAME}"
 
         rsync -vurPhlt "$TRANSCRIPT_LIST_FILENAME" $TRANSCRIPT_LIST
+    else
+        TRANSCRIPT_LIST=$TRANSCRIPT_LIST_FILENAME
+    fi
 
-
-        NORMAL="${temp_dir}/Normal"
-        mkdir -p $NORMAL
-    
-        if [[ $RUN_FUNCOTATOR = true ]] && [[ $RUN_MUTECT == true ]] ; then
-            #FUNCTATOR_SOURCES_BASENAME=$(basename $FUNCOTATOR_SOURCES_FILENAME)
-            #echo "^^^^^^^FUNCOTATOR_SOURCES_BASENAME: ${FUNCOTATOR_SOURCES_BASENAME}"
-            echo "FUNCOTATOR_SOURCES_FILENAME: ${FUNCOTATOR_SOURCES_FILENAME} ^^^^^^^"
+    if [[ $RUN_FUNCOTATOR = true ]] && [[ $RUN_MUTECT == true ]]; then
+        if [[ $MODE == "slurm" ]]; then
             FUNCOTATOR_SOURCES="$PARAMS/FUNCOTATOR_SOURCES"
             mkdir -p $FUNCOTATOR_SOURCES 
             rsync -vurPhlt $FUNCOTATOR_SOURCES_FILENAME/ $FUNCOTATOR_SOURCES
-            echo "inside FUNC SOURCES"
-            ls $FUNCOTATOR_SOURCES
         else
-            FUNCOTATOR_SOURCES=false
+            FUNCOTATOR_SOURCES=$FUNCOTATOR_SOURCES_FILENAME
         fi
+    fi
     
-        if [ $NORMAL_SAMPLE_FILENAME != false ]; then 
+    if [[ $NORMAL_SAMPLE_FILENAME != false ]]; then 
+        if [[ $MODE == "slurm" ]]; then
             NORMAL_SAMPLE_DIRNAME=$(dirname "${NORMAL_SAMPLE_FILENAME}")
             NORMAL_SAMPLE_BASENAME=$(basename "${NORMAL_SAMPLE_FILENAME}")
-            NORMAL_SAMPLE="${NORMAL}/${NORMAL_SAMPLE_BASENAME}"
-
-            rsync -vurPhlt "$NORMAL_SAMPLE_FILENAME" $NORMAL_SAMPLE
             NORMAL_SAMPLE_PATTERN=${NORMAL_SAMPLE_BASENAME%.*}
-            echo "NORMAL_SAMPLE_PATTERN: $NORMAL_SAMPLE_PATTERN"
-            rsync -vurPhlt $NORMAL_SAMPLE_DIRNAME/$NORMAL_SAMPLE_PATTERN* $NORMAL
+            INPUT_NORMAL="${NORMAL_SAMPLE_DIRNAME}/${NORMAL_SAMPLE_PATTERN}"
+            OUTPUT_NORMAL="${NORMAL}/${NORMAL_SAMPLE_PATTERN}"
+            NORMAL_SAMPLE="${NORMAL}/${NORMAL_SAMPLE_PATTERN}.bam"
+
+            rsync -vurPhlt "${INPUT_NORMAL}.bam" "${OUTPUT_NORMAL}.bam"
+            rsync -vurPhlt "${INPUT_NORMAL}.bai" "${OUTPUT_NORMAL}.bai"
         else
-            NORMAL_SAMPLE=false
+            NORMAL_SAMPLE=$NORMAL_SAMPLE_FILENAME
         fi
+    fi
         
-        if [ $NORMAL_PILEUPS_FILENAME != false ]; then
+    if [ $NORMAL_PILEUPS_FILENAME != false ]; then
+        if [[ $MODE == "slurm" ]]; then
             NORMAL_PILEUPS_DIRNAME=$(dirname "${NORMAL_PILEUPS_FILENAME}")
             NORMAL_PILEUPS_BASENAME=$(basename "${NORMAL_PILEUPS_FILENAME}")
             NORMAL_PILEUPS="${NORMAL}/${NORMAL_PILEUPS_BASENAME}"
-
             rsync -vurPhlt "$NORMAL_PILEUPS_FILENAME" $NORMAL_PILEUPS
-            NORMAL_PILEUPS_PATTERN=${NORMAL_PILEUPS_BASENAME%.*}
-            rsync -vurPhlt /$NORMAL_PILEUPS_DIRNAME/$NORMAL_PILEUPS_PATTERN* $NORMAL/
         else
-             NORMAL_PILEUPS=false
+            NORMAL_PILEUPS=$NORMAL_PILEUPS_FILENAME
         fi
-         
     fi
+         
     
     
     if [ $SPLIT_BY_CHR = true ]; then
@@ -327,7 +333,6 @@ if [ $GET_MUTECT = true ]; then
         fi
         # Add GatherPileupSummaries for pileups
         chr_pileups=$(find $OUTPUTS/pileups -type f | sort -V)
-        #if [[ $(echo "${chr_pileups}" | wc -l) -lt ${num_intervals} ]] && [[ -d "${OUTPUT_DIRECTORY}/pileups" ]]; then
            
         if ( [[ -d "${OUTPUTS}/pileups" ]] || [[ $MODE == "slurm" ]] ); then
             rsync -vurPhlt "${OUTPUTS}/pileups" "${OUTPUT_DIRECTORY}"
@@ -344,11 +349,14 @@ if [ $GET_MUTECT = true ]; then
     fi
     
     if [[ $RUN_MUTECT == false ]]; then
+        if [[ $MODE == "slurm" ]]; then
             echo "THIS IS THE RSYNC STEP"
             OVERALL_OUTPUT_FOLDER=$(dirname "${OUTPUT_DIRECTORY}")
             NORMAL_PILEUPS_FOLDER="${OVERALL_OUTPUT_FOLDER}/NORMAL_PILEUPS"
             mkdir -p $NORMAL_PILEUPS_FOLDER
+
             rsync -vurPhlt $OUTPUTS/ $NORMAL_PILEUPS_FOLDER
+        fi
     else
             echo "FOR SOME REASON THIS RSYNC STEP WAS SKIPPED"
     fi
@@ -389,7 +397,9 @@ if [ $GET_MUTECT = true ]; then
             -I ${OUTPUTS}/f1r2/${SAMPLE_NAME}_f1r2.tar.gz -O "${OUTPUTS}/${SAMPLE_NAME}_mutect2_artifact_prior.tar.gz"
        fi
     
-       rsync -vurPhlt "${OUTPUTS}/f1r2" "${OUTPUT_DIRECTORY}"
+       if [[ $MODE == "slurm" ]]; then
+            rsync -vurPhlt "${OUTPUTS}/f1r2" "${OUTPUT_DIRECTORY}"
+       fi
        echo "what is in f1r2:" 
        ls "$OUTPUT_DIRECTORY/f1r2"
       
