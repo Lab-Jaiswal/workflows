@@ -44,6 +44,8 @@ RUN_MUTECT=${30}
 
 if [[ $CONTAINER_ENGINE == "singularity" ]]; then
     gatk_command="singularity run instance://gatk_container gatk"
+elif [[ $CONTAINER_ENGINE == "docker" ]]; then
+    gatk_command="docker exec gatk_container gatk"
 fi
 
 if [[ $MODE == "slurm" ]]; then
@@ -247,14 +249,15 @@ if [[ $CONTAINER_ENGINE == "singularity" ]]; then
         singularity instance stop gatk_container
         singularity delete --force gatk_container
     fi
-
     if [[ $MODE == "slurm" ]]; then
         singularity instance start -B $(readlink -f $TMPDIR) docker://broadinstitute/gatk:latest gatk_container
     else
         singularity instance start -B $(readlink -f $OUTPUT_DIRECTORY) docker://broadinstitute/gatk:latest gatk_container
     fi
+elif [[ $CONTAINER_ENGINE == "docker" ]]; then
+    docker run --rm --detach --name gatk_container --volume /home/dnanexus:/home/dnanexus broadinstitute/gatk: latest
 fi
-
+    
 if [ $GET_MUTECT = true ]; then
     echo "Mutect analysis requested"
     echo "$PARAMETER_FILE"
