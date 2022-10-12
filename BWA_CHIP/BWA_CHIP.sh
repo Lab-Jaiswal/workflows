@@ -44,6 +44,8 @@ RUN_MUTECT=${30}
 
 if [[ $CONTAINER_ENGINE == "singularity" ]]; then
     gatk_command="singularity run instance://gatk_container gatk"
+elif [[ $CONTAINER_ENGINE == "docker" ]]; then
+    gatk_command="docker exec gatk_container gatk"
 fi
 
 if [[ $MODE == "slurm" ]]; then
@@ -234,6 +236,8 @@ fi
 #Note: will need changes to also work with Docker
 if [[ $CONTAINER_ENGINE == "singularity" ]]; then
     singularity instance start -B $(readlink -f $TMPDIR) docker://broadinstitute/gatk:latest gatk_container
+elif [[ $CONTAINER_ENGINE == "docker" ]]; then
+    docker run --rm --detach --name gatk_container --volume /home/dnanexus:/home/dnanexus broadinstitute/gatk: latest
 fi
 
 if [ $GET_MUTECT = true ]; then
