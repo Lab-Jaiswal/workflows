@@ -11,7 +11,7 @@ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
     echo "If --mutect is selected, you may use --twist to indicate you would like your results remove_silent by the Twist panel"
     exit 1
 else
-    TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,bam,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,bam,fastq,realign,normal_pileups,split_by_chr \
+    TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,bam,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,bam,fastq,realign,normal_pileups,split_by_chr \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
 
    if [ $? != 0 ]; then
@@ -56,6 +56,9 @@ else
         
     while true; do
         case "$1" in
+            --input | --input_dir | --input_directory ) data_directory="$2"; shift 2 ;;
+            --output | --output_dir | --output_directory ) output_directory="$2"; shift 2 ;; 
+            --working_dir | --working_directory ) working_dir="$2"; shift 2;;
             --min_coverage ) min_coverage="$2"; shift 2 ;;
             --min_var_freq ) min_var_freq="$2"; shift 2 ;;
             --p_value ) p_value="$2"; shift 2 ;;
@@ -136,9 +139,22 @@ else
         echo "Please select --mode cloud or --mode slurm"
     fi
 
-    data_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
+    #data_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
     #find "${data_directory}/" -type f | grep "bam" | grep -v ".bam.bai" | sed -e 's/\.bam$//g'
-    output_directory=$2
+    #output_directory=$2
+    if [ -z ${data_directory+x} ]; then
+        data_directory="${working_directory}/Inputs"
+        output_directory="${working_directory}/Outputs"
+    else
+        echo "you have defined $data_directory"
+    fi
+
+    if [ ! -z ${working_directory+x} ]; then
+        working_directory=false
+    fi
+
+
+
     parent_directory=$(dirname $data_directory) #get parent directory of $fastq_directory
     fastq_list="${parent_directory}/fastq_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
     bam_list="${parent_directory}/bam_files"
@@ -255,7 +271,8 @@ else
                 ${sequence_dictionary} \
                 ${chr_intervals} \
                 ${gnomad_genomes} \
-                ${run_mutect}
+                ${run_mutect} \
+                ${working_dir}
                 wait
         else
             "${code_directory}/BWA_CHIP.sh" \
@@ -288,7 +305,8 @@ else
                 ${sequence_dictionary} \
                 ${chr_intervals} \
                 ${gnomad_genomes} \
-                ${run_mutect}
+                ${run_mutect} \
+                ${working_dir}
         fi
 
             normal_pileups="${output_directory}/NORMAL_PILEUPS/${NORMAL_SAMPLE_NAME}_${assembly}_pileups.table" 
@@ -419,8 +437,10 @@ else
         ${sequence_dictionary} \
         ${chr_intervals} \
         ${gnomad_genomes} \
-        ${run_mutect}
+        ${run_mutect} \
+        ${working_dir}
     else
+        echo "code directory: $code_directory"
         seq 1 ${array_length} | parallel --ungroup --progress -j ${n_jobs} 'TASK_ID={} ${code_directory}/BWA_CHIP.sh \
         ${parent_directory} \
         ${output_directory} \
@@ -451,7 +471,8 @@ else
         ${sequence_dictionary} \
         ${chr_intervals} \
         ${gnomad_genomes} \
-        ${run_mutect}'
+        ${run_mutect} \
+        ${working_dir}'
         echo "Test"
     fi
     wait
