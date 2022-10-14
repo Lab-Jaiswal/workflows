@@ -9,7 +9,7 @@
     echo "argument: indicates requested analysis technique(s) (--mutect, --varscan, --haplotypecaller, or --all)."
     echo "If --varscan is selected, you may use the optional arguments --p_value, --min_var_freq, and --min_coverage (if so desired)." 
     echo "If --mutect is selected, you may use --twist to indicate you would like your results remove_silent by the Twist panel"
-    exit 1
+    #exit 1
 else
 
     TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,bam,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,bam,fastq,realign,normal_pileups,split_by_chr \
@@ -23,11 +23,7 @@ else
     #working for cloud
     #add in failsafes and checks
     #all refrence data must be within the reference folder, inputs in inputs, and outputs will be made into a folder called utputs
-
-
-    TEMP=`getopt -o vdm: --long min_coverage:,min_var_freq:,p_value:,normal_sample:,log_name:,panel:,assembly:,mode:,docker_image:,container_engine:,normal_pileups:,n_jobs:,bam,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,bam,fastq,realign,normal_pileups,split_by_chr \
-    -n 'submit_BWA_CHIP.sh' -- "$@"`
-     
+        
    if [ $? != 0 ]; then
        echo "Unrecognized argument. Possible arguments: mutect, varscan, haplotypecaller, all, min_coverage, min_var_freq, p_value, and twist." >&2 ; exit 1 ; 
    fi
@@ -58,12 +54,15 @@ else
         container_engine="path"
         split_by_chr=false
         n_jobs=1
+        working_directory=false
+        data_directory=false
+        output_directory=false
         
     while true; do
         case "$1" in
             --input | --input_dir | --input_directory ) data_directory="$2"; shift 2 ;;
             --output | --output_dir | --output_directory ) output_directory="$2"; shift 2 ;; 
-            --working_dir | --working_directory ) working_dir="$2"; shift 2;;
+            --working_dir ) working_directory="$2"; shift 2;;
             --min_coverage ) min_coverage="$2"; shift 2 ;;
             --min_var_freq ) min_var_freq="$2"; shift 2 ;;
             --p_value ) p_value="$2"; shift 2 ;;
@@ -144,16 +143,15 @@ else
     #data_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
     #find "${data_directory}/" -type f | grep "bam" | grep -v ".bam.bai" | sed -e 's/\.bam$//g'
     #output_directory=$2
-    if [ -z ${data_directory+x} ]; then
-        data_directory="${working_directory}/Inputs"
+    if [[ $data_directory == false ]]; then
+        data_directory="${working_directory}/Inputs" 
+    fi
+    if [[ $output_directory == false ]]; then
         output_directory="${working_directory}/Outputs"
-    else
-        echo "you have defined $data_directory"
     fi
+    
 
-    if [ ! -z ${working_directory+x} ]; then
-        working_directory=false
-    fi
+    echo "################### input - $data_directory ####### output - $output_directory ##### working - $working_directory"
 
 
 

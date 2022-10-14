@@ -41,6 +41,7 @@ SEQUENCE_DICT_FILENAME=${27}
 CHR_INTERVALS_FILENAME=${28}
 GNOMAD_GENOMES_FILENAME=${29}
 RUN_MUTECT=${30}
+#WORKING_DIRECTORY=${31}
 
 if [[ $CONTAINER_ENGINE == "singularity" ]]; then
     gatk_command="singularity run instance://gatk_container gatk"
@@ -133,7 +134,13 @@ if [[ $MODE == "slurm" ]]; then
     mkdir -p $OUTPUT_DIRECTORY
 fi
 
-cd "${OUTPUT_DIRECTORY}" || exit
+if [[ $MODE == "slurm" ]]; then
+    cd "${OUTPUT_DIRECTORY}" || exit
+else 
+    #cd $WORKING_DIRECTORY || exit
+    WORKING_DIRECTORY=$PARENT_DIRECTORY
+    #OUTPUT_DIRECTORY=$WORKING_DIRECTORY
+fi
 
 echo "MODE: $MODE !!!!!!!!!!!!!!!"
 echo "RUN_FUNCOTATOR: $RUN_FUNCOTATOR"
@@ -252,7 +259,7 @@ if [[ $CONTAINER_ENGINE == "singularity" ]]; then
     if [[ $MODE == "slurm" ]]; then
         singularity instance start -B $(readlink -f $TMPDIR) docker://broadinstitute/gatk:latest gatk_container
     else
-        singularity instance start -B $(readlink -f $OUTPUT_DIRECTORY) docker://broadinstitute/gatk:latest gatk_container
+        singularity instance start -B $(readlink -f $WORKING_DIRECTORY) docker://broadinstitute/gatk:latest gatk_container
     fi
 elif [[ $CONTAINER_ENGINE == "docker" ]]; then
     docker run --rm --detach --name gatk_container --volume /home/dnanexus:/home/dnanexus broadinstitute/gatk: latest
