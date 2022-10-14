@@ -12,7 +12,7 @@
     #exit 1
 else
 
-    TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,bam,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,bam,fastq,realign,normal_pileups,split_by_chr \
+    TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,file_extension:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,bam,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,bam,fastq,realign,normal_pileups,split_by_chr \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
 
     code_directory=$(realpath .)  #specify location of star_align_and_qc.sh
@@ -57,6 +57,7 @@ else
         working_directory=false
         data_directory=false
         output_directory=false
+        file_extension="bam"
         
     while true; do
         case "$1" in
@@ -69,6 +70,7 @@ else
             --normal_sample ) normal_sample="$2"; shift 2 ;; 
             --log_name ) log_name="$2"; shift 2;;
             --panel ) panel="$2"; shift 2;;
+            --file_extension | --file_type | -f ) file_extension="$2"; shift ;;
             --assembly ) assembly="$2"; shift 2;;
             --normal_pileups ) normal_pileups="$2"; shift 2 ;;
             --mode ) mode="$2"; shift 2 ;;
@@ -305,7 +307,7 @@ else
                 ${chr_intervals} \
                 ${gnomad_genomes} \
                 ${run_mutect} \
-                ${working_dir}
+                ${file_extension}
                 wait
         else
             echo "CODE_DIRECTORY: $code_directory"
@@ -340,7 +342,7 @@ else
                 ${chr_intervals} \
                 ${gnomad_genomes} \
                 ${run_mutect} \
-                ${working_dir}
+                ${file_extension}
         fi
 
             normal_pileups="${output_directory}/NORMAL_PILEUPS/${NORMAL_SAMPLE_NAME}_${assembly}_pileups.table" 
@@ -355,11 +357,22 @@ else
 #############################################--STEP 4: GET ARRAY LENGTHS---####################################################### 
 ##################################################################################################################################
     run_mutect=true
+    
+
     if [ $bam = true ]; then
+        if [[ $file_extension == "cram" ]] ; then
+            type_file="cram"
+            type_index_file="crai"
+        else
+            type_file="bam"
+            type_index_file="bai"
+        fi
+
         find -L "${data_directory}" -type f `#list all files in ${fastq_directory}` | \
-                    grep ".*\.bam$" `#only keep files with FASTQ in name (case insensitive)` | \
-                    grep -v ".*\.bai$" `#remove Undetermined FASTQs` | \
-                    sed -e 's/\.bam$//g' `#remove _R1/2_fastq.gz file extension` | \
+                    grep ".*\.${type_file}$" `#only keep files with FASTQ in name (case insensitive)` | \
+                    grep -v ".*\.${type_index_file}$" `#remove Undetermined FASTQs` | \
+                    sed -e 's/\.bam$//g' | \
+                    sed -e 's/\.cram$//g' | \
                     sort -u  `#sort and remove duplicate names` > ${bam_list}
                         #| \
                     #head -n -1 > ${bam_list} `#remove the last line and generate a list of unique FASTQs`
@@ -472,7 +485,7 @@ else
         ${chr_intervals} \
         ${gnomad_genomes} \
         ${run_mutect} \
-        ${working_dir}
+        ${file_extension}
     else
         echo "CODE DIRECTORY: $code_directory"
         #. `which env_parallel.bash`
@@ -507,7 +520,7 @@ else
         ${chr_intervals} \
         ${gnomad_genomes} \
         ${run_mutect} \
-        ${working_dir} 
+        ${file_extension} 
         echo "Test"
     fi
     wait

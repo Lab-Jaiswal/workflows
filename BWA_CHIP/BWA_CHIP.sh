@@ -41,7 +41,7 @@ SEQUENCE_DICT_FILENAME=${27}
 CHR_INTERVALS_FILENAME=${28}
 GNOMAD_GENOMES_FILENAME=${29}
 RUN_MUTECT=${30}
-#WORKING_DIRECTORY=${31}
+FILE_EXT=${31}
 
 if [[ $CONTAINER_ENGINE == "singularity" ]]; then
     gatk_command="singularity run instance://gatk_container gatk"
@@ -156,10 +156,10 @@ if [[ $MODE == "slurm" ]]; then
 
     #COPY_COMMAND="rsync -vurPhlt"
 else
-    INPUT="${OUTPUT_DIRECTORY}/Inputs"
-    OUTPUTS="${OUTPUT_DIRECTORY}/Outputs/${SAMPLE_NAME}"
-    PARAMS="${OUTPUT_DIRECTORY}/Params"
-    NORMAL="${OUTPUT_DIRECTORY}/Normal"
+    INPUT="${WORKING_DIRECTORY}/Inputs"
+    OUTPUTS="${WORKING_DIRECTORY}/Outputs/${SAMPLE_NAME}"
+    PARAMS="${WORKING_DIRECTORY}/Params"
+    NORMAL="${WORKING_DIRECTORY}/Normal"
 fi
 
 mkdir -p $OUTPUTS
@@ -177,8 +177,12 @@ if [[ $MODE == "slurm" ]]; then
               MUTECT_INPUT: $MUTECT_INPUT" >> $PARAMETER_FILE
     fi
 
-    rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.bam" "${MUTECT_INPUT}.bam"
-    rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.bai" "${MUTECT_INPUT}.bai"
+    rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.${FILE_EXT}" "${MUTECT_INPUT}.${FILE_EXT}"
+    if [[ $FILE_EXT == "bam" ]]; then
+        rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.bai" "${MUTECT_INPUT}.bai"
+    else
+        rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.crai" "${MUTECT_INPUT}.crai"
+    fi
 else
     MUTECT_INPUT=$MUTECT_INPUT_FILENAME
 fi
@@ -309,10 +313,14 @@ if [ $GET_MUTECT = true ]; then
             NORMAL_SAMPLE_PATTERN=${NORMAL_SAMPLE_BASENAME%.*}
             INPUT_NORMAL="${NORMAL_SAMPLE_DIRNAME}/${NORMAL_SAMPLE_PATTERN}"
             OUTPUT_NORMAL="${NORMAL}/${NORMAL_SAMPLE_PATTERN}"
-            NORMAL_SAMPLE="${NORMAL}/${NORMAL_SAMPLE_PATTERN}.bam"
+            NORMAL_SAMPLE="${NORMAL}/${NORMAL_SAMPLE_PATTERN}.${FILE_EXT}"
 
-            rsync -vurPhlt "${INPUT_NORMAL}.bam" "${OUTPUT_NORMAL}.bam"
-            rsync -vurPhlt "${INPUT_NORMAL}.bai" "${OUTPUT_NORMAL}.bai"
+            rsync -vurPhlt "${INPUT_NORMAL}.${FILE_EXT}" "${OUTPUT_NORMAL}.${FILE_EXT}"
+            if [[ $FILE_EXT == "bam" ]]; then
+                rsync -vurPhlt "${INPUT_NORMAL}.bai" "${OUTPUT_NORMAL}.bai"
+            else
+                rsync -vurPhlt "${INPUT_NORMAL}.crai" "${OUTPUT_NORMAL}.crai"
+            fi
         else
             NORMAL_SAMPLE=$NORMAL_SAMPLE_FILENAME
         fi
@@ -333,7 +341,7 @@ if [ $GET_MUTECT = true ]; then
     
     if [ $SPLIT_BY_CHR = true ]; then
         num_intervals=$(grep -v "@" < $CHR_INTERVALS | wc -l)
-        seq 1 ${num_intervals} | parallel -j8 --progress --ungroup "${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT ${gatk_command} {}"
+        seq 1 ${num_intervals} | parallel -j8 --progress --ungroup "${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT "${gatk_command}" {}"
         
         if ( [[ -d "${OUTPUTS}/pileups" ]] || [[ $MODE == "slurm" ]] ); then
               rsync -vurPhlt "${OUTPUTS}/pileups" "${OUTPUT_DIRECTORY}"
@@ -352,7 +360,7 @@ if [ $GET_MUTECT = true ]; then
             --sequence-dictionary $SEQUENCE_DICT ${pileup_tables} -O ${OUTPUTS}/${SAMPLE_NAME}_pileups.table
     
     else
-        ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF  $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT "${gatk_command}"    
+        ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF  $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT "${gatk_command}"   
     fi
     
     if [[ $RUN_MUTECT == false ]]; then
