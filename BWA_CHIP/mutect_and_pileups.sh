@@ -17,8 +17,9 @@ LINE_NUMBER=${12}
 CHR_INTERVALS=${13}
 GNOMAD_GENOMES=${14}
 RUN_MUTECT=${15}
-GATK_COMMAND="${16}"
-INTERVAL_NUMBER=${17}
+FILE_EXT=${16}
+GATK_COMMAND="${17}"
+INTERVAL_NUMBER=${18}
 
 if [ $LINE_NUMBER = "1" ]; then
          echo "###########################################################
@@ -38,15 +39,16 @@ if [ $LINE_NUMBER = "1" ]; then
                     CHR_INTERVALS=${13}
                     GNOMAD_GENOMES=${14}
                     RUN_MUTECT=${15}
-                    GATK_COMMAND="${16}"
-                    INTERVAL_NUMBER=${17}
+                    FILE_EXT=${16}
+                    GATK_COMMAND="${17}"
+                    INTERVAL_NUMBER=${18}
                 ########################################################
                 " >> $PARAMETER_FILE
 fi
 
 cd $OUTPUTS
 
-INPUTS="--input "$MUTECT_INPUT.bam""
+INPUTS="--input "$MUTECT_INPUT.${FILE_EXT}""
 
 if [ $NORMAL_SAMPLE != false ]; then
     NORMAL_NAME=$(samtools samples -h $NORMAL_SAMPLE | tail -n 1 | cut -f 1)
@@ -166,5 +168,5 @@ elif [ -f "${PILEUP_NAME}_pileups.table" ]; then
 else
     echo "Pileup summaries not requested"
 fi
-
+echo "#######GATK COMMAND : $GATK_COMMAND########"
 echo "mutect_and_pileups.sh analysis complete"
