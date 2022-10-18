@@ -63,15 +63,15 @@ else
         case "$1" in
             --input | --input_dir | --input_directory ) data_directory="$2"; shift 2 ;;
             --output | --output_dir | --output_directory ) output_directory="$2"; shift 2 ;; 
-            --working_dir ) working_directory="$2"; shift 2;;
+            --working_dir ) working_directory="$2"; shift 2 ;;
             --min_coverage ) min_coverage="$2"; shift 2 ;;
             --min_var_freq ) min_var_freq="$2"; shift 2 ;;
             --p_value ) p_value="$2"; shift 2 ;;
             --normal_sample ) normal_sample="$2"; shift 2 ;; 
-            --log_name ) log_name="$2"; shift 2;;
-            --panel ) panel="$2"; shift 2;;
+            --log_name ) log_name="$2"; shift 2 ;;
+            --panel ) panel="$2"; shift 2 ;;
             --file_extension | --file_type | -f ) file_extension="$2"; shift ;;
-            --assembly ) assembly="$2"; shift 2;;
+            --assembly ) assembly="$2"; shift 2 ;;
             --normal_pileups ) normal_pileups="$2"; shift 2 ;;
             --mode ) mode="$2"; shift 2 ;;
             --docker_image ) docker_image="$2"; shift 2 ;;
