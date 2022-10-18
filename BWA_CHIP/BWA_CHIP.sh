@@ -266,7 +266,7 @@ if [[ $CONTAINER_ENGINE == "singularity" ]]; then
         singularity instance start -B $(readlink -f $WORKING_DIRECTORY) docker://broadinstitute/gatk:latest gatk_container
     fi
 elif [[ $CONTAINER_ENGINE == "docker" ]]; then
-    docker run --rm --detach --name gatk_container --volume --workdir /home/dnanexus /home/dnanexus:/home/dnanexus broadinstitute/gatk:latest
+    docker run --rm --detach --name gatk_container --volume /home/dnanexus --workdir /home/dnanexus /home/dnanexus:/home/dnanexus broadinstitute/gatk:latest sleep inf
 fi
     
 if [ $GET_MUTECT = true ]; then
@@ -455,8 +455,10 @@ else
     echo "No HaplotypeCaller analysis requested"
 fi
 
-singularity instance stop gatk_container
-singularity delete --force gatk_container
+if [[ $MODE == "slurm" ]]; then
+    singularity instance stop gatk_container
+    singularity delete --force gatk_container
+fi
 
 ##################################################################################################################################
 ################################################---STEP 4: VARSCAN.sh---########################################################## 
