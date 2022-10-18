@@ -266,7 +266,7 @@ if [[ $CONTAINER_ENGINE == "singularity" ]]; then
         singularity instance start -B $(readlink -f $WORKING_DIRECTORY) docker://broadinstitute/gatk:latest gatk_container
     fi
 elif [[ $CONTAINER_ENGINE == "docker" ]]; then
-    docker run --rm --detach --name gatk_container --volume /home/dnanexus:/home/dnanexus broadinstitute/gatk: latest
+    docker run --rm --detach --name gatk_container --volume --workdir /home/dnanexus /home/dnanexus:/home/dnanexus broadinstitute/gatk:latest
 fi
     
 if [ $GET_MUTECT = true ]; then
