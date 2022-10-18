@@ -260,6 +260,11 @@ if [[ $CONTAINER_ENGINE == "singularity" ]]; then
         singularity instance stop gatk_container
         singularity delete --force gatk_container
     fi
+     if [[ "$(grep -c "gatk_container" <(docker container ls))" -ge 1 ]]; then
+        echo "deleting running container"
+        docker stop gatk_container
+        docker rm gatk_container
+    fi
     if [[ $MODE == "slurm" ]]; then
         singularity instance start -B $(readlink -f $TMPDIR) docker://broadinstitute/gatk:latest gatk_container
     else
