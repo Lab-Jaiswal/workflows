@@ -146,10 +146,10 @@ else
     #find "${data_directory}/" -type f | grep "bam" | grep -v ".bam.bai" | sed -e 's/\.bam$//g'
     #output_directory=$2
     if [[ $data_directory == false ]]; then
-        data_directory="${working_directory}/Inputs" 
+        data_directory=~/Inputs 
     fi
     if [[ $output_directory == false ]]; then
-        output_directory="${working_directory}/Outputs"
+        output_directory=~/Outputs
     fi
     
 
