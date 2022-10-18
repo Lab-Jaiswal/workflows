@@ -70,7 +70,7 @@ else
             --normal_sample ) normal_sample="$2"; shift 2 ;; 
             --log_name ) log_name="$2"; shift 2 ;;
             --panel ) panel="$2"; shift 2 ;;
-            --file_extension | --file_type | -f ) file_extension="$2"; shift ;;
+            --file_extension | --file_type | -f ) file_extension="$2"; shift 2 ;;
             --assembly ) assembly="$2"; shift 2 ;;
             --normal_pileups ) normal_pileups="$2"; shift 2 ;;
             --mode ) mode="$2"; shift 2 ;;
