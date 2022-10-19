@@ -72,7 +72,10 @@ if [ $SPLIT_BY_CHR = true ]; then
 else
     OPTIONAL_ARGS="--intervals $INTERVALS_FILE --dont-use-soft-clipped-bases"
 fi
-
+if [[ $FILE_EXTENSION == "cram" ]]; then
+   OPTIONAL_ARGS="$OPTIONAL_ARGS -R ${BWA_GREF}"
+fi
+         
 if [ $BAM_OUT = true ]; then
     OPTIONAL_ARGS="$OPTIONAL_ARGS --bamout ${SAMPLE_NAME}_mutect2.bam"
 else
@@ -161,6 +164,7 @@ if  [[ ! -f "${PILEUP_NAME}_pileups.table" ]]; then
         $INPUTS \
         -V ${GNOMAD_GENOMES} \
         -L "${pileup_intervals}" \
+        -R "${BWA_GREF}" \
         -O "${PILEUP_TEMP_NAME}_pileups.table"
 elif [ -f "${PILEUP_NAME}_pileups.table" ]; then
     echo "$PILEUP_NAME: $PILEUP_NAME"
