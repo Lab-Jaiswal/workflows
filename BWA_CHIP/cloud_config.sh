@@ -1,6 +1,6 @@
 #!/bin/bash
 #always mandatory
-    reference_genome=~/References/GRCh38.p12.genome.u2af1l5_mask.fa
+    reference_genome=~/References/GRCh38_full_analysis_set_plus_decoy_hla.fa
     gnomad_genomes=~/References/gnomad.genomes.v3.1.2.sites.maf05.vcf.bgz
 
 #mandatory if using funcotator
