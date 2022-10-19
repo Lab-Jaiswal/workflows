@@ -2,6 +2,9 @@
 #dx run cloud_workstation -imax_session_length=10h --ssh --brief -y --name "test"
 cd ../..
 dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/References/
+cd References
+dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/References/cloud_references
+cd ..
 
 mkdir -p Inputs
 cd Inputs
