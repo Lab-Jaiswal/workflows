@@ -2,7 +2,6 @@
 #dx run cloud_workstation -imax_session_length=10h --ssh --brief -y --name "test"
 cd ../..
 dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/References/
-mv References/GRCh38.p12.genome.u2af1l5_mask.fa.dict References/GRCh38.p12.genome.u2af1l5_mask.dict
 
 mkdir -p Inputs
 cd Inputs
