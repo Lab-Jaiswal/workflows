@@ -156,10 +156,17 @@ if [[ $MODE == "slurm" ]]; then
 
     #COPY_COMMAND="rsync -vurPhlt"
 else
-    INPUT="${WORKING_DIRECTORY}/Inputs"
-    OUTPUTS="${WORKING_DIRECTORY}/Outputs/${SAMPLE_NAME}"
-    PARAMS="${WORKING_DIRECTORY}/Params"
-    NORMAL="${WORKING_DIRECTORY}/Normal"
+    if [[ $container_engine == "singularity" ]]; then
+                INPUT="${WORKING_DIRECTORY}/Inputs"
+                OUTPUTS="${WORKING_DIRECTORY}/Outputs/${SAMPLE_NAME}"
+                PARAMS="${WORKING_DIRECTORY}/Params"
+                NORMAL="${WORKING_DIRECTORY}/Normal"
+        else
+                INPUT=~/Inputs
+                OUTPUTS=~/Outputs
+                PARAMS=~/References
+                NORMAL=~/Normal
+        fi
 fi
 
 mkdir -p $OUTPUTS
