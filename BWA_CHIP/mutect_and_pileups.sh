@@ -19,7 +19,8 @@ GNOMAD_GENOMES=${14}
 RUN_MUTECT=${15}
 FILE_EXT=${16}
 GATK_COMMAND="${17}"
-INTERVAL_NUMBER=${18}
+CONTAINER_ENGINE="${18}"
+INTERVAL_NUMBER=${19}
 
 if [ $LINE_NUMBER = "1" ]; then
          echo "###########################################################
@@ -41,8 +42,9 @@ if [ $LINE_NUMBER = "1" ]; then
                     RUN_MUTECT=${15}
                     FILE_EXT=${16}
                     GATK_COMMAND="${17}"
-                    INTERVAL_NUMBER=${18}
-                ########################################################
+                    CONTAINER_ENGINE="${18}"
+                    INTERVAL_NUMBER=${19}               
+                   ########################################################
                 " >> $PARAMETER_FILE
 fi
 
