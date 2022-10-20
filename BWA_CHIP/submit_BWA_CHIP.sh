@@ -146,14 +146,14 @@ else
     #find "${data_directory}/" -type f | grep "bam" | grep -v ".bam.bai" | sed -e 's/\.bam$//g'
     #output_directory=$2
     if [[ $data_directory == false ]]; then
-        if [[ $mode == "cloud" ]]; then
+        if [[ $container_engine == "docker" ]]; then
             data_directory=~/Inputs 
         else
             data_directory="${working_directory}/Inputs"
         fi
     fi
     if [[ $output_directory == false ]]; then
-        if [[ $mode == "cloud" ]]; then
+        if [[ $container_engine == "docker" ]]; then
             output_directory=~/Outputs 
         else
             data_directory="${working_directory}/Outputs"
