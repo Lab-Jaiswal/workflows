@@ -23,6 +23,11 @@ dx download project-G5B07V8JPkg740v9GjfF9PzV:/Bulk/Exome\ sequences/Exome\ OQFE\
 cd ..
 
 #git clone https://github.com/Lab-Jaiswal/workflows
+cd References/cloud_references
+mv GRCh* ../
+mv 201* ../
+
+cd ../..
 
 sudo apt-get update
 sudo apt-get install -y parallel
