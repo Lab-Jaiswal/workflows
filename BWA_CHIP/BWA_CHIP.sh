@@ -261,7 +261,7 @@ fi
 #Note: will need changes to also work with Docker
 echo "OUTPUT_DIRECTORY (before running singularity): $(readlink -f $OUTPUT_DIRECTORY)"
 
-if [[ $CONTAINER_ENGINE == "singularity" ]]; then
+if [[ $CONTAINER_ENGINE = "singularity" ]]; then
     if [[ "$(grep -c "gatk_container" <(singularity instance list))" -ge 1 ]]; then
         echo "deleting running instance"
         singularity instance stop gatk_container
