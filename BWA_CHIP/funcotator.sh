@@ -13,7 +13,7 @@ RUN_FUNCOTATOR=${8}
 OUTPUT_DIRECTORY=${9}
 MODE=${10}
 LINE_NUMBER=${11}
-GATK_COMMAND=${12}
+GATK_COMMAND="${12}"
 
 if [ $LINE_NUMBER = "1" ]; then
          echo "arguments used for the funcotator.sh script:
@@ -56,7 +56,7 @@ if [ $RUN_FUNCOTATOR = true ]; then
         
         echo "incorrect header filtered"
 
-        ${GATK_COMMAND} FixVcfHeader --INPUT ${MUTECT_FILTER} --OUTPUT ${MUTECT_REHEADERED} --HEADER ${NEW_HEADER}
+        ${GATK_COMMAND} FixVcfHeader -I ${MUTECT_FILTER} -O ${MUTECT_REHEADERED} --HEADER ${NEW_HEADER}
 
 echo "incorrect header replaced"
         echo "Annotating Mutect2 VCF with Funcotator..."
