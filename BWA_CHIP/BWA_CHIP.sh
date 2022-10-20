@@ -421,16 +421,16 @@ if [ $GET_MUTECT = true ]; then
         echo "running LearnReadOrientationModel"
         echo "LearnReadOrientationModel input: ${OUTPUTS}/f1r2/${SAMPLE_NAME}_f1r2.tar.gz"
         if [[ $CONTAINER_ENGINE = "singularity" ]]; then
-                F1R2_NAME=$SAMPLE_NAME
-                LROM_OUTPUTS_NAME="{OUTPUTS}/${SAMPLE_NAME}"
+                F1R2_NAME="${OUTPUTS}/f1r2/${SAMPLE_NAME}"
+                LROM_OUTPUTS_NAME="${OUTPUTS}/${SAMPLE_NAME}"
         else
                 F1R2_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/f1r2/${SAMPLE_NAME}"
                 LROM_OUTPUTS_NAME="{OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
         fi
         
         ${gatk_command} LearnReadOrientationModel \
-            -I ${OUTPUTS}/f1r2/${F1R2_NAME}_f1r2.tar.gz -O "${LROM_OUTPUTS_NAME}_mutect2_artifact_prior.tar.gz"
-       fi
+            -I ${F1R2_NAME}_f1r2.tar.gz -O "${LROM_OUTPUTS_NAME}_mutect2_artifact_prior.tar.gz"
+       fii
     
        if [[ $MODE = "slurm" ]]; then
             rsync -vurPhlt "${OUTPUTS}/f1r2" "${OUTPUT_DIRECTORY}"
