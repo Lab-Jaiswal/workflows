@@ -13,7 +13,8 @@ RUN_FUNCOTATOR=${8}
 OUTPUT_DIRECTORY=${9}
 MODE=${10}
 LINE_NUMBER=${11}
-GATK_COMMAND="${12}"
+CONTAINER_ENGINE=${12}
+GATK_COMMAND="${13}"
 
 if [ $LINE_NUMBER = "1" ]; then
          echo "arguments used for the funcotator.sh script:
@@ -28,7 +29,8 @@ if [ $LINE_NUMBER = "1" ]; then
                OUTPUT_DIRECTORY=${9}
                MODE=${10}
                LINE_NUMBER=${11}
-               GATK_COMMAND=${12}
+               CONTAINER_ENGINE=${12}
+               GATK_COMMAND=${13}
                 " >> $PARAMETER_FILE
 fi
 
