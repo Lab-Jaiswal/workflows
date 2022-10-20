@@ -96,22 +96,36 @@ if [ $INTERVALS_FILE = false ]; then
         PILEUP_NAME="${OUTPUT_DIRECTORY}/pileups/${SAMPLE_NAME}"
 
 else
-    OUTPUT_TEMP_NAME=${SAMPLE_NAME}
-    OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
+         if [[ CONTAINER_ENGINE == "singularity" ]]; then
+                  OUTPUT_TEMP_NAME=${SAMPLE_NAME}
+                  OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
     
-        PILEUP_TEMP_NAME="${SAMPLE_NAME}"
-        PILEUP_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
+                  PILEUP_TEMP_NAME="${SAMPLE_NAME}"
+                  PILEUP_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
+         else
+                  OUTPUT_TEMP_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
+                  OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
+    
+                  PILEUP_TEMP_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
+                  PILEUP_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
+          fi
 
 fi
 
 if [[ ! -f "${OUTPUT_NAME}_mutect2.vcf" ]] && [[ $RUN_MUTECT = true ]]; then
     echo "output name: ${OUTPUT_NAME}_mutect2.vcf"
     echo "mutect analysis requested"
-    
-    F1R2="${OUTPUTS}/f1r2"
-    mkdir -p $F1R2
-    F1R2_TEMP_NAME="${OUTPUTS}/f1r2/${SAMPLE_NAME}"
-    echo "F1R2 TEMP NAME: $F1R2_TEMP_NAME"
+    if [[ CONTAINER_ENGINE == "singularity" ]]; then
+         F1R2="${OUTPUTS}/f1r2"
+         mkdir -p $F1R2
+         F1R2_TEMP_NAME="${OUTPUTS}/f1r2/${SAMPLE_NAME}"
+         echo "F1R2 TEMP NAME: $F1R2_TEMP_NAME"
+     else
+         F1R2="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/f1r2/"
+         mkdir -p $F1R2
+         F1R2_TEMP_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/f1r2/${SAMPLE_NAME}"
+         echo "F1R2 TEMP NAME: $F1R2_TEMP_NAME" 
+     fi
 
     echo "Calling somatic variants with Mutect2 with the following command:
             gatk Mutect2 \
