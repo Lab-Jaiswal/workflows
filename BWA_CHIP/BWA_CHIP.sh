@@ -353,7 +353,7 @@ if [ $GET_MUTECT = true ]; then
     
     if [ $SPLIT_BY_CHR = true ]; then
         num_intervals=$(grep -v "@" < $CHR_INTERVALS | wc -l)
-        seq 1 ${num_intervals} | parallel -j8 --progress --ungroup "${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT "${gatk_command}" {}"
+        seq 1 ${num_intervals} | parallel -j8 --progress --ungroup "${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT $CONTAINER_ENGINE "${gatk_command}" {}"
         
         if ( [[ -d "${OUTPUTS}/pileups" ]] || [[ $MODE = "slurm" ]] ); then
               rsync -vurPhlt "${OUTPUTS}/pileups" "${OUTPUT_DIRECTORY}"
@@ -372,7 +372,7 @@ if [ $GET_MUTECT = true ]; then
             --sequence-dictionary $SEQUENCE_DICT ${pileup_tables} -O ${OUTPUTS}/${SAMPLE_NAME}_pileups.table
     
     else
-        ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF  $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT "${gatk_command}"   
+        ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF  $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT $CONTAINER_ENGINE "${gatk_command}"   
     fi
     
     if [[ $RUN_MUTECT = false ]]; then
@@ -434,12 +434,12 @@ if [ $GET_MUTECT = true ]; then
       echo "$OUTPUTS folder contains:"
       tree -h $OUTPUTS
     
-        ${CODE_DIRECTORY}/mutect_filter.sh $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE $OUTPUTS $OUTPUT_DIRECTORY $NORMAL_SAMPLE $NORMAL_PILEUPS $MODE $LINE_NUMBER "${gatk_command}"
+        ${CODE_DIRECTORY}/mutect_filter.sh $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE $OUTPUTS $OUTPUT_DIRECTORY $NORMAL_SAMPLE $NORMAL_PILEUPS $MODE $LINE_NUMBER $CONTAINER_ENGINE "${gatk_command}"
     
         #header for vcf header need to change
         #_mutect2_filter.vcf
     
-        ${CODE_DIRECTORY}/funcotator.sh $SAMPLE_NAME $BWA_GREF $FUNCOTATOR_SOURCES $TRANSCRIPT_LIST $PARAMETER_FILE $FILTERED $OUTPUTS $RUN_FUNCOTATOR $OUTPUT_DIRECTORY $MODE $LINE_NUMBER "${gatk_command}"
+        ${CODE_DIRECTORY}/funcotator.sh $SAMPLE_NAME $BWA_GREF $FUNCOTATOR_SOURCES $TRANSCRIPT_LIST $PARAMETER_FILE $FILTERED $OUTPUTS $RUN_FUNCOTATOR $OUTPUT_DIRECTORY $MODE $LINE_NUMBER $CONTAINER_ENGINE "${gatk_command}"
         
        if [[ $MODE = "slurm" ]]; then 
             rsync -vurPhlt $OUTPUTS/ $OUTPUT_DIRECTORY
