@@ -156,7 +156,7 @@ else
         if [[ $container_engine == "docker" ]]; then
             output_directory=~/Outputs 
         else
-            data_directory="${working_directory}/Outputs"
+            output_directory="${working_directory}/Outputs"
         fi
     fi
     
