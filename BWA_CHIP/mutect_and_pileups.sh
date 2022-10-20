@@ -72,7 +72,7 @@ if [ $SPLIT_BY_CHR = true ]; then
 else
     OPTIONAL_ARGS="--intervals $INTERVALS_FILE --dont-use-soft-clipped-bases"
 fi
-if [[ $FILE_EXTENSION == "cram" ]]; then
+if [[ $FILE_EXTENSION = "cram" ]]; then
    OPTIONAL_ARGS="$OPTIONAL_ARGS -R ${BWA_GREF}"
 fi
          
@@ -104,7 +104,7 @@ else
 
 fi
 
-if [[ ! -f "${OUTPUT_NAME}_mutect2.vcf" ]] && [[ $RUN_MUTECT == true ]]; then
+if [[ ! -f "${OUTPUT_NAME}_mutect2.vcf" ]] && [[ $RUN_MUTECT = true ]]; then
     echo "output name: ${OUTPUT_NAME}_mutect2.vcf"
     echo "mutect analysis requested"
     
