@@ -156,7 +156,7 @@ if [[ $MODE == "slurm" ]]; then
 
     #COPY_COMMAND="rsync -vurPhlt"
 else
-    if [[ $container_engine == "singularity" ]]; then
+    if [[ $CONTAINER_ENGINE == "singularity" ]]; then
                 INPUT="${WORKING_DIRECTORY}/Inputs"
                 OUTPUTS="${WORKING_DIRECTORY}/Outputs/${SAMPLE_NAME}"
                 PARAMS="${WORKING_DIRECTORY}/Params"
