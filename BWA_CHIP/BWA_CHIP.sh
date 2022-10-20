@@ -425,7 +425,7 @@ if [ $GET_MUTECT = true ]; then
                 LROM_OUTPUTS_NAME="${OUTPUTS}/${SAMPLE_NAME}"
         else
                 F1R2_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/f1r2/${SAMPLE_NAME}"
-                LROM_OUTPUTS_NAME="{OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
+                LROM_OUTPUTS_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
         fi
         
         ${gatk_command} LearnReadOrientationModel \
