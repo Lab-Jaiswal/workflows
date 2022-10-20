@@ -34,9 +34,9 @@ sudo apt-get install -y parallel
 
 echo "complete"
 
-rm workflows/BWA_CHIP/config.sh
-cp workflows/BWA_CHIP/cloud_config.sh workflows/BWA_CHIP/config.sh
-rm workflows/BWA_CHIP/cloud_config.sh
+rm ~/workflows/BWA_CHIP/config.sh
+cp ~/workflows/BWA_CHIP/cloud_config.sh workflows/BWA_CHIP/config.sh
+rm ~/workflows/BWA_CHIP/cloud_config.sh
 
 
 
