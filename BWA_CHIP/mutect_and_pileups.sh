@@ -18,8 +18,8 @@ CHR_INTERVALS=${13}
 GNOMAD_GENOMES=${14}
 RUN_MUTECT=${15}
 FILE_EXT=${16}
-GATK_COMMAND="${17}"
-CONTAINER_ENGINE="${18}"
+CONTAINER_ENGINE="${17}"
+GATK_COMMAND="${18}"
 INTERVAL_NUMBER=${19}
 
 if [ $LINE_NUMBER = "1" ]; then
@@ -41,8 +41,8 @@ if [ $LINE_NUMBER = "1" ]; then
                     GNOMAD_GENOMES=${14}
                     RUN_MUTECT=${15}
                     FILE_EXT=${16}
-                    GATK_COMMAND="${17}"
-                    CONTAINER_ENGINE="${18}"
+                    CONTAINER_ENGINE="${17}"
+                    GATK_COMMAND="${18}"
                     INTERVAL_NUMBER=${19}               
                    ########################################################
                 " >> $PARAMETER_FILE
@@ -173,6 +173,7 @@ if  [[ ! -f "${PILEUP_NAME}_pileups.table" ]]; then
         $INPUTS \
         -V ${GNOMAD_GENOMES} \
         -L "${pileup_intervals}" \
+        -R "${BWA_GREF}" \
         -O "${PILEUP_TEMP_NAME}_pileups.table"
 "
     #gatk GetPileupSummaries \
