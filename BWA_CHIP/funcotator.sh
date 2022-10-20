@@ -37,7 +37,12 @@ echo "!!!!!!!RUN_FUNCOTATOR: $RUN_FUNCOTATOR !!!!!!!!!!!!!!!^^^^^^^^^"
 cd $OUTPUTS
 
 #change outputs to output temp
-OUTPUT_NAME="${OUTPUTS}/${SAMPLE_NAME}"
+if [[ $CONTAINER_ENGINE = "singularity" ]]; then
+        OUTPUT_NAME="${OUTPUTS}/${SAMPLE_NAME}"
+else
+        OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
+fi
+
 echo " OUTPUT DIRECTORY"
 
 # Move to funcotator.sh
