@@ -61,7 +61,7 @@ else
         case "$1" in
             --input | --input_dir | --input_directory ) data_directory="$2"; shift 2 ;;
             --output | --output_dir | --output_directory ) output_directory="$2"; shift 2 ;; 
-            --working_dir | --working_directory --WD ) working_directory="$2"; shift 2 ;;
+            --working_dir | --working_directory | --WD ) working_directory="$2"; shift 2 ;;
             --min_coverage ) min_coverage="$2"; shift 2 ;;
             --min_var_freq ) min_var_freq="$2"; shift 2 ;;
             --p_value ) p_value="$2"; shift 2 ;;
