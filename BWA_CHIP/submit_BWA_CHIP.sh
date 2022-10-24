@@ -166,9 +166,11 @@ else
 
           echo "complete"
 
-          rm config.sh
-          cp cloud_config.sh config.sh
-          rm cloud_config.sh
+          if [[ -f cloud_config.sh ]]; then
+                rm config.sh
+                cp cloud_config.sh config.sh
+                rm cloud_config.sh
+          fi
         
     fi
 
