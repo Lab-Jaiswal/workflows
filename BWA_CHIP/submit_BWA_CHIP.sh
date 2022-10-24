@@ -158,8 +158,11 @@ else
                mkdir -p Inputs
                cd Inputs
                list_of_files=$1
+               mv ${list_of_files} .
+               file_list=$(basename $list_of_files)
                echo "LIST OF FILES: $list_of_files"
-                ./${list_of_files}
+               echo "FILES LIST: $file_list"
+                ./${file_list}
           fi
                
           cd ~/workflows/BWA_CHIP
