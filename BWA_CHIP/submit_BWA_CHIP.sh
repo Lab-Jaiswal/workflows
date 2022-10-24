@@ -152,7 +152,8 @@ else
                mv 201* ../
                cd ~
          fi
-         if [[ ! -d ~/Inputs ]]; then
+
+         if [[ -z "$(ls -A ~/Inputs)" ]]; then
                cd ~
                mkdir -p Inputs
                cd Inputs
