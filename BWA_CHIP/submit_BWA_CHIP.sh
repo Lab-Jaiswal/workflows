@@ -12,7 +12,7 @@
     #exit 1
 else
 
-    TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,file_extension:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,realign,normal_pileups,split_by_chr \
+    TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,file_extension:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,realign,normal_pileups,file_list,split_by_chr \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
 
     code_directory=$(realpath .)  #specify location of star_align_and_qc.sh
@@ -56,6 +56,7 @@ else
         data_directory=false
         output_directory=false
         file_extension="bam"
+        file_list=false
         
     while true; do
         case "$1" in
@@ -85,6 +86,7 @@ else
             --realign ) realign=true; shift ;;
             --calculate_contamination ) calculate_contamination=true; shift ;;
             --whole_genome | -WG | --Whole_Genome | --split_by_chr | --split ) split_by_chr=true; shift ;;
+            --file_list ) file_list=true; shift ;;
             -- ) shift; break ;;
             * ) break ;;
         esac
@@ -137,6 +139,44 @@ else
     if [[ $mode != "slurm" ]] && [[ $mode != "cloud" ]]; then
         echo "You did not select a recognizable option for mode."
         echo "Please select --mode cloud or --mode slurm"
+    fi
+    
+    if [[ $file_list = true ]]; then
+         if [[ ! -f ~/References/GRCh38_full_analysis_set_plus_decoy_hla.fa ]]; then
+               cd ~
+               dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/References/
+               cd References
+               dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/References/cloud_references
+               cd cloud_references
+               mv GRCh* ../
+               mv 201* ../
+               cd ~
+         fi
+
+         if [[ -z "$(ls -A ~/Inputs)" ]]; then
+               cd ~
+               mkdir -p Inputs
+               cd Inputs
+               list_of_files=$1
+               mv ${list_of_files} .
+               file_list=$(basename $list_of_files)
+               echo "LIST OF FILES: $list_of_files"
+               echo "FILES LIST: $file_list"
+                ./${file_list}
+          fi
+               
+          cd ~/workflows/BWA_CHIP
+          sudo apt-get update
+          sudo apt-get install -y parallel
+
+          echo "complete"
+
+          if [[ -f cloud_config.sh ]]; then
+                rm config.sh
+                cp cloud_config.sh config.sh
+                rm cloud_config.sh
+          fi
+        
     fi
 
     #data_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
