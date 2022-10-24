@@ -158,6 +158,7 @@ else
                mkdir -p Inputs
                cd Inputs
                list_of_files=$1
+               cd ~/filelists
                echo "LIST OF FILES: $list_of_files"
                 ./${list_of_files}
           fi
