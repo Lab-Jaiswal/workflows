@@ -19,7 +19,7 @@ P_VALUE="$5"
 GET_MUTECT="$6"
 GET_VARSCAN="$7"
 GET_HAPLOTYPE="$8"
-USE_BAM="$9"
+FILE_EXT=${9}
 INTERVALS_FILENAME="${10}"
 NORMAL_SAMPLE_FILENAME="${11}"
 CODE_DIRECTORY="${12}"
@@ -41,7 +41,6 @@ SEQUENCE_DICT_FILENAME=${27}
 CHR_INTERVALS_FILENAME=${28}
 GNOMAD_GENOMES_FILENAME=${29}
 RUN_MUTECT=${30}
-FILE_EXT=${31}
 
 if [[ $CONTAINER_ENGINE = "singularity" ]]; then
     gatk_command="singularity run instance://gatk_container gatk"
@@ -64,7 +63,7 @@ if [[ $LINE_NUMBER = 1 ]]; then
         GET_MUTECT=$6 \
         GET_VARSCAN=$7 \
         GET_HAPLOTYPE=$8 \
-        USE_BAM=$9 \
+        FILE_EXT=$9 \
         INTERVALS_FILENAME=${10} \
         NORMAL_SAMPLE_FILENAME=${11} \
         CODE_DIRECTORY=${12} \
@@ -93,13 +92,13 @@ if [[ $RUN_MUTECT = false ]]; then
     NORMAL_PILEUPS_FILENAME=false
 fi
 
-if [ $USE_BAM = false ]; then
+if [[ $FILE_EXT = "fastq" ]]; then
     ARRAY_FILE="${PARENT_DIRECTORY}/fastq_files" #provide path to file containing list of fastq files
 else 
     ARRAY_FILE="${PARENT_DIRECTORY}/bam_files" #provide path to file containing list of fastq files
 fi
 
-if [[ $USE_BAM = false ]]; then
+if [[ $FILE_EXT = "fastq" ]]; then #what is this doing?????
     ARRAY_FILE="${PARENT_DIRECTORY}/normal_sample_path" #provide path to file containing list of fastq files
 fi
 
@@ -113,7 +112,7 @@ ARRAY_PREFIX="$(sed "${LINE_NUMBER}q; d" "${ARRAY_FILE}")" #extract only the lin
 
 FILENAME=$(basename "${ARRAY_PREFIX}")
 SAMPLE_NAME="${FILENAME}_${ASSEMBLY}"
-if [ $USE_BAM = false ]; then
+if [[ $FILE_EXT = "fastq" ]]; then
    R1="${ARRAY_PREFIX}_R1_001.fastq.gz"
    R2="${ARRAY_PREFIX}_R2_001.fastq.gz"
    READGROUP="@RG\tID:${FILENAME}\tLB:${FILENAME}\tPL:illumina\tSM:${FILENAME}"
