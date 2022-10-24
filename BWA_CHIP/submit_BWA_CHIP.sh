@@ -142,8 +142,34 @@ else
     fi
     
     if [[ $file_list = true ]]; then
-        #list_of_files=$1
-        echo "$file_list"
+         if [[ ! -f ~/References/GRCh38_full_analysis_set_plus_decoy_hla.fa ]]; then
+               cd ~
+               dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/References/
+               cd References
+               dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/References/cloud_references
+               cd cloud_references
+               mv GRCh* ../
+               mv 201* ../
+               cd ~
+         fi
+         if [[ ! -d ~/Inputs ]]; then
+               cd ~
+               mkdir -p Inputs
+               cd Inputs
+               list_of_files=$1
+                ./${list_of_files}
+          fi
+               
+          cd ~/workflows/BWA_CHIP
+          sudo apt-get update
+          sudo apt-get install -y parallel
+
+          echo "complete"
+
+          rm config.sh
+          cp cloud_config.sh config.sh
+          rm cloud_config.sh
+        
     fi
 
     #data_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
