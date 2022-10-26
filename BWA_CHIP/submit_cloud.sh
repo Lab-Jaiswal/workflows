@@ -1,11 +1,13 @@
 #!/bin/bash
 cd ~
 mkdir filelists
-cd filelists
-seq 10 59 | parallel -j8 --progress --ungroup "~/workflows/BWA_CHIP/split_files.sh {}"
-find . -type f -not -name "*.*" | xargs -I % mv % %.sh
-sed -i '1 i\#!/bin/bash' *.sh
 
+if [[ -z "$(ls -A ~/filelists)" ]]; then
+  cd filelists
+  seq 10 59 | parallel -j8 --progress --ungroup "~/workflows/BWA_CHIP/split_files.sh {}"
+  find . -type f -not -name "*.*" | xargs -I % mv % %.sh
+  sed -i '1 i\#!/bin/bash' *.sh
+fi
 cd ~/workflows/BWA_CHIP
 
 file_list=~/filelists/meta_filelist.txt
