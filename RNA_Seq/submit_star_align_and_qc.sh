@@ -34,7 +34,7 @@ else
     fastq_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
     output_directory=$2
     fastq_file="${fastq_directory}/fastq_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
-    find "${fastq_directory}/" -type f | grep fastq | grep -v "Undetermined" | sed -e 's/_R1.*$//g' | sed -e 's/_R2.*$//g' | sort -u > "${fastq_file}" #generate list of full paths to fastq files and save to the file in $fastq_list
+    find "${fastq_directory}/" -type f | grep fastq | grep fq | grep -v "Undetermined" | sed -e 's/_R1.*$//g' | sed -e 's/_R2.*$//g' | sort -u > "${fastq_file}" #generate list of full paths to fastq files and save to the file in $fastq_list
     array_length=$(wc -l < "${fastq_file}") #get the number of files 
 
     mkdir -p $output_directory
