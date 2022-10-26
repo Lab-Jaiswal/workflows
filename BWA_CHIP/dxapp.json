@@ -1,7 +1,7 @@
 {
-  "name": "mutect_arbitrary_samples_orientation",
-  "title": "Mutect2 Arbitrary Samples",
-  "summary": "Run GATK Mutect2 and FilterMutectCalls",
+  "name": "mutect_applet",
+  "title": "Mutect2 Applet",
+  "summary": "Run GATK Mutect2, FilterMutectCalls, Funcotator, etc.",
   "dxapi": "1.0.0",
   "version": "0.0.1",
   "inputSpec": [
