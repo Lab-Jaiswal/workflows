@@ -38,6 +38,10 @@ cd ../..
 cd ${File_Lists}
 Folder_Number=$(echo $ARRAY_PREFIX | grep -oP '(?<=_).*(?=_)')
 sed -e "1 ! s@^@dx\ download\ project-G5B07V8JPkg740v9GjfF9PzV:/Bulk/Exome\\\ sequences/Exome\\\ OQFE\\\ CRAM\\\ files/${Folder_Number}@" ${ARRAY_PREFIX} > download_file.sh
+Inputs=~/Inputs
+mkdir -p $Inputs
+cd $Inputs
+bash ${File_Lists}/download_file.sh
 
 
 
