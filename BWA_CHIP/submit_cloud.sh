@@ -3,10 +3,59 @@
 main() {
 #like on batch node
 array_number=$1
+
+##################################################################################################################################
+##########################################---STEP 1: GET NECESSARY CODE/ TOOLS---################################################# 
+##################################################################################################################################
+
 cd ~
 git clone https://github.com/Lab-Jaiswal/workflows
 sudo apt-get update
 sudo apt-get install -y parallel
+
+##################################################################################################################################
+##############################################---STEP 2: DOWNLOAD FILES---######################################################## 
+##################################################################################################################################
+
+#list of files
+File_Lists=~/file_lists
+mkdir -p ${File_Lists}
+cd ${File_Lists}
+dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/meta_filelist.txt
+ARRAY_PREFIX="$(sed "${array_number}q; d" "${file_list}")" 
+ARRAY_PREFIX="$(basename $ARRAY_PREFIX)"
+dx download -r "project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/${ARRAY_PREFIX}"
+cd ..
+
+#References
+dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/References/
+cd ~/References/cloud_references
+mv GRCh* ../
+mv 201* ../
+cd ../..
+
+#Inputs
+cd ${File_Lists}
+Folder_Number=$(echo $ARRAY_PREFIX | grep -oP '(?<=_).*(?=_)')
+sed -e "1 ! s@^@dx\ download\ project-G5B07V8JPkg740v9GjfF9PzV:/Bulk/Exome\\\ sequences/Exome\\\ OQFE\\\ CRAM\\\ files/${Folder_Number}@" ${ARRAY_PREFIX} > download_file.sh
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 cd ~/workflows/BWA_CHIP
 
@@ -17,7 +66,6 @@ file_list="${FILELIST}/meta_filelist.txt"
 #pregenerated and on dnanexus
 FILELIST=~/filelists
 mkdir -p ${FILELIST}
-ARRAY_PREFIX="$(sed "${array_number}q; d" "${file_list}")" 
 #pass Array prefix to submit bwa chip so it can run with a list of samples
 #it will need to download within bwa chip
 
