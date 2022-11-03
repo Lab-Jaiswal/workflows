@@ -20,7 +20,7 @@ RUN_MUTECT=${15}
 FILE_EXT=${16}
 CONTAINER_ENGINE="${17}"
 GATK_COMMAND="${18}"
-INTERVAL_NUMBER=${19}
+INTERVAL_NUMBER="${19}"
 
 if [ $LINE_NUMBER = "1" ]; then
          echo "###########################################################
@@ -43,7 +43,7 @@ if [ $LINE_NUMBER = "1" ]; then
                     FILE_EXT=${16}
                     CONTAINER_ENGINE="${17}"
                     GATK_COMMAND="${18}"
-                    INTERVAL_NUMBER=${19}               
+                    INTERVAL_NUMBER="${19}"               
                    ########################################################
                 " >> $PARAMETER_FILE
 fi
@@ -98,7 +98,7 @@ if [ $INTERVALS_FILE = false ]; then
         PILEUP_NAME="${OUTPUT_DIRECTORY}/pileups/${SAMPLE_NAME}"
 
 else
-         if [[ CONTAINER_ENGINE == "singularity" ]]; then
+         if [[ $CONTAINER_ENGINE == "singularity" ]]; then
                   OUTPUT_TEMP_NAME=${SAMPLE_NAME}
                   OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
     
@@ -117,7 +117,7 @@ fi
 if [[ ! -f "${OUTPUT_NAME}_mutect2.vcf" ]] && [[ $RUN_MUTECT = true ]]; then
     echo "output name: ${OUTPUT_NAME}_mutect2.vcf"
     echo "mutect analysis requested"
-    if [[ CONTAINER_ENGINE == "singularity" ]]; then
+    if [[ $CONTAINER_ENGINE == "singularity" ]]; then
          F1R2="${OUTPUTS}/f1r2"
          mkdir -p $F1R2
          F1R2_TEMP_NAME="${OUTPUTS}/f1r2/${SAMPLE_NAME}"
