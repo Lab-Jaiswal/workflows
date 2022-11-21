@@ -25,7 +25,7 @@ function main() {
                 dx download -r "project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/${ARRAY_PREFIX}"
         fi
         cd ~
-        LOGS=~/Logs
+        LOGS=~/Outputs/Logs
         if [ ! -p $LOGS ]; then
                mkdir -p ${LOGS}
         fi
