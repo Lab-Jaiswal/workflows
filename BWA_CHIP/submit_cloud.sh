@@ -33,7 +33,7 @@ function main() {
         log_file="${LOGS}/log_file_${array_number}.sh"
         cd ~/workflows/BWA_CHIP
         echo "submitting BWA_CHIP"
-        ./submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${list_of_samples} # &>${log_file}
+        ./submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${list_of_samples} &>${log_file}
 }
 
 main 1
