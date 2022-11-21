@@ -10,7 +10,9 @@
     sequence_dictionary="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Params/GRCh38.p12.genome.u2af1l5_mask.fa.dict"
 
 #Optional
-    chr_intervals="${code_directory}/whole_genome_intervals.interval_list"
+    #chr_intervals="${code_directory}/whole_genome_intervals.interval_list"
+    chr_intervals="${code_directory}/chr21_chr22.interval_list"
+
     intervals="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Params/CHIP_exons.interval_list"
     transcript_list="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Params/chip_transcript_list.txt"
 

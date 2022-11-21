@@ -63,7 +63,9 @@ else
 fi
 
 if [ $SPLIT_BY_CHR = true ]; then
-    mkdir -p Intervals
+    if [ ! -d ${OUTPUTS}/Intervals ]; then
+        mkdir -p Intervals
+    fi
     interval_line=$(grep -v "@" < $CHR_INTERVALS | sed "${INTERVAL_NUMBER}q; d" ) # Remove header from interval list and choose appropriate line
     interval_name=$(echo "${interval_line}" | cut -f 1) # Extract chromosome name from interval line
     new_interval_file=Intervals/${interval_name}.interval_list
@@ -84,7 +86,7 @@ else
     echo "BAM output not requested"
 fi
 
-if [ $INTERVALS_FILE = false ]; then
+if [[ $SPLIT_BY_CHR == true ]]; then
     if [ ! -d ${OUTPUTS}/vcfs ]; then
         mkdir -p vcfs
     fi
@@ -119,7 +121,9 @@ if [[ ! -f "${OUTPUT_NAME}_mutect2.vcf" ]] && [[ $RUN_MUTECT = true ]]; then
     echo "mutect analysis requested"
     if [[ $CONTAINER_ENGINE == "singularity" ]]; then
          F1R2="${OUTPUTS}/f1r2"
-         mkdir -p $F1R2
+         if [ ! -d ${OUTPUTS}/f1r2 ]; then
+            mkdir -p $F1R2
+        fi
          F1R2_TEMP_NAME="${OUTPUTS}/f1r2/${SAMPLE_NAME}"
          echo "F1R2 TEMP NAME: $F1R2_TEMP_NAME"
      else
@@ -158,7 +162,6 @@ else
     echo "output name: ${OUTPUT_TEMP_NAME}_mutect2.vcf"
     echo "Mutect2 somatic variants already called"
 fi
-
 
 if  [[ ! -f "${PILEUP_NAME}_pileups.table" ]]; then
     echo "$PILEUP_NAME: $PILEUP_NAME"

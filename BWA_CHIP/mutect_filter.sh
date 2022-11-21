@@ -32,10 +32,17 @@ fi
 
 cd $OUTPUTS
 
-OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
+if [[ $MODE = "slurm" ]]; then
+    OUTPUT_NAME="${OUTPUTS}/${SAMPLE_NAME}"
+    echo "OUTPUT_NAME" $OUTPUT_NAME
+else
+    OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
+    echo "OUTPUT_NAME: $OUTPUT_NAME"
+fi
 
 if [[ $CONTAINER_ENGINE = "singularity" ]]; then
-         INPUT_NAME="${SAMPLE_NAME}"
+         #INPUT_NAME="${SAMPLE_NAME}"
+         INPUT_NAME="${OUTPUT_NAME}"
 else
          INPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
 fi

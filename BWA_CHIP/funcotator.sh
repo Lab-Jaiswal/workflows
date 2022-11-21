@@ -41,6 +41,7 @@ cd $OUTPUTS
 #change outputs to output temp
 if [[ $CONTAINER_ENGINE = "singularity" ]]; then
         OUTPUT_NAME="${OUTPUTS}/${SAMPLE_NAME}"
+        #OUTPUT_NAME="${OUTPUTS}/${SAMPLE_NAME}/${SAMPLE_NAME}"
 else
         OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
 fi

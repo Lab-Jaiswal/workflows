@@ -266,17 +266,18 @@ if [[ $CONTAINER_ENGINE = "singularity" ]]; then
         singularity instance stop gatk_container
         singularity delete --force gatk_container
     fi
-     if [[ "$(grep -c "gatk_container" <(docker container ls))" -ge 1 ]]; then
-        echo "deleting running container"
-        docker stop gatk_container
-        docker rm gatk_container
-    fi
     if [[ $MODE = "slurm" ]]; then
         singularity instance start -B $(readlink -f $TMPDIR) docker://broadinstitute/gatk:latest gatk_container
     else
         singularity instance start -B $(readlink -f $WORKING_DIRECTORY) docker://broadinstitute/gatk:latest gatk_container
     fi
 elif [[ $CONTAINER_ENGINE = "docker" ]]; then
+    if [[ "$(grep -c "gatk_container" <(docker container ls))" -ge 1 ]]; then
+        echo "deleting running container"
+        docker stop gatk_container
+        docker rm gatk_container
+    fi
+
     docker run --rm --detach --name gatk_container --workdir /home/dnanexus --volume /home/dnanexus:/home/dnanexus broadinstitute/gatk:latest sleep inf
 fi
     
@@ -347,29 +348,55 @@ if [ $GET_MUTECT = true ]; then
             NORMAL_PILEUPS=$NORMAL_PILEUPS_FILENAME
         fi
     fi
-         
     
+    if [[ $MODE = "slurm" ]]; then
+        if [ -d "${OUTPUT_DIRECTORY}/pileups" ]; then
+            rsync -vurPhlt "${OUTPUT_DIRECTORY}/pileups" "${OUTPUTS}"
+            ls ${OUTPUTS}
+        fi
+        if [ -d "${OUTPUT_DIRECTORY}/vcfs" ]; then
+            rsync -vurPhlt "${OUTPUT_DIRECTORY}/vcfs" "${OUTPUTS}"
+            ls ${OUTPUTS}
+        fi
+        if [ -d "${OUTPUT_DIRECTORY}/Intervals" ]; then
+            rsync -vurPhlt "${OUTPUT_DIRECTORY}/Intervals" "${OUTPUTS}"
+            ls ${OUTPUTS}
+        fi
+        if [ -d "${OUTPUT_DIRECTORY}/f1r2" ]; then
+            rsync -vurPhlt "${OUTPUT_DIRECTORY}/f1r2" "${OUTPUTS}"
+            ls ${OUTPUTS}
+        fi
+        DIRECTORY_CONTENTS=$(ls -A "${OUTPUT_DIRECTORY}")
+        echo "OUTPUT DIRECTORY CONTENTS: $DIRECTORY_CONTENTS"
+        if [[ ! -z "$DIRECTORY_CONTENTS" ]]; then
+            rsync -vurPhlt "${OUTPUT_DIRECTORY}" "${OUTPUTS}"
+        fi 
+    fi
+
     
     if [ $SPLIT_BY_CHR = true ]; then
-        num_intervals=$(grep -v "@" < $CHR_INTERVALS | wc -l)
-        seq 1 ${num_intervals} | parallel -j8 --progress --ungroup "${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT $CONTAINER_ENGINE '${gatk_command}' {}"
+        if [[ ! -f "${OUTPUTS}/${SAMPLE_NAME}_pileups.table" ]]; then
+            num_intervals=$(grep -v "@" < $CHR_INTERVALS | wc -l)
+            echo "num_intervals: $num_intervals"
+            seq 1 ${num_intervals} | parallel -j8 --progress --ungroup "${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT $CONTAINER_ENGINE '${gatk_command}' {}"
+            
+            if ( [[ -d "${OUTPUTS}/pileups" ]] || [[ $MODE = "slurm" ]] ); then
+                  rsync -vurPhlt "${OUTPUTS}/pileups" "${OUTPUT_DIRECTORY}"
+            fi
+            # Add GatherPileupSummaries for pileups
+            chr_pileups=$(find $OUTPUTS/pileups -type f | sort -V)
+               
+            if ( [[ -d "${OUTPUTS}/pileups" ]] || [[ $MODE = "slurm" ]] ); then
+                rsync -vurPhlt "${OUTPUTS}/pileups" "${OUTPUT_DIRECTORY}"
+            fi
         
-        if ( [[ -d "${OUTPUTS}/pileups" ]] || [[ $MODE = "slurm" ]] ); then
-              rsync -vurPhlt "${OUTPUTS}/pileups" "${OUTPUT_DIRECTORY}"
+            pileup_tables=$(find $OUTPUTS/pileups -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
+            echo "gatk GatherPileupSummaries --sequence-dictionary $SEQUENCE_DICT ${pileup_tables} -O ${OUTPUTS}/${SAMPLE_NAME}_pileups.table"
+        
+            ${gatk_command} GatherPileupSummaries \
+                --sequence-dictionary $SEQUENCE_DICT ${pileup_tables} -O ${OUTPUTS}/${SAMPLE_NAME}_pileups.table
         fi
-        # Add GatherPileupSummaries for pileups
-        chr_pileups=$(find $OUTPUTS/pileups -type f | sort -V)
-           
-        if ( [[ -d "${OUTPUTS}/pileups" ]] || [[ $MODE = "slurm" ]] ); then
-            rsync -vurPhlt "${OUTPUTS}/pileups" "${OUTPUT_DIRECTORY}"
-        fi
-    
-        pileup_tables=$(find $OUTPUTS/pileups -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
-        echo "gatk GatherPileupSummaries --sequence-dictionary $SEQUENCE_DICT ${pileup_tables} -O ${OUTPUTS}/${SAMPLE_NAME}_pileups.table"
-    
-        "${gatk_command}" GatherPileupSummaries \
-            --sequence-dictionary $SEQUENCE_DICT ${pileup_tables} -O ${OUTPUTS}/${SAMPLE_NAME}_pileups.table
-    
+        
     else
         ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF  $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT $CONTAINER_ENGINE "${gatk_command}"   
     fi
@@ -393,29 +420,34 @@ if [ $GET_MUTECT = true ]; then
    if [[ $RUN_MUTECT = true ]]; then 
   
        if [ $SPLIT_BY_CHR = true ]; then
-           chr_vcfs=$(find $OUTPUTS/vcfs -type f | sort -V)
-    
-           #if [[ $(echo "${chr_vcfs}" | wc -l) -lt ${num_intervals} ]] && [[ -d "${OUTPUT_DIRECTORY}/vcfs" ]]; then
-           if ( [[ -d "${OUTPUTS}/vcfs" ]] || [[ $MODE = "slurm" ]] ); then
-              rsync -vurPhlt "${OUTPUTS}/vcfs" "${OUTPUT_DIRECTORY}"
-           fi
-    
-           # Change to MergeVCFs
-           echo "bcftools concat $(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf$" | sort -V) > ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf"
-           vcf_files=$(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf$" | sed -e 's/^/--INPUT /g' | tr '\n' ' ')
-           "${gatk_command}" MergeVCFs \
-              ${vcf_files} --OUTPUT ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf
-           #bcftools concat $(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf$" | sort -V) > ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf
-    
-           vcf_stats=$(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf.stats$" | sed -e 's/^/--stats /g' | tr '\n' ' ')
-          "${gatk_command}" MergeMutectStats \
-              ${vcf_stats} -O "${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf.stats"
-    
-           echo "gatk MergeMutectStats ${vcf_stats} -O ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf.stats"
-           
-           f1r2_files=$(find $OUTPUTS/f1r2 -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
-           "${gatk_command}" LearnReadOrientationModel \
-              ${f1r2_files} -O "${OUTPUTS}/${SAMPLE_NAME}_mutect2_artifact_prior.tar.gz"
+           if [[ ! -f "${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf" ]]; then
+               chr_vcfs=$(find $OUTPUTS/vcfs -type f | sort -V)
+        
+               #if [[ $(echo "${chr_vcfs}" | wc -l) -lt ${num_intervals} ]] && [[ -d "${OUTPUT_DIRECTORY}/vcfs" ]]; then
+               if ( [[ -d "${OUTPUTS}/vcfs" ]] || [[ $MODE = "slurm" ]] ); then
+                  rsync -vurPhlt "${OUTPUTS}/vcfs" "${OUTPUT_DIRECTORY}"
+               fi
+        
+               # Change to MergeVCFs
+               echo "bcftools concat $(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf$" | sort -V) > ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf"
+               vcf_files=$(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf$" | sed -e 's/^/--INPUT /g' | tr '\n' ' ')
+               ${gatk_command} MergeVcfs \
+                  ${vcf_files} --OUTPUT ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf
+               #bcftools concat $(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf$" | sort -V) > ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf
+            fi
+            if [[ ! -f "${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf.stats" ]]; then
+               vcf_stats=$(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf.stats$" | sed -e 's/^/--stats /g' | tr '\n' ' ')
+              ${gatk_command} MergeMutectStats \
+                  ${vcf_stats} -O "${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf.stats"
+        
+               echo "gatk MergeMutectStats ${vcf_stats} -O ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf.stats"
+            fi
+
+            if [[ ! -f "${OUTPUTS}/${SAMPLE_NAME}_mutect2_artifact_prior.tar.gz" ]]; then
+               f1r2_files=$(find $OUTPUTS/f1r2 -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
+               ${gatk_command} LearnReadOrientationModel \
+                  ${f1r2_files} -O "${OUTPUTS}/${SAMPLE_NAME}_mutect2_artifact_prior.tar.gz"
+            fi
         else
             echo "running LearnReadOrientationModel"
             echo "LearnReadOrientationModel input: ${OUTPUTS}/f1r2/${SAMPLE_NAME}_f1r2.tar.gz"
