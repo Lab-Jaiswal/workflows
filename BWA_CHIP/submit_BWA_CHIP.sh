@@ -237,7 +237,9 @@ else
     fi
 
     if [[ -z "$chr_intervals" ]]; then
-        chr_intervals="${code_directory}/whole_genome_intervals.interval_list"
+        #chr_intervals="${code_directory}/whole_genome_intervals.interval_list"
+        chr_intervals="${code_directory}/chr21_chr22.interval_list"
+
     fi
     
     if [[ -z "$intervals" ]]; then
