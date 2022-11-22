@@ -1,55 +1,58 @@
 #!/bin/bash
-
-function main() {
-
+function run_job() {
         array_number=${1}
+        batch_size=${2}
+        batch_size=$(( 2*batch_size ))
         cd ~
         File_Lists=~/file_lists
         if [ ! -p ${File_Lists} ]; then
                 mkdir -p ${File_Lists}
                 cd ${File_Lists}
         fi
-
+        
         meta_file_list=~/file_lists/meta_filelist.txt
 
         if [ ! -f ${meta_file_list} ]; then
                 dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/meta_filelist.txt
         fi
+        
+        ARRAY_PREFIX="$(sed "${array_number}q; d" "${meta_file_list}")"
+        echo "number: $array_number"
+        ARRAY_PREFIX="$(basename ${ARRAY_PREFIX})"
 
+        list_of_samples=~/file_lists/${ARRAY_PREFIX}
+        if [ ! -f ${list_of_samples} ]; then
+                 cd ${File_Lists}
+                 dx download -r "project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/${ARRAY_PREFIX}"
+                 filtered_list_of_samples=~/file_lists/filtered_list_of_samples
+                 head -n $batch_size $list_of_samples > $filtered_list_of_samples
+        fi
+        cd ~
+        LOGS=~/Outputs/Logs
+        if [ ! -p $LOGS ]; then
+                 mkdir -p ${LOGS}
+        fi
+      
+       ./submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${filtered_list_of_samples} &>${log_file}
+       
+       
+       Outputs_folder=$(dx upload ~/Outputs --brief)
+       dx-jobutil-add-output Outputs_folder "${Outputs_folder}" --class=file --array
+}
+
+function main() {
+
+        number_of_batches=${1}
+        batch_size=${2}
+        
         for i in $(seq 1 ${array_number}); do
-
-                ARRAY_PREFIX="$(sed "${i}q; d" "${meta_file_list}")"
-                echo "number: $i"
-                ARRAY_PREFIX="$(basename ${ARRAY_PREFIX})"
-
-                list_of_samples=~/file_lists/${ARRAY_PREFIX}
-                if [ ! -f ${list_of_samples} ]; then
-                        cd ${File_Lists}
-                        dx download -r "project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/${ARRAY_PREFIX}"
-                fi
-                cd ~
-                LOGS=~/Outputs/Logs
-                if [ ! -p $LOGS ]; then
-                       mkdir -p ${LOGS}
-                fi
-
-                log_file="${LOGS}/log_file_${array_number}.sh"
-                #cd ~/workflows/BWA_CHIP
+        
                 echo "submitting BWA_CHIP"
-
-
-               docker run --rm -v /home/dnanexus:/home/dnanexus \
-               -v /usr/local/bin/dx:/usr/local/bin/dx \
-               -v /usr/local/bin/dx-jobutil-add-output:/usr/local/bin/dx-jobutil-add-output \
-               -v /usr/local/bin/:/usr/local/bin \
-               -v /usr/local/reference/:/usr/local/reference/ \
-               -w /home/dnanexus us.gcr.io/broad-gatk/gatk:4.1.6.0 \ /bin/bash /usr/local/bin/submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${list_of_samples} &>${log_file}
+                
+               dx-jobutil-new-job run_job -i ${list_of_samples} -i ${batch_size}
 
         done
-         #filtered_vcf_output=$(dx upload "${filtered_vcf[i]}" --brief)
-         #dx-jobutil-add-output filtered_vcf_output "${filtered_vcf_output}" --class=file --array
 
-./submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${list_of_samples} &>${log_file}
 }
 
 #main $1
