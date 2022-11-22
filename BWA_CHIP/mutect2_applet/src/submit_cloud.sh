@@ -54,7 +54,6 @@ function run_job() {
 
 function main() {
 
-        number_of_batches=${1}
         if [[ ${number_of_batches} = 0 ]]; then
                 File_Lists=~/file_lists
                 if [ ! -p ${File_Lists} ]; then
@@ -70,9 +69,7 @@ function main() {
                 
                 number_of_batches=$( wc -l $meta_file_list )
          fi
-        
-        batch_size=${2}
-        
+                
         for i in $(seq 1 ${array_number}); do
         
                 echo "submitting BWA_CHIP"
