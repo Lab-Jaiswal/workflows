@@ -22,7 +22,7 @@
   ],
   "outputSpec": [
     {
-      "name": "Output_folder",
+      "name": "Outputs_folder",
       "class": "file",
       "help": ""
     }
