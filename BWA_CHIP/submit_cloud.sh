@@ -34,7 +34,7 @@ function main() {
                 fi
 
                 log_file="${LOGS}/log_file_${array_number}.sh"
-                cd ~/workflows/BWA_CHIP
+                #cd ~/workflows/BWA_CHIP
                 echo "submitting BWA_CHIP"
 
 
