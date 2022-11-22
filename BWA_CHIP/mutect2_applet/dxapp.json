@@ -12,6 +12,13 @@
             "optional": true,
             "help": ""
            }
+           {
+            "name": "batch_size",
+            "class": "integer",
+            "default": "null",
+            "optional": true,
+            "help": ""
+           }
   ],
   "outputSpec": [
     {
