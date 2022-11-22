@@ -2,10 +2,13 @@
 set -u
 
 function run_job() {
+        cd ~
+        git clone https://github.com/Lab-Jaiswal/workflows
+        
         array_number=${1}
         batch_size=${2}
         batch_size=$(( 2*batch_size ))
-        cd ~
+        
         File_Lists=~/file_lists
         if [ ! -p ${File_Lists} ]; then
                 mkdir -p ${File_Lists}
@@ -41,7 +44,7 @@ function run_job() {
                  mkdir -p ${LOGS}
         fi
       
-       ./submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${filtered_list_of_samples} &>${log_file}
+       bash ~/workflows/submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${filtered_list_of_samples} &>${log_file}
           
        Outputs_folder=$(dx upload ~/Outputs --brief)
        dx-jobutil-add-output Outputs_folder "${Outputs_folder}" --class=file --array
