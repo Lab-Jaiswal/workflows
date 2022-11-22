@@ -44,7 +44,7 @@ function run_job() {
                  mkdir -p ${LOGS}
         fi
       
-       bash ~/workflows/submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${filtered_list_of_samples} &>${log_file}
+       bash ~/workflows/submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${filtered_list_of_samples} #&>${log_file}
        Output_Dir=~/Outputs
        Output_tar=Outputs_${array_number}.tar
        tar cf $Output_tar $Output_Dir
