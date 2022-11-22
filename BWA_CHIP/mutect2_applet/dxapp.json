@@ -22,8 +22,8 @@
   ],
   "outputSpec": [
     {
-      "name": "filtered_vcf_output",
-      "class": "array:file",
+      "name": "Output_folder",
+      "class": "file",
       "help": ""
     }
   ],
