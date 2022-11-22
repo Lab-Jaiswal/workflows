@@ -53,8 +53,7 @@ function run_job() {
 }
 
 function main() {
-        dx download number_of_batches
-        dx download batch_size
+        dx-download-all-inputs 
         if [[ ${number_of_batches} = 0 ]]; then
                 File_Lists=~/file_lists
                 if [ ! -p ${File_Lists} ]; then
