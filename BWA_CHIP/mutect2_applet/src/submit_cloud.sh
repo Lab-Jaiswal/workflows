@@ -45,9 +45,11 @@ function run_job() {
         fi
       
        bash ~/workflows/submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${filtered_list_of_samples} &>${log_file}
-          
-       Outputs_folder=$(dx upload ~/Outputs --brief)
-       dx-jobutil-add-output Outputs_folder "${Outputs_folder}" --class=file --array
+       Output_Dir=~/Outputs
+       Output_tar=Outputs_${array_number}.tar
+       tar cf $Output_tar $Output_Dir
+       Outputs_folder=$(dx upload $Output_tar --brief)
+       dx-jobutil-add-output $Outputs_tar "${Outputs_folder}"
 }
 
 function main() {
