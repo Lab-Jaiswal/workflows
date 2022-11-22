@@ -52,4 +52,4 @@ function main() {
 ./submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${list_of_samples} &>${log_file}
 }
 
-main $1
+#main $1
