@@ -530,3 +530,5 @@ if [[ $GET_VARSCAN = true ]] && [[ $RUN_MUTECT = true ]]; then
 else 
     echo "No Varscan analysis requested"
 fi
+
+export $Outputs
