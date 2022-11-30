@@ -4,7 +4,7 @@ set -u
 function run_job() {
         cd ~
         git clone https://github.com/Lab-Jaiswal/workflows
-        git checkout origin build_applet
+        git checkout build_applet
         
         array_number=${1}
         batch_size=${2}
