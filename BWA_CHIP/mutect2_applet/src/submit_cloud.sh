@@ -49,8 +49,8 @@ function run_job() {
        Output_Dir=~/Outputs
        Output_tar=Outputs_${array_number}.tar
        tar cf $Output_tar $Output_Dir
-       Outputs_folder=$(dx upload $Output_tar --brief)
-       dx-jobutil-add-output Outputs_folder "${Outputs_folder}"
+       Outputs_folder_id=$(dx upload $Output_tar --brief)
+       dx-jobutil-add-output Outputs_folder "${Outputs_folder_id}" --class=file
 }
 
 function main() {
