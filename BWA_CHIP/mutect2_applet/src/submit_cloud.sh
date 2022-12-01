@@ -51,7 +51,7 @@ function run_job() {
        Output_tar=Outputs_${array_number}.tar
        tar cf $Output_tar $Output_Dir
        Outputs_folder_id=$(dx upload $Output_tar --brief)
-       dx-jobutil-add-output Outputs_folder "${Outputs_folder_id}" --class=file
+       dx-jobutil-add-output Outputs_tar "${Outputs_folder_id}" --class=file
 }
 
 function main() {
@@ -78,7 +78,8 @@ function main() {
         
                 echo "submitting BWA_CHIP"
                 
-               dx-jobutil-new-job run_job -iarray_number=${i} -ibatch_size=${batch_size}
+               job_id=$(dx-jobutil-new-job run_job -iarray_number=${i} -ibatch_size=${batch_size})
+               dx-jobutil-add-output Outputs_folder "${job_id}:Outputs_tar" --class=jobref --array
 
         done
 
