@@ -74,7 +74,7 @@ function main() {
                 number_of_batches=$( wc -l $meta_file_list )
          fi
                 
-        for i in $(seq 1 ${array_number}); do
+        for i in $(seq 1 ${number_of_batches}); do
         
                 echo "submitting BWA_CHIP"
                 
