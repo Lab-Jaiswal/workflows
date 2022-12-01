@@ -47,6 +47,7 @@ function run_job() {
       
        bash ~/workflows/submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${filtered_list_of_samples} #&>${log_file}
        Output_Dir=~/Outputs
+       echo "Output Dir: $Output_Dir"
        Output_tar=Outputs_${array_number}.tar
        tar cf $Output_tar $Output_Dir
        Outputs_folder_id=$(dx upload $Output_tar --brief)
