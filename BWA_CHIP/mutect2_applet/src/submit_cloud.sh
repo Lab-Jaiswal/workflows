@@ -78,7 +78,7 @@ function main() {
         
                 echo "submitting BWA_CHIP"
                 
-               dx-jobutil-new-job run_job -i ${i} -i ${batch_size}
+               dx-jobutil-new-job run_job -i${i} -i${batch_size}
 
         done
 
