@@ -6,8 +6,8 @@ function run_job() {
         git clone https://github.com/Lab-Jaiswal/workflows
         git checkout build_applet
         
-        array_number=${1}
-        batch_size=${2}
+        #array_number=${1}
+        #batch_size=${2}
         batch_size=$(( 2*batch_size ))
         
         File_Lists=~/file_lists
@@ -78,7 +78,7 @@ function main() {
         
                 echo "submitting BWA_CHIP"
                 
-               dx-jobutil-new-job run_job -i${i} -i${batch_size}
+               dx-jobutil-new-job run_job -iarray_number=${i} -ibatch_size=${batch_size}
 
         done
 
