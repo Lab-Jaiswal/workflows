@@ -23,7 +23,7 @@
   "outputSpec": [
     {
       "name": "Outputs_folder",
-      "class": "array",
+      "class": "array:file",
       "help": ""
     }
   ],
