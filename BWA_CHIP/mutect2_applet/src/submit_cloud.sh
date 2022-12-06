@@ -3,9 +3,11 @@ set -u
 
 function run_job() {
         cd ~
-        git clone https://github.com/Lab-Jaiswal/workflows
-        git checkout build_applet
-        
+#        git clone https://github.com/Lab-Jaiswal/workflows
+#       git checkout build_applet
+        #next two were commented out
+        #curl -L -O https://github.com/Lab-Jaiswal/workflows/archive/build_applet.tar.gz
+        #tar xzf build_applet.tar.gz 
         #array_number=${1}
         #batch_size=${2}
         batch_size=$(( 2*batch_size ))
@@ -44,9 +46,12 @@ function run_job() {
         if [ ! -p $LOGS ]; then
                  mkdir -p ${LOGS}
         fi
-      
-       bash ~/workflows/submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${filtered_list_of_samples} #&>${log_file}
-       Output_Dir=~/Outputs
+      #commented out below because not needed for test
+       #bash /usr/local/bin/BWA_CHIP/submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${filtered_list_of_samples} #&>${log_file}
+       #bash ~/workflows/submit_test.sh
+       #Output_Dir=~/Outputs
+       #below line is a test to see if the file lists are even downloading
+       Output_Dir=~/file_lists/${ARRAY_PREFIX}
        echo "Output Dir: $Output_Dir"
        Output_tar=Outputs_${array_number}.tar
        tar cf $Output_tar $Output_Dir
@@ -79,6 +84,7 @@ function main() {
                 echo "submitting BWA_CHIP"
                 
                job_id=$(dx-jobutil-new-job run_job -iarray_number=${i} -ibatch_size=${batch_size})
+               echo "job_id: $job_id"
                dx-jobutil-add-output Outputs_folder "${job_id}:Outputs_tar" --class=jobref --array
 
         done

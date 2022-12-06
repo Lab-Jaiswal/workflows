@@ -155,31 +155,42 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
                mv 201* ../
                cd ~
          fi
-
+	
+	#if [[ $mode == "cloud" ]]; then
+		cd ~
+		INPUTS=~/Inputs
+		if [ ! -p ${INPUTS} ]; then
+	      		mkdir -p Inputs
+		fi
+	#fi
+	
          if [[ -z "$(ls -A ~/Inputs)" ]]; then
-               cd ~
-               INPUTS=~/Inputs
-               if [ ! -p ${INPUTS} ]; then
-                        mkdir -p Inputs
-                fi
-
+	       echo "past the ls step"
                 File_Lists=~/file_lists
                 if [ ! -p ${File_Lists} ]; then
                         mkdir -p ${File_Lists}
                 fi
                cd ${File_Lists}
-               #array_prefix_basename=$(basename ${array_prefix})
-               #list_of_files="${INPUTS}/${array_prefix_basename}
-               #cp ${array_prefix} ${list_of_files}
+	       echo "cd-ing into $File_Lists"
+               array_prefix_basename=$(basename ${array_prefix})
+               list_of_files="${INPUTS}/${array_prefix_basename}"
+	       echo "list_of_files=$list_of_files"
+               cp ${array_prefix} ${list_of_files}
+	       echo "array_prefix= $array_prefix"
                Folder_Number=$(echo $list_of_files | grep -oP '(?<=_).*(?=_)')
+               echo "Folder_Number= $Folder_Number"
                sed -e "1 ! s@^@dx\ download\ project-G5B07V8JPkg740v9GjfF9PzV:/Bulk/Exome\\\ sequences/Exome\\\ OQFE\\\ CRAM\\\ files/${Folder_Number}/@" ${array_prefix} > download_file.sh
-               cd $Inputs
+               echo "head"
+	       head=$(head -10 download_file.sh)
+	       echo "$head"
+	       cd $Inputs
+	      echo "cd-ing into Inputs"
                bash ${File_Lists}/download_file.sh
                #file_list=$(basename $list_of_files)
                #echo "LIST OF FILES: $list_of_files"
                #echo "FILES LIST: $file_list"
                # ./${array_prefix}
-               exit 1
+               #exit 1
           fi
 
           cd ~/workflows/BWA_CHIP
