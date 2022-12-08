@@ -178,8 +178,13 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
     TEMPS=${TEMP[0]}
     TEMP_ARGUMENTS=${TEMPS::-$sum}
     echo "$TEMP_ARGUMENTS"
+    
+    if [[ $mode == "slurm" ]]; then
+        source "${code_directory}/config.sh"
+    else
+        source "${code_directory}/cloud_config.sh"
+    fi
 
-    source "${code_directory}/config.sh"
     echo "$reference_genome"
 
     if [[ -z "$reference_genome" ]]; then
@@ -333,12 +338,7 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
 
           echo "complete"  >> $parameter_file
 
-          if [[ -f cloud_config.sh ]]; then
-                rm config.sh
-                cp cloud_config.sh config.sh
-                rm cloud_config.sh
-          fi
-    #fi
+              #fi
        
 ##################################################################################################################################
 #############################################--STEP 4: GET NORMAL PILEUPS---#######################################################

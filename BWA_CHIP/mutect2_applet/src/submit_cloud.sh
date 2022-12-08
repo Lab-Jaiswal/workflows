@@ -3,8 +3,8 @@ set -u
 
 function run_job() {
         cd $HOME
-#       git clone https://github.com/Lab-Jaiswal/workflows
-#       git checkout build_applet
+        git clone https://github.com/Lab-Jaiswal/workflows
+        #git checkout build_applet
         #next two were commented out
         #curl -L -O https://github.com/Lab-Jaiswal/workflows/archive/build_applet.tar.gz
         #tar xzf build_applet.tar.gz 
@@ -12,7 +12,7 @@ function run_job() {
         #batch_size=${2}
         batch_size=$(( 2*batch_size ))
         
-        dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/workflows
+        #dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/workflows
         #if [ ! -d ~/workflows/BWA_CHIP ]; then
             #echo "it was not downloaded"
             #exit 1
