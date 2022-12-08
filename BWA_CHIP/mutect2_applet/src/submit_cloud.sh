@@ -11,6 +11,7 @@ function run_job() {
         #array_number=${1}
         #batch_size=${2}
         batch_size=$(( 2*batch_size ))
+        batch_size=$(( 1+batch_size ))
         
         #dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/workflows
         #if [ ! -d ~/workflows/BWA_CHIP ]; then
@@ -66,7 +67,7 @@ function run_job() {
         echo "bash $HOME/workflows/BWA_CHIP/submit_BWA_CHIP.sh --working_dir $HOME --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix '${filtered_list_of_samples}'" >> $log_file
       #commented out below because not needed for test
        #cd ~/workflows/BWA_CHIP
-       bash $HOME/workflows/BWA_CHIP/submit_BWA_CHIP.sh --working_dir $HOME --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix "${filtered_list_of_samples}" #&>${log_file}
+       bash $HOME/workflows/BWA_CHIP/submit_BWA_CHIP.sh --working_dir $HOME --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix "${filtered_list_of_samples}" --n_jobs 96 #&>${log_file}
        cd $HOME
        echo "$HOME" >> $log_file
        echo "filtered_list_of_samples: $filtered_list_of_samples" >> $log_file
@@ -104,7 +105,7 @@ function main() {
         
                 echo "submitting BWA_CHIP"
                 
-               job_id=$(dx-jobutil-new-job run_job -iarray_number=${i} -ibatch_size=${batch_size} --instance-type mem2_ssd1_v2_x16)
+               job_id=$(dx-jobutil-new-job run_job -iarray_number=${i} -ibatch_size=${batch_size} --instance-type mem3_ssd1_v2_x96)
                echo "job_id: $job_id"
                dx-jobutil-add-output Outputs_folder "${job_id}:Outputs_tar" --class=jobref --array
 

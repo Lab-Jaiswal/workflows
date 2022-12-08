@@ -571,7 +571,13 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
         ${gnomad_genomes} \
         ${run_mutect}
 
-    else
+    elif [[ $mode == "cloud" ]] && [[ $container_engine == "docker" ]]; then
+        echo "deleting running container"
+        docker stop gatk_container
+        docker rm gatk_container
+
+        docker run --rm --detach --name gatk_container --workdir /home/dnanexus --volume /home/dnanexus:/home/dnanexus broadinstitute/gatk:latest sleep inf
+        
         echo "CODE DIRECTORY: $code_directory" >> $parameter_file
         #. `which env_parallel.bash`
         seq 1 ${array_length} | parallel --ungroup --progress -j ${n_jobs} TASK_ID={} bash ${code_directory}/BWA_CHIP.sh \
