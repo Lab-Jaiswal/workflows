@@ -271,7 +271,7 @@ if [[ $CONTAINER_ENGINE = "singularity" ]]; then
     else
         singularity instance start -B $(readlink -f $WORKING_DIRECTORY) docker://broadinstitute/gatk:latest gatk_container
     fi
-elif [[ $CONTAINER_ENGINE = "docker" ]] && [[ $MODE == "slurm"]]; then
+elif [[ $CONTAINER_ENGINE = "docker" ]] && [[ $MODE == "slurm" ]]; then
     #this cannot work in dna nexus or on scg because scg/sherlock doesn't allow docker AND
     #DNA Nexus is running multiple samples on the same node
     #I am only keeping this code for the eventually it is run on a slrum based system that allows docker (not applicable to my research at Stanford)
