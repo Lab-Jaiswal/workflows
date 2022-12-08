@@ -46,7 +46,8 @@
   },
   "access": {
     "project": "CONTRIBUTE",
-    "allProjects": "VIEW"
+    "allProjects": "VIEW",
+    "network": [ "*" ]
   },
   "regionalOptions": {
     "aws:eu-west-2": {
