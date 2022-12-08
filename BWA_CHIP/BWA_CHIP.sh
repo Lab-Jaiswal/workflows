@@ -121,7 +121,7 @@ if [[ $FILE_EXT = "fastq" ]]; then
 
    echo "FILENAME: $FILENAME"
 
-   ${CODE_DIRECTORY}/fastq_to_bam.sh $SAMPLE_NAME $READGROUP $BWA_GREF_FILENAME $R1 $R2 $PARAMETER_FILE
+   bash ${CODE_DIRECTORY}/fastq_to_bam.sh $SAMPLE_NAME $READGROUP $BWA_GREF_FILENAME $R1 $R2 $PARAMETER_FILE
 else
     MUTECT_INPUT_FILENAME="${ARRAY_PREFIX}"
 fi
@@ -378,7 +378,7 @@ if [ $GET_MUTECT = true ]; then
         if [[ ! -f "${OUTPUTS}/${SAMPLE_NAME}_pileups.table" ]]; then
             num_intervals=$(grep -v "@" < $CHR_INTERVALS | wc -l)
             echo "num_intervals: $num_intervals"
-            seq 1 ${num_intervals} | parallel -j8 --progress --ungroup "${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT $CONTAINER_ENGINE '${gatk_command}' {}"
+            seq 1 ${num_intervals} | parallel -j8 --progress --ungroup "bash ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT $CONTAINER_ENGINE '${gatk_command}' {}"
             
             if ( [[ -d "${OUTPUTS}/pileups" ]] || [[ $MODE = "slurm" ]] ); then
                   rsync -vurPhlt "${OUTPUTS}/pileups" "${OUTPUT_DIRECTORY}"
@@ -398,7 +398,7 @@ if [ $GET_MUTECT = true ]; then
         fi
         
     else
-        ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF  $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT $CONTAINER_ENGINE "${gatk_command}"   
+        bash ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF  $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT $CONTAINER_ENGINE "${gatk_command}"   
     fi
     
     if [[ $RUN_MUTECT = false ]]; then
@@ -473,12 +473,12 @@ if [ $GET_MUTECT = true ]; then
       echo "$OUTPUTS folder contains:"
       tree -h $OUTPUTS
     
-        ${CODE_DIRECTORY}/mutect_filter.sh $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE $OUTPUTS $OUTPUT_DIRECTORY $NORMAL_SAMPLE $NORMAL_PILEUPS $MODE $LINE_NUMBER $CONTAINER_ENGINE "${gatk_command}"
+        bash ${CODE_DIRECTORY}/mutect_filter.sh $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE $OUTPUTS $OUTPUT_DIRECTORY $NORMAL_SAMPLE $NORMAL_PILEUPS $MODE $LINE_NUMBER $CONTAINER_ENGINE "${gatk_command}"
     
         #header for vcf header need to change
         #_mutect2_filter.vcf
     
-        ${CODE_DIRECTORY}/funcotator.sh $SAMPLE_NAME $BWA_GREF $FUNCOTATOR_SOURCES $TRANSCRIPT_LIST $PARAMETER_FILE $FILTERED $OUTPUTS $RUN_FUNCOTATOR $OUTPUT_DIRECTORY $MODE $LINE_NUMBER $CONTAINER_ENGINE "${gatk_command}"
+        bash ${CODE_DIRECTORY}/funcotator.sh $SAMPLE_NAME $BWA_GREF $FUNCOTATOR_SOURCES $TRANSCRIPT_LIST $PARAMETER_FILE $FILTERED $OUTPUTS $RUN_FUNCOTATOR $OUTPUT_DIRECTORY $MODE $LINE_NUMBER $CONTAINER_ENGINE "${gatk_command}"
         
        if [[ $MODE = "slurm" ]]; then 
             rsync -vurPhlt $OUTPUTS/ $OUTPUT_DIRECTORY
@@ -494,7 +494,7 @@ fi
 ##################################################################################################################################    
 if [[ $GET_HAPLOTYPE = true ]] && [[ $RUN_MUTECT = true ]]; then
     echo "Haplotypecaller analysis requested"
-    ${CODE_DIRECTORY}/haplotypecaller.sh $SAMPLE_NAME $BWA_GREF $TWIST_SNPS $PARAMETER_FILE $MODE
+    bash ${CODE_DIRECTORY}/haplotypecaller.sh $SAMPLE_NAME $BWA_GREF $TWIST_SNPS $PARAMETER_FILE $MODE
     echo "Haplotypecaller analysis complete"
 
     if [[ $MODE = "slurm" ]]; then 
@@ -519,7 +519,7 @@ fi
 ##################################################################################################################################    
 if [[ $GET_VARSCAN = true ]] && [[ $RUN_MUTECT = true ]]; then
     echo "Varscan analysis requested"
-   ${CODE_DIRECTORY}/varscan.sh $SAMPLE_NAME $BWA_GREF $MIN_COVERAGE $MIN_VAR_FREQ $P_VALUE $PARAMETER_FILE $MODE
+   bash ${CODE_DIRECTORY}/varscan.sh $SAMPLE_NAME $BWA_GREF $MIN_COVERAGE $MIN_VAR_FREQ $P_VALUE $PARAMETER_FILE $MODE
    echo "Varscan analysis complete"
 
     if [[ $MODE = "slurm" ]]; then 
@@ -530,3 +530,5 @@ if [[ $GET_VARSCAN = true ]] && [[ $RUN_MUTECT = true ]]; then
 else 
     echo "No Varscan analysis requested"
 fi
+
+export $Outputs
