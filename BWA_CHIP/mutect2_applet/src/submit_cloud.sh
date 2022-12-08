@@ -2,8 +2,8 @@
 set -u
 
 function run_job() {
-        cd ~
-#        git clone https://github.com/Lab-Jaiswal/workflows
+        cd $HOME
+#       git clone https://github.com/Lab-Jaiswal/workflows
 #       git checkout build_applet
         #next two were commented out
         #curl -L -O https://github.com/Lab-Jaiswal/workflows/archive/build_applet.tar.gz
@@ -12,8 +12,20 @@ function run_job() {
         #batch_size=${2}
         batch_size=$(( 2*batch_size ))
         
+        dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/workflows
+        #if [ ! -d ~/workflows/BWA_CHIP ]; then
+            #echo "it was not downloaded"
+            #exit 1
+        #fi
+        
+        #if [ ! -f ~/workflows/BWA_CHIP/submit_BWA_CHIP.sh ]; then
+            #echo "submit_BWA_CHIP.sh was not downloaded"
+            #exit 1
+        #fi
+
+
         File_Lists=~/file_lists
-        if [ ! -p ${File_Lists} ]; then
+        if [ ! -d ${File_Lists} ]; then
                 mkdir -p ${File_Lists}
                 cd ${File_Lists}
         fi
@@ -32,27 +44,36 @@ function run_job() {
         if [ ! -f ${list_of_samples} ]; then
                  cd ${File_Lists}
                  dx download -r "project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/${ARRAY_PREFIX}"
+                 mkdir -p ~/Inputs
+                filtered_list_of_samples=~/Inputs/${ARRAY_PREFIX}
+
                  if [[ $batch_size != 0 ]]; then
-                        filtered_list_of_samples=~/file_lists/filtered_list_of_samples
                         head -n $batch_size $list_of_samples > $filtered_list_of_samples
                  else
-                        filtered_list_of_samples=$list_of_samples
+                        cp $list_of_samples $filtered_list_of_samples
                  fi
                  
         fi
        
         cd ~
         LOGS=~/Outputs/Logs
-        if [ ! -p $LOGS ]; then
+        if [ ! -d $LOGS ]; then
                  mkdir -p ${LOGS}
         fi
+        log_file="${LOGS}/job_${array_number}.log"
+        
+        echo "command to run:" >> $log_file
+        echo "bash $HOME/workflows/BWA_CHIP/submit_BWA_CHIP.sh --working_dir $HOME --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix '${filtered_list_of_samples}'" >> $log_file
       #commented out below because not needed for test
-       #bash /usr/local/bin/BWA_CHIP/submit_BWA_CHIP.sh --working_dir ~ --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix ${filtered_list_of_samples} #&>${log_file}
-       #bash ~/workflows/submit_test.sh
-       #Output_Dir=~/Outputs
+       #cd ~/workflows/BWA_CHIP
+       bash $HOME/workflows/BWA_CHIP/submit_BWA_CHIP.sh --working_dir $HOME --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix "${filtered_list_of_samples}" #&>${log_file}
+       cd $HOME
+       echo "$HOME" >> $log_file
+       echo "filtered_list_of_samples: $filtered_list_of_samples" >> $log_file
+       Output_Dir=~/Outputs
        #below line is a test to see if the file lists are even downloading
-       Output_Dir=~/file_lists/${ARRAY_PREFIX}
-       echo "Output Dir: $Output_Dir"
+       #Output_Dir=~/workflows
+       echo "Output Dir: $Output_Dir" >> $log_file
        Output_tar=Outputs_${array_number}.tar
        tar cf $Output_tar $Output_Dir
        Outputs_folder_id=$(dx upload $Output_tar --brief)
@@ -65,7 +86,7 @@ function main() {
         
         if [[ ${number_of_batches} = 0 ]]; then
                 File_Lists=~/file_lists
-                if [ ! -p ${File_Lists} ]; then
+                if [ ! -d ${File_Lists} ]; then
                         mkdir -p ${File_Lists}
                         cd ${File_Lists}
                 fi
@@ -83,7 +104,7 @@ function main() {
         
                 echo "submitting BWA_CHIP"
                 
-               job_id=$(dx-jobutil-new-job run_job -iarray_number=${i} -ibatch_size=${batch_size})
+               job_id=$(dx-jobutil-new-job run_job -iarray_number=${i} -ibatch_size=${batch_size} --instance-type mem2_ssd1_v2_x16)
                echo "job_id: $job_id"
                dx-jobutil-add-output Outputs_folder "${job_id}:Outputs_tar" --class=jobref --array
 

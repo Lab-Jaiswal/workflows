@@ -14,9 +14,14 @@ else
 
 TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_prefix:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,file_extension:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,realign,normal_pileups,file_list,split_by_chr \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
-
-    code_directory=$(realpath .)  #specify location of star_align_and_qc.sh
-    echo "CODE_DIRECTORY: $code_directory"
+    
+    if [[ mode == "slurm" ]]; then
+        code_directory=$(realpath .)  #specify location of star_align_and_qc.sh
+        echo "CODE_DIRECTORY: $code_directory"
+    else
+        code_directory=~/workflows/BWA_CHIP
+        echo "CODE_DIRECTORY: $code_directory"
+    fi
 
     #input, output, and working directory using --
     #input and output for slurm
@@ -143,68 +148,6 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
         echo "Please select --mode cloud or --mode slurm"
     fi
 
-    if [[ $array_prefix != false ]]; then
-
-         if [[ ! -f ~/References/GRCh38_full_analysis_set_plus_decoy_hla.fa ]]; then
-               cd ~
-               dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/References/
-               cd References
-               dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/References/cloud_references
-               cd cloud_references
-               mv GRCh* ../
-               mv 201* ../
-               cd ~
-         fi
-	
-	#if [[ $mode == "cloud" ]]; then
-		cd ~
-		INPUTS=~/Inputs
-		if [ ! -p ${INPUTS} ]; then
-	      		mkdir -p Inputs
-		fi
-	#fi
-	
-         if [[ -z "$(ls -A ~/Inputs)" ]]; then
-	       echo "past the ls step"
-                File_Lists=~/file_lists
-                if [ ! -p ${File_Lists} ]; then
-                        mkdir -p ${File_Lists}
-                fi
-               cd ${File_Lists}
-	       echo "cd-ing into $File_Lists"
-               array_prefix_basename=$(basename ${array_prefix})
-               list_of_files="${INPUTS}/${array_prefix_basename}"
-	       echo "list_of_files=$list_of_files"
-               cp ${array_prefix} ${list_of_files}
-	       echo "array_prefix= $array_prefix"
-               Folder_Number=$(echo $list_of_files | grep -oP '(?<=_).*(?=_)')
-               echo "Folder_Number= $Folder_Number"
-               sed -e "1 ! s@^@dx\ download\ project-G5B07V8JPkg740v9GjfF9PzV:/Bulk/Exome\\\ sequences/Exome\\\ OQFE\\\ CRAM\\\ files/${Folder_Number}/@" ${array_prefix} > download_file.sh
-               echo "head"
-	       head=$(head -10 download_file.sh)
-	       echo "$head"
-	       cd $Inputs
-	      echo "cd-ing into Inputs"
-               bash ${File_Lists}/download_file.sh
-               #file_list=$(basename $list_of_files)
-               #echo "LIST OF FILES: $list_of_files"
-               #echo "FILES LIST: $file_list"
-               # ./${array_prefix}
-               #exit 1
-          fi
-
-          cd ~/workflows/BWA_CHIP
-          sudo apt-get update
-          sudo apt-get install -y parallel
-
-          echo "complete"
-
-          if [[ -f cloud_config.sh ]]; then
-                rm config.sh
-                cp cloud_config.sh config.sh
-                rm cloud_config.sh
-          fi
-    fi
 
     #data_directory=$1 #get directory path from second argument (first argument $0 is the path of this script)
     #find "${data_directory}/" -type f | grep "bam" | grep -v ".bam.bai" | sed -e 's/\.bam$//g'
@@ -225,8 +168,6 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
     fi
     
      echo "################### input - $data_directory ####### output - $output_directory ##### working - $working_directory"
-
-
 
     parent_directory=$(dirname $data_directory) #get parent directory of $fastq_directory
     fastq_list="${parent_directory}/fastq_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
@@ -286,8 +227,8 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
     elif [[ ! -f $intervals ]]; then
         echo "intervals path does not exist"
     fi
-    
-    ##################################################################################################################################
+ 
+##################################################################################################################################
 #######################################---STEP 2: CREATE NECESSARY FOLDERS---#####################################################
 ##################################################################################################################################
     if [ ! -d "$output_directory/Logs" ]; then
@@ -315,7 +256,7 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
     touch $parameter_file
 
     echo "location of scripts used to run code : $code_directory
-        " > $parameter_file
+        " >> $parameter_file
 
 
     echo "call made to execute code: $0 $1 $2 $TEMP_ARGUMENTS
@@ -324,7 +265,81 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
     echo "you chose the following optional arguments:
         $TEMP_ARGUMENTS
         " >> $parameter_file
-        
+
+    echo "this is a test to see if we made it to this point" >> $parameter_file
+
+##################################################################################################################################
+#######################################---STEP 4: DOWNLOAD DATA---#####################################################
+##################################################################################################################################
+#if [[ $array_prefix != false ]]; then
+        echo "array_prefix: $array_prefix" >> $parameter_file
+
+         if [[ ! -f ~/References/GRCh38_full_analysis_set_plus_decoy_hla.fa ]]; then
+               cd ~
+               dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/References/
+               cd References
+               dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/References/cloud_references
+               cd cloud_references
+               mv GRCh* ../
+               mv 201* ../
+               cd ~
+         fi
+	
+	#if [[ $mode == "cloud" ]]; then
+		cd ~
+		INPUTS=~/Inputs
+		if [ ! -p ${INPUTS} ]; then
+	      		mkdir -p Inputs
+		fi
+	#fi
+
+        if [[ -z "$(ls -A ~/Inputs)" ]]; then
+            echo "the inputs directory is empty"
+        else
+            echo "the inputs directory is not empty"
+        fi
+	
+         #if [[ -z "$(ls -A ~/Inputs)" ]]; then
+	       echo "past the ls step" >> $parameter_file
+                File_Lists=~/file_lists
+                if [ ! -p ${File_Lists} ]; then
+                        mkdir -p ${File_Lists}
+                fi
+               cd ${File_Lists}
+	       echo "cd-ing into $File_Lists" >> $parameter_file
+               array_prefix_basename=$(basename ${array_prefix})
+               list_of_files="~/Inputs/${array_prefix_basename}"
+	       echo "list_of_files=$list_of_files"  >> $parameter_file
+	       echo "array_prefix= $array_prefix"  >> $parameter_file
+               Folder_Number=$(echo $list_of_files | grep -oP '(?<=_).*(?=_)')
+               echo "Folder_Number= $Folder_Number"  >> $parameter_file
+               sed -e "1 ! s@^@dx\ download\ project-G5B07V8JPkg740v9GjfF9PzV:/Bulk/Exome\\\ sequences/Exome\\\ OQFE\\\ CRAM\\\ files/${Folder_Number}/@" ${array_prefix} > download_file.sh
+               echo "head" >> $parameter_file
+	       head=$(head -n 10 download_file.sh)
+	       echo "$head"  >> $parameter_file
+	       cd $INPUTS
+	      echo "cd-ing into Inputs"  >> $parameter_file
+               bash ${File_Lists}/download_file.sh
+               #file_list=$(basename $list_of_files)
+               #echo "LIST OF FILES: $list_of_files"
+               #echo "FILES LIST: $file_list"
+               # ./${array_prefix}
+               #exit 1
+          #fi
+
+          cd ~/workflows/BWA_CHIP
+          sudo apt-get update
+          sudo apt-get install -y parallel
+
+          echo "complete"  >> $parameter_file
+
+          if [[ -f cloud_config.sh ]]; then
+                rm config.sh
+                cp cloud_config.sh config.sh
+                rm cloud_config.sh
+          fi
+    #fi
+       
 ##################################################################################################################################
 #############################################--STEP 4: GET NORMAL PILEUPS---#######################################################
 ##################################################################################################################################
@@ -381,8 +396,8 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
                 ${run_mutect}
                 wait
         else
-            echo "CODE_DIRECTORY: $code_directory"
-            TASK_ID=1 ${code_directory}/BWA_CHIP.sh \
+            echo "CODE_DIRECTORY: $code_directory" >> $parameter_file
+            TASK_ID=1  bash ${code_directory}/BWA_CHIP.sh \
                 ${parent_directory} \
                 ${output_directory} \
                 ${min_coverage} \
@@ -416,10 +431,10 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
         fi
 
             normal_pileups="${output_directory}/NORMAL_PILEUPS/${NORMAL_SAMPLE_NAME}_${assembly}_pileups.table"
-            echo "$normal_pileups"
+            echo "$normal_pileups" >> $parameter_file
 
             if [ ! -f ${normal_pileups} ]; then
-                echo "${normal_pileups} does not exist"
+                echo "${normal_pileups} does not exist" >> $parameter_file
             fi
     fi
 
@@ -447,10 +462,10 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
                         #| \
                     #head -n -1 > ${bam_list} `#remove the last line and generate a list of unique FASTQs`
             bam_array_length=$(wc -l < ${bam_list}) #get the number of FASTQs
-            echo "bam array length: $bam_array_length"
+            echo "bam array length: $bam_array_length" >> $parameter_file
 
         if [ $realign = true ]; then
-            echo "entering bam_to_fastq.sh script"
+            echo "entering bam_to_fastq.sh script" >> $parameter_file
 
             if [[ $mode == "slurm" ]]; then
                 sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
@@ -463,7 +478,7 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
 
             cp $bam_list $fastq_list
             array_length=$(wc -l < ${fastq_list}) #get the number of FASTQs
-            echo "array length: $array_length"
+            echo "array length: $array_length" >> $parameter_file
             file_extension="fastq"
 
         else
@@ -478,7 +493,7 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
                 #| \
             #head -n -1 > ${fastq_list} `#remove the last line and generate a list of unique FASTQs`
         array_length=$(wc -l < ${fastq_list}) #get the number of FASTQs
-        echo "fastq array length: $array_length"
+        echo "fastq array length: $array_length" >> $parameter_file
     fi
     
     ##################################################################################################################################
@@ -518,7 +533,7 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
     sequence_dictionary ${sequence_dictionary} \
     chr_intervals ${chr_intervals} \
     gnomad_genomes ${gnomad_genomes} \
-    run_mutect ${run_mutect}"
+    run_mutect ${run_mutect}" >> $parameter_file
 
     if [[ $mode == "slurm" ]]; then
         sbatch -o "${output_directory}/Logs/%A_%a.log" `#put into log` \
@@ -557,9 +572,9 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
         ${run_mutect}
 
     else
-        echo "CODE DIRECTORY: $code_directory"
+        echo "CODE DIRECTORY: $code_directory" >> $parameter_file
         #. `which env_parallel.bash`
-        seq 1 ${array_length} | parallel --ungroup --progress -j ${n_jobs} TASK_ID={} ${code_directory}/BWA_CHIP.sh \
+        seq 1 ${array_length} | parallel --ungroup --progress -j ${n_jobs} TASK_ID={} bash ${code_directory}/BWA_CHIP.sh \
         ${parent_directory} \
         ${output_directory} \
         ${min_coverage} \
@@ -590,7 +605,7 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
         ${chr_intervals} \
         ${gnomad_genomes} \
         ${run_mutect}
-        echo "Test"
+        echo "Test" >> $parameter_file
     fi
     wait
 ##################################################################################################################################
