@@ -512,9 +512,9 @@ fi
 if [[ $MODE = "slurm" ]]; then
     singularity instance stop gatk_container
     singularity delete --force gatk_container
-else
-    docker stop gatk_container
-    docker rm gatk_container
+#else
+    #docker stop gatk_container
+    #docker rm gatk_container
 fi
 
 ##################################################################################################################################
@@ -534,4 +534,4 @@ else
     echo "No Varscan analysis requested"
 fi
 
-export $Outputs
+#export $Outputs

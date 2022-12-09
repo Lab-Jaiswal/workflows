@@ -581,7 +581,7 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
         echo "CODE DIRECTORY: $code_directory" >> $parameter_file
         #. `which env_parallel.bash`
         #change so log output is grouped
-        seq 1 ${array_length} | parallel --ungroup --progress -j ${n_jobs} TASK_ID={} bash ${code_directory}/BWA_CHIP.sh \
+        seq 1 ${array_length} | parallel --progress -j ${n_jobs} TASK_ID={} bash ${code_directory}/BWA_CHIP.sh \
         ${parent_directory} \
         ${output_directory} \
         ${min_coverage} \
