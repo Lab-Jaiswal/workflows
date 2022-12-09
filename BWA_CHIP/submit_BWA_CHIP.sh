@@ -575,7 +575,7 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
         echo "deleting running container"
         #use this line if it is interactive mode and it is failing to kill the job after you ran it once
         #docker stop gatk_container
-        docker rm gatk_container
+        #docker rm gatk_container
 
         docker run --rm --detach --name gatk_container --workdir /home/dnanexus --volume /home/dnanexus:/home/dnanexus broadinstitute/gatk:latest sleep inf
         
