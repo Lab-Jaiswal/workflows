@@ -24,3 +24,4 @@ cd 1000_youngest
 cat ../filepaths_of_1000_youngest_final | xargs -I % dx download %
 
 #upload the folder with the 1000 youngest
+project-G5B07V8JPkg740v9GjfF9PzV:/1000_youngest
