@@ -70,5 +70,13 @@ add the flag --normal_sample followed *immediately* by the path to your normal s
 * sed -e 's/\s/\\ /g' < all_file_paths > all_file_paths_fixed
 5. Filter out all filepaths to only list the 1000 youngest using:
 * grep -f top_1000_without_predis_with_crams < all_file_paths_fixed > filepaths_of_1000_youngest
-6. dx download the 1000 youngest using the filepaths in step 5
+* sed -e 's/\s/\\ /g' < filepaths_of_1000_youngest > filepaths_of_1000_youngest_fixed
+* sed -e 's/^/project-G5B07V8JPkg740v9GjfF9PzV:/g' filepaths_of_1000_youngest_fixed > filepaths_of_1000_youngest_final
+6. dx upload the filepaths_of_1000_youngest_final
+* dx upload filepaths_of_1000_youngest_final --path  project-G5B07V8JPkg740v9GjfF9PzV:/Bulk/Exome\ sequences/Exome\ OQFE\ CRAM\ files/
+7. dx download the 1000 youngest using the filepaths in step 5
+* mkdir 1000_youngest
+* cd 1000_youngest
+* cat ../filepaths_of_1000_youngest_final | xargs -I % dx download %
+8. upload the folder with the 1000 youngest
 
