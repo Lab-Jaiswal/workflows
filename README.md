@@ -59,3 +59,16 @@ add the flag --normal_sample followed *immediately* by the path to your normal s
 | `--min_coverage value`     |10            |`--min_coverage 100` to change the min_coverage to 100   |
 | `--min_var_freq value`     |0.001         | `--min_var_freq 0.01` to change the min_var_freq to 0.01|  
 | `--p_value value`          |0.1           | `--p_value .05` to change the p_value to 0.1            |  
+
+# Create Panel of Normals using the UkBioBank
+1. Use get_1000_youngest_with_crams_no_predispositions.R to get a list of the 1000 youngest with WES data and no CHIP predispositions (hx of malignant neoplasms, autoimmune disorders, or DMARD treatment
+2. Upload the resulting file to DNANexus
+3. dx run cloud_workstation -imax_session_length=10hr --ssh --brief -y --name "test"
+4. Download the 1000 youngest file list using: dx download project-G5B07V8JPkg740v9GjfF9PzV:/Bulk/Exome\ sequences/Exome\ OQFE\ CRAM\ files/top_1000_without_predis_with_crams
+4. Get a list of all of the file paths using 
+* dx ls --full project-G5B07V8JPkg740v9GjfF9PzV:/Bulk/Exome\ sequences/Exome\ OQFE\ CRAM\ files/ | xargs -I {} bash -c 'array=( $(dx ls --full "project-G5B07V8JPkg740v9GjfF9PzV:{}") ); printf "%s\n" "${array[@]/#/{}/}"' > all_file_paths
+* sed -e 's/\s/\\ /g' < all_file_paths > all_file_paths_fixed
+5. Filter out all filepaths to only list the 1000 youngest using:
+* grep -f top_1000_without_predis_with_crams < all_file_paths_fixed > filepaths_of_1000_youngest
+6. dx download the 1000 youngest using the filepaths in step 5
+
