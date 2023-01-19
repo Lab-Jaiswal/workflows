@@ -19,9 +19,7 @@ sed -e 's/^/project-G5B07V8JPkg740v9GjfF9PzV:/g' filepaths_of_1000_youngest_fixe
 dx upload filepaths_of_1000_youngest_final --path project-G5B07V8JPkg740v9GjfF9PzV:/Bulk/Exome\ sequences/Exome\ OQFE\ CRAM\ files/
 
 #dx download the 1000 youngest using the filepaths in step 5
+#upload the folder with the 1000 youngest
 mkdir 1000_youngest
 cd 1000_youngest
-cat ../filepaths_of_1000_youngest_final | xargs -I % dx download %
-
-#upload the folder with the 1000 youngest
-project-G5B07V8JPkg740v9GjfF9PzV:/1000_youngest
+cat ../filepaths_of_1000_youngest_final | xargs -I % bash -c 'dx download "%"; dx upload $(basename "%") --path project-G5B07V8JPkg740v9GjfF9PzV:/1000_youngest/; rm $(basename "%") '
