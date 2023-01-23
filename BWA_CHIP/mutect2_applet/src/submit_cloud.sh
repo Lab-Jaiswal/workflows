@@ -4,6 +4,7 @@ set -u
 function run_job() {
         cd $HOME
         git clone https://github.com/Lab-Jaiswal/workflows
+        git checkout 1000_youngest
         #git checkout build_applet
         #next two were commented out
         #curl -L -O https://github.com/Lab-Jaiswal/workflows/archive/build_applet.tar.gz
