@@ -12,7 +12,8 @@
     #exit 1
 else
 
-TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_prefix:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,file_extension:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,panel_of_normals:,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,realign,normal_pileups,file_list,split_by_chr \
+
+TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_prefix:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,panel_of_normals:,file_extension:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,realign,normal_pileups,file_list,split_by_chr \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
     
     if [[ mode == "slurm" ]]; then
@@ -329,10 +330,12 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
 	      echo "cd-ing into Inputs"  >> $parameter_file
                bash ${File_Lists}/download_file.sh
 	  else
-	       Input=~/Inputs
-	       mkdir -p $Input
-	       dx download -r $panel_of_normals -o $Input
-	       folder=$(find $Input -mindepth 1 -type d)
+	      Input=~/Inputs
+	      mkdir -p $Input
+	      dx download -r $panel_of_normals -o $Input
+	      folder=$(find $Input -mindepth 1 -type d) 
+	      find $folder -type f -print0 | xargs -0 mv -t $Input
+	  fi
                #file_list=$(basename $list_of_files)
                #echo "LIST OF FILES: $list_of_files"
                #echo "FILES LIST: $file_list"
