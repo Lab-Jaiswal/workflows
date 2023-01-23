@@ -12,7 +12,7 @@
     #exit 1
 else
 
-TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_prefix:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,file_extension:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,realign,normal_pileups,file_list,split_by_chr \
+TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_prefix:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,file_extension:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,panel_of_normals:,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,realign,normal_pileups,file_list,split_by_chr \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
     
     if [[ mode == "slurm" ]]; then
@@ -63,6 +63,7 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
         output_directory=false
         file_extension="bam"
         file_list=false
+	panel_of_normals=false
 
     while true; do
         case "$1" in
@@ -83,6 +84,7 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
             --docker_image ) docker_image="$2"; shift 2 ;;
             --container_engine ) container_engine="$2"; shift 2 ;;
             --n_jobs ) n_jobs="$2"; shift 2 ;;
+	    --panel_of_normals ) panel_of_normals="$2"; shift 2 ;;
             --remove_silent ) remove_silent="1"; shift ;;
             -m | --mutect ) get_mutect=true; shift ;;
             -v | --varscan ) get_varscan=true; shift ;;
@@ -305,6 +307,7 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
         fi
 	
          #if [[ -z "$(ls -A ~/Inputs)" ]]; then
+	 if [[ $panel_of_normals == false ]]; then
 	       echo "past the ls step" >> $parameter_file
                 File_Lists=~/file_lists
                 if [ ! -p ${File_Lists} ]; then
@@ -325,6 +328,11 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
 	       cd $INPUTS
 	      echo "cd-ing into Inputs"  >> $parameter_file
                bash ${File_Lists}/download_file.sh
+	  else
+	       Input=~/Inputs
+	       mkdir -p $Input
+	       dx download -r $panel_of_normals -o $Input
+	       folder=$(find $Input -mindepth 1 -type d)
                #file_list=$(basename $list_of_files)
                #echo "LIST OF FILES: $list_of_files"
                #echo "FILES LIST: $file_list"
