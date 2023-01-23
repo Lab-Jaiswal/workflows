@@ -21,8 +21,8 @@
            },
            {
             "name": "panel_of_normals",
-            "class": "str",
-            "default": false,
+            "class": "string",
+            "default": "false",
             "optional": true,
             "help": ""
            }
