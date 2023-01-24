@@ -187,7 +187,7 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
 
     echo "$reference_genome"
     echo "array_prefix: $array_prefix"
-    exit 1
+
     if [[ -z "$reference_genome" ]]; then
         echo "You must provide a path to the reference_genome in config.sh"
         exit 1
