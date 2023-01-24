@@ -306,7 +306,13 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
 	
          #if [[ -z "$(ls -A ~/Inputs)" ]]; then
 	 #if [[ $panel_of_normals == false ]]; then
-	       echo "past the ls step" >> $parameter_file
+	 if [[ ($array_prefix == *.sh) ]]; then
+	 	sed -i '1s*^*#!/bin/bash \n*' $array_prefix
+	 	array_prefix_path=$(realpath $array_prefix)
+		mv $array_prefix_path `echo $array_prefix_path |sed 's/\.txt//'``echo $array_prefix_path | sed 's/\(.*\.\)txt/\.sh/'`
+	 fi
+	 
+	        echo "past the ls step" >> $parameter_file
                 File_Lists=~/file_lists
                 if [ ! -p ${File_Lists} ]; then
                         mkdir -p ${File_Lists}
