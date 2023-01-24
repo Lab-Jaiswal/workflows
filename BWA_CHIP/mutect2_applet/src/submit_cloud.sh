@@ -124,7 +124,7 @@ function main() {
         
                 echo "submitting BWA_CHIP"
                 
-               job_id=$(dx-jobutil-new-job run_job -iarray_number=${i} -ibatch_size=${batch_size} -ifile_list=${file_list}--instance-type mem3_ssd1_v2_x96)
+               job_id=$(dx-jobutil-new-job run_job -iarray_number=${i} -ibatch_size=${batch_size} -ifile_list=${file_list} --instance-type mem3_ssd1_v2_x96)
                echo "job_id: $job_id"
                dx-jobutil-add-output Outputs_folder "${job_id}:Outputs_tar" --class=jobref --array
 
