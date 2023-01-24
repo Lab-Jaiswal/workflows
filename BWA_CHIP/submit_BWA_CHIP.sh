@@ -186,7 +186,8 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
     fi
 
     echo "$reference_genome"
-
+    echo "array_prefix: $array_prefix"
+    exit 1
     if [[ -z "$reference_genome" ]]; then
         echo "You must provide a path to the reference_genome in config.sh"
         exit 1
@@ -314,8 +315,9 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
 		array_prefix=$(realpath $array_prefix_sh)
 		default_file=false
 	 else
-		default_file=true
+		 default_file=true
 	 fi
+	 echo "default_file: $default_file"
 	        echo "past the ls step" >> $parameter_file
                 File_Lists=~/file_lists
                 if [ ! -p ${File_Lists} ]; then
@@ -329,13 +331,12 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
 	       echo "array_prefix= $array_prefix"  >> $parameter_file
                Folder_Number=$(echo $list_of_files | grep -oP '(?<=_).*(?=_)')
                echo "Folder_Number= $Folder_Number"  >> $parameter_file
-	   if [[ $default_file == true ]]; then
-               sed -e "1 ! s@^@dx\ download\ project-G5B07V8JPkg740v9GjfF9PzV:/Bulk/Exome\\\ sequences/Exome\\\ OQFE\\\ CRAM\\\ files/${Folder_Number}/@" ${array_prefix} > download_file.sh
-           else 
-	        sed -e "1 ! s@^@dx\ download\ project-G5B07V8JPkg740v9GjfF9PzV:/1000_youngest/@" ${array_prefix} > download_file.sh
-	   fi
-
-	      echo "head" >> $parameter_file
+          if [[ $default_file == true ]]; then
+	       sed -e "1 ! s@^@dx\ download\ project-G5B07V8JPkg740v9GjfF9PzV:/Bulk/Exome\\\ sequences/Exome\\\ OQFE\\\ CRAM\\\ files/${Folder_Number}/@" ${array_prefix} > download_file.sh
+          else
+	 	sed -e "1 ! s@^@dx\ download\ project-G5B07V8JPkg740v9GjfF9PzV:/1000_youngest/@" ${array_prefix} > download_file.sh
+	  fi
+	       echo "head" >> $parameter_file
 	       head=$(head -n 10 download_file.sh)
 	       echo "$head"  >> $parameter_file
 	       cd $INPUTS
