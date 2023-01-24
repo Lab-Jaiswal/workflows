@@ -12,6 +12,7 @@
     #exit 1
 else
 
+
 TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_prefix:,min_var_freq:,p_value:,intervals:,normal_sample:,log_name:,file_extension:,reference_genome:,panel:,assembly:,funcotator_sources:,transcript_list:,mode:,docker_image:,container_engine:,sequence_dictionary:,chr_intervals:,normal_pileups:,n_jobs:,gnomad_genomes:,remove_silent,mutect,varscan,haplotypecaller,all,skip_funcotator,no_bam_out,realign,normal_pileups,file_list,split_by_chr \
     -n 'submit_BWA_CHIP.sh' -- "$@"`
     
