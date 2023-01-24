@@ -312,6 +312,9 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
 		cp $array_prefix_path `echo $array_prefix_path |sed 's/\.txt//'``echo $array_prefix_path | sed 's/\(.*\.\)txt/\.sh/'`
 		array_prefix_sh=$(ls ${array_prefix_path/txt/sh})
 		array_prefix=$(realpath $array_prefix_sh)
+		default_file=false
+	 else
+		default_file=true
 	 fi
 	        echo "past the ls step" >> $parameter_file
                 File_Lists=~/file_lists
@@ -326,8 +329,13 @@ TEMP=`getopt -o vdm: --long min_coverage:,input:,output:,working_dir:,array_pref
 	       echo "array_prefix= $array_prefix"  >> $parameter_file
                Folder_Number=$(echo $list_of_files | grep -oP '(?<=_).*(?=_)')
                echo "Folder_Number= $Folder_Number"  >> $parameter_file
+	   if [[ $default_file == true ]]; then
                sed -e "1 ! s@^@dx\ download\ project-G5B07V8JPkg740v9GjfF9PzV:/Bulk/Exome\\\ sequences/Exome\\\ OQFE\\\ CRAM\\\ files/${Folder_Number}/@" ${array_prefix} > download_file.sh
-               echo "head" >> $parameter_file
+           else 
+	        sed -e "1 ! s@^@dx\ download\ project-G5B07V8JPkg740v9GjfF9PzV:/1000_youngest/@" ${array_prefix} > download_file.sh
+	   fi
+
+	      echo "head" >> $parameter_file
 	       head=$(head -n 10 download_file.sh)
 	       echo "$head"  >> $parameter_file
 	       cd $INPUTS
