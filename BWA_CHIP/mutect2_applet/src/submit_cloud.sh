@@ -31,29 +31,55 @@ function run_job() {
                 cd ${File_Lists}
         fi
         
-        meta_file_list=~/file_lists/meta_filelist.txt
+        #meta_file_list=~/file_lists/meta_filelist.txt
+        meta_file_list=$file_list
 
-        if [ ! -f ${meta_file_list} ]; then
-                dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/meta_filelist.txt
-        fi
+        #if [ ! -f ${meta_file_list} ]; then
+                #dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/meta_filelist.txt
+                dx download -r "$file_list" -f
+		echo "just downloaded file_list"
+                file_list_name=$(ls -Art | tail -n 1)
+                if grep -q sh "$file_list_name"; then
+                        meta_list=true
+                else
+                        meta_list=false
+                fi
+        #fi
         
-        ARRAY_PREFIX="$(sed "${array_number}q; d" "${meta_file_list}")"
-        echo "number: $array_number"
-        ARRAY_PREFIX="$(basename ${ARRAY_PREFIX})"
+        if [[ meta_list == true ]]; then
+                ARRAY_PREFIX="$(sed "${array_number}q; d" "${meta_file_list}")"
+                echo "number: $array_number"
+                ARRAY_PREFIX="$(basename ${ARRAY_PREFIX})"
 
-        list_of_samples=~/file_lists/${ARRAY_PREFIX}
-        if [ ! -f ${list_of_samples} ]; then
-                 cd ${File_Lists}
-                 dx download -r "project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/${ARRAY_PREFIX}"
-                 mkdir -p ~/Inputs
-                filtered_list_of_samples=~/Inputs/${ARRAY_PREFIX}
+                list_of_samples=~/file_lists/${ARRAY_PREFIX}
+                if [ ! -f ${list_of_samples} ]; then
+                         cd ${File_Lists}
+			 echo "about to download"
+                         dx download -r "project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/${ARRAY_PREFIX}"
+                         echo "just downloaded"
+			 ls
+			 mkdir -p ~/Inputs
+                        filtered_list_of_samples=~/Inputs/${ARRAY_PREFIX}
+			
+                         if [[ $batch_size != 0 ]]; then
+                                head -n $batch_size $list_of_samples > $filtered_list_of_samples
+                         else
+                                cp $list_of_samples $filtered_list_of_samples
+                         fi
 
-                 if [[ $batch_size != 0 ]]; then
-                        head -n $batch_size $list_of_samples > $filtered_list_of_samples
-                 else
-                        cp $list_of_samples $filtered_list_of_samples
-                 fi
-                 
+                fi
+        else
+                mkdir -p ~/Inputs
+                filtered_list_of_samples=~/Inputs/$file_list_name
+                if [[ $batch_size != 0 ]]; then
+			ls
+			real_path=$(realpath .)
+			echo "real_path: $real_path"
+			head -n $batch_size $file_list_name > $filtered_list_of_samples
+                else
+                        cp $file_list_name $filtered_list_of_samples
+                fi
+                                
         fi
        
         cd ~
@@ -105,7 +131,7 @@ function main() {
         
                 echo "submitting BWA_CHIP"
                 
-               job_id=$(dx-jobutil-new-job run_job -iarray_number=${i} -ibatch_size=${batch_size} --instance-type mem3_ssd1_v2_x96)
+               job_id=$(dx-jobutil-new-job run_job -iarray_number=${i} -ibatch_size=${batch_size} -ifile_list=${file_list} --instance-type mem3_ssd1_v2_x96)
                echo "job_id: $job_id"
                dx-jobutil-add-output Outputs_folder "${job_id}:Outputs_tar" --class=jobref --array
 
