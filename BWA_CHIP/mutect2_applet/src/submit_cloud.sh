@@ -34,16 +34,17 @@ function run_job() {
         #meta_file_list=~/file_lists/meta_filelist.txt
         meta_file_list=$file_list
 
-        if [ ! -f ${meta_file_list} ]; then
+        #if [ ! -f ${meta_file_list} ]; then
                 #dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/meta_filelist.txt
-                dx download -r $file_list -f
-                file_list_name=$(basename $file_list)
+                dx download -r "$file_list" -f
+		echo "just downloaded file_list"
+                file_list_name=$(ls -Art | tail -n 1)
                 if grep -q sh "$file_list_name"; then
                         meta_list=true
                 else
                         meta_list=false
                 fi
-        fi
+        #fi
         
         if [[ meta_list == true ]]; then
                 ARRAY_PREFIX="$(sed "${array_number}q; d" "${meta_file_list}")"
@@ -53,10 +54,13 @@ function run_job() {
                 list_of_samples=~/file_lists/${ARRAY_PREFIX}
                 if [ ! -f ${list_of_samples} ]; then
                          cd ${File_Lists}
+			 echo "about to download"
                          dx download -r "project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/${ARRAY_PREFIX}"
-                         mkdir -p ~/Inputs
+                         echo "just downloaded"
+			 ls
+			 mkdir -p ~/Inputs
                         filtered_list_of_samples=~/Inputs/${ARRAY_PREFIX}
-
+			
                          if [[ $batch_size != 0 ]]; then
                                 head -n $batch_size $list_of_samples > $filtered_list_of_samples
                          else
@@ -68,7 +72,10 @@ function run_job() {
                 mkdir -p ~/Inputs
                 filtered_list_of_samples=~/Inputs/$file_list_name
                 if [[ $batch_size != 0 ]]; then
-                        head -n $batch_size $file_list_name > $filtered_list_of_samples
+			ls
+			real_path=$(realpath .)
+			echo "real_path: $real_path"
+			head -n $batch_size $file_list_name > $filtered_list_of_samples
                 else
                         cp $file_list_name $filtered_list_of_samples
                 fi
