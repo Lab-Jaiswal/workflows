@@ -24,10 +24,10 @@ command_args <- commandArgs(trailingOnly = TRUE)
 panel_coordinates <- command_args[1]
 varscan_directory <- command_args[2]
 
-varscan_files <- list.files(varscan_directory, pattern = "*multianno.txt", full.names = TRUE)
+varscan_files <- list.files(varscan_directory, pattern = "*multianno.txt", full.names = TRUE, recursive = TRUE)
 varscan_data_list <- map(varscan_files, read_tsv, skip = 1, col_names = F)
 
-sample_names <- list.files(varscan_directory, pattern = "*multianno.txt") %>% str_remove_all("_.*$")
+sample_names <- list.files(varscan_directory, pattern = "*multianno.txt", recursive = TRUE) %>% str_remove_all("_.*$")
 names(varscan_data_list) <- sample_names
 
 varscan_data <- bind_rows(varscan_data_list, .id = "Sample")
@@ -43,6 +43,15 @@ varscan_info <- select(varscan_data, X23) %>% separate(X23, sep = ":", into = va
 varscan_data_basic$VAF <- str_remove_all(varscan_info$FREQ, "%") %>% as.numeric %>% divide_by(100) %>% signif(digits = 5)
 
 varscan_final <- bind_cols(varscan_data_basic, varscan_data_other, varscan_info)
+varscan_nofilter_file <- str_c(varscan_directory, "/varscan_aggregated_nofilter.tsv")
+varscan_nofilter <- varscan_final
+varscan_aachange_nofilter <- str_split(varscan_nofilter$AAChange.ensGene, ",") %>%
+    map(str_split, ":") %>% map(reduce, rbind) %>% map(MakeTibble) 
+
+varscan_nofilter$AAChange_split <- varscan_aachange_nofilter
+# Use the unnest command to create separate rows
+varscan_nofilter %<>% select(-AAChange.ensGene) %>% unnest(AAChange_split)
+write_tsv(varscan_nofilter, varscan_nofilter_file)
 
 # Get twist panel (in same folder as aggregate variants mutect script)
 twist_panel <- read_excel(panel_coordinates, col_names = F)

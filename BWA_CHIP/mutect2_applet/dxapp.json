@@ -20,16 +20,73 @@
             "help": ""
            },
            {
-            "name": "file_list",
+            "name": "sample_list",
             "class": "string",
-            "default": "project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/meta_filelist.txt",
+            "default": "",
+            "optional": true,
+            "help": ""
+           },
+           {
+            "name": "meta_sample_list",
+            "class": "boolean",
+            "default": "meta_filelist.txt",
+            "optional": true,
+            "help": ""
+           },
+           {
+            "name": "sample_directory",
+            "class": "string",
+            "default": "Bulk/Exome sequences/Exome OQFE CRAM files",
+            "optional": true,
+            "help": ""
+           },
+           {
+            "name": "sample_list_directory",
+            "class": "string",
+            "default": "sample_lists",
+            "optional": true,
+            "help": ""
+           },
+           {
+            "name": "references_directory",
+            "class": "string",
+            "default": "references",
+            "optional": true,
+            "help": ""
+           },
+           {
+            "name": "input_directory",
+            "class": "string",
+            "default": "inputs",
+            "optional": true,
+            "help": ""
+           },
+           {
+            "name": "output_directory",
+            "class": "string",
+            "default": "outputs",
+            "optional": true,
+            "help": ""
+           },
+           {
+            "name": "project_id",
+            "class": "string",
+            "default": "project-G5B07V8JPkg740v9GjfF9PzV",
+            "optional": true,
+            "help": ""
+           },
+           {
+            "name": "n_jobs",
+            "class": "int",
+            "default": 1,
             "optional": true,
             "help": ""
            }
+           
   ],
   "outputSpec": [
     {
-      "name": "Outputs_folder",
+      "name": "outputs_folder",
       "class": "array:file",
       "help": ""
     }
@@ -43,11 +100,6 @@
     "interpreter": "bash",
     "file": "src/submit_cloud.sh",
     "distribution": "Ubuntu",
-    "execDepends":[
-      {"name": "bcftools"},
-      {"name": "samtools"},
-      {"name": "tabix"}
-    ],
     "release": "20.04",
     "version": "0"
   },

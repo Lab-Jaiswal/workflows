@@ -1,142 +1,103 @@
-#!/bin/bash
-set -u
+#!/usr/bin/env bash
+
+# Set bash options for verbose output and to fail immediately on errors or if variables are undefined.
+set -o xtrace -o nounset -o pipefail -o errexit
 
 function run_job() {
-        cd $HOME
-        git clone https://github.com/Lab-Jaiswal/workflows
-        #git checkout build_applet
-        #next two were commented out
-        #curl -L -O https://github.com/Lab-Jaiswal/workflows/archive/build_applet.tar.gz
-        #tar xzf build_applet.tar.gz 
-        #array_number=${1}
-        #batch_size=${2}
-        batch_size=$(( 2*batch_size ))
-        batch_size=$(( 1+batch_size ))
-        
-        #dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/workflows
-        #if [ ! -d ~/workflows/BWA_CHIP ]; then
-            #echo "it was not downloaded"
-            #exit 1
-        #fi
-        
-        #if [ ! -f ~/workflows/BWA_CHIP/submit_BWA_CHIP.sh ]; then
-            #echo "submit_BWA_CHIP.sh was not downloaded"
-            #exit 1
-        #fi
+    export PATH="${HOME}/.local/bin:${PATH}"
+    curl micro.mamba.pm/install.sh | bash
+    micromamba shell init --shell=bash ${HOME}/micromamba
+    export MAMBA_EXE="${HOME}/.local/bin/micromamba"
+    export MAMBA_ROOT_PREFIX="${HOME}/micromamba"
+    . "${HOME}/micromamba/etc/profile.d/micromamba.sh"
+    micromamba activate
+    micromamba config prepend channels defaults
+    micromamba config prepend channels bioconda
+    micromamba config prepend channels conda-forge
+    micromamba config prepend channels dnachun
+    micromamba config set auto_activate_base true
+    micromamba install --yes \
+        bash \
+        coreutils \
+        git \
+        grep \
+        parallel \
+        sed \
+        tar \
+        util-linux
+    micromamba create -n gatk gatk4
+    conda init bash
+    . $HOME/micromamba/etc/profile.d/conda.sh
+    mamba init bash
+    conda config --set auto_stack 1
 
+    cd "${HOME}"
+    git clone --branch refactor1 https://github.com/Lab-Jaiswal/workflows
+    batch_size=$(( 2*batch_size ))
+    batch_size=$(( 1+batch_size ))
 
-        File_Lists=~/file_lists
-        if [ ! -d ${File_Lists} ]; then
-                mkdir -p ${File_Lists}
-                cd ${File_Lists}
-        fi
-        
-        #meta_file_list=~/file_lists/meta_filelist.txt
-        meta_file_list=$file_list
+    # Download references
+    local_references_directory="${HOME}/${references_directory}"
+    dx download --recursive --overwrite "${project_id}:/${references_directory}/" --output "${local_references_directory}"
+    
+    # Download list of files if provided
+    # If a meta list is provided instead, download the file list from the meta list by extracting the row corresponding the array number.
+    local_sample_list_directory="${HOME}/${sample_list_directory}"
+    mkdir -p "${local_sample_list_directory}"
+    local_sample_list="${local_sample_list_directory}/initial_sample_list"
 
-        #if [ ! -f ${meta_file_list} ]; then
-                #dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/meta_filelist.txt
-                dx download -r "$file_list" -f
-		echo "just downloaded file_list"
-                file_list_name=$(ls -Art | tail -n 1)
-                if grep -q sh "$file_list_name"; then
-                        meta_list=true
-                else
-                        meta_list=false
-                fi
-        #fi
-        
-        if [[ meta_list == true ]]; then
-                ARRAY_PREFIX="$(sed "${array_number}q; d" "${meta_file_list}")"
-                echo "number: $array_number"
-                ARRAY_PREFIX="$(basename ${ARRAY_PREFIX})"
+    if [[ -z ${sample_list} ]] && [[ -n ${meta_sample_list} ]]; then
+        sample_list=$(sed "${array_number}"q; d "${meta_sample_list}")
+    fi
+    dx download --recursive --overwrite "${project_id}:/${sample_list}" --output "${local_sample_list}"
 
-                list_of_samples=~/file_lists/${ARRAY_PREFIX}
-                if [ ! -f ${list_of_samples} ]; then
-                         cd ${File_Lists}
-			 echo "about to download"
-                         dx download -r "project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/${ARRAY_PREFIX}"
-                         echo "just downloaded"
-			 ls
-			 mkdir -p ~/Inputs
-                        filtered_list_of_samples=~/Inputs/${ARRAY_PREFIX}
-			
-                         if [[ $batch_size != 0 ]]; then
-                                head -n $batch_size $list_of_samples > $filtered_list_of_samples
-                         else
-                                cp $list_of_samples $filtered_list_of_samples
-                         fi
+    local_input_directory="${HOME}/${input_directory}"
+    mkdir -p "${local_input_directory}"
+    filtered_list_of_samples="${local_input_directory}/filtered_list_of_samples"
 
-                fi
-        else
-                mkdir -p ~/Inputs
-                filtered_list_of_samples=~/Inputs/$file_list_name
-                if [[ $batch_size != 0 ]]; then
-			ls
-			real_path=$(realpath .)
-			echo "real_path: $real_path"
-			head -n $batch_size $file_list_name > $filtered_list_of_samples
-                else
-                        cp $file_list_name $filtered_list_of_samples
-                fi
-                                
-        fi
+    if [[ ${batch_size} != 0 ]]; then
+        head -n ${batch_size} "${local_sample_list}" > "${filtered_list_of_samples}"
+    else
+        cp "${local_sample_list}" "${filtered_list_of_samples}"
+    fi
+
+    xargs --replace=% bash -c "dx download --overwrite ${project_id}:/${sample_directory}/% --output ${local_input_directory}/%" < "${filtered_list_of_samples}"
        
-        cd ~
-        LOGS=~/Outputs/Logs
-        if [ ! -d $LOGS ]; then
-                 mkdir -p ${LOGS}
-        fi
-        log_file="${LOGS}/job_${array_number}.log"
+    #cd ~
+    #LOGS=~/Outputs/Logs
+    #if [ ! -d $LOGS ]; then
+             #mkdir -p ${LOGS}
+    #fi
+    #log_file="${LOGS}/job_${array_number}.log"
         
-        echo "command to run:" >> $log_file
-        echo "bash $HOME/workflows/BWA_CHIP/submit_BWA_CHIP.sh --working_dir $HOME --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix '${filtered_list_of_samples}'" >> $log_file
-      #commented out below because not needed for test
-       #cd ~/workflows/BWA_CHIP
-       bash $HOME/workflows/BWA_CHIP/submit_BWA_CHIP.sh --working_dir $HOME --file_extension cram --mutect --container_engine docker --mode cloud --array_prefix "${filtered_list_of_samples}" --n_jobs 96 #&>${log_file}
-       cd $HOME
-       echo "$HOME" >> $log_file
-       echo "filtered_list_of_samples: $filtered_list_of_samples" >> $log_file
-       Output_Dir=~/Outputs
-       #below line is a test to see if the file lists are even downloading
-       #Output_Dir=~/workflows
-       echo "Output Dir: $Output_Dir" >> $log_file
-       Output_tar=Outputs_${array_number}.tar
-       tar cf $Output_tar $Output_Dir
-       Outputs_folder_id=$(dx upload $Output_tar --brief)
-       dx-jobutil-add-output Outputs_tar "${Outputs_folder_id}" --class=file
+    "${HOME}"/workflows/BWA_CHIP/submit_BWA_CHIP.sh --n_jobs "${n_jobs}"
+    local_output_directory="${HOME}/${output_directory}"
+    output_tar="${HOME}/outputs_${array_number}.tar"
+    tar --create --file "${output_tar}" "${local_output_directory}"
+    outputs_folder_id=$(dx upload "${output_tar}" --brief)
+    dx-jobutil-add-output outputs_tar "${outputs_folder_id}" --class=file
 }
 
 function main() {
-        dx-download-all-inputs 
-        
-        
-        if [[ ${number_of_batches} = 0 ]]; then
-                File_Lists=~/file_lists
-                if [ ! -d ${File_Lists} ]; then
-                        mkdir -p ${File_Lists}
-                        cd ${File_Lists}
-                fi
-        
-                meta_file_list=~/file_lists/meta_filelist.txt
+    dx-download-all-inputs 
+    
+    if [[ ${number_of_batches} == 0 && -n ${meta_sample_list} ]]; then
+        local_sample_list_directory="${HOME}/${sample_list_directory}"
+        mkdir -p "${local_sample_list_directory}"
 
-                if [ ! -f ${meta_file_list} ]; then
-                        dx download -r project-G5B07V8JPkg740v9GjfF9PzV:/File_Lists/meta_filelist.txt
-                fi
-                
-                number_of_batches=$( wc -l $meta_file_list )
-         fi
-                
-        for i in $(seq 1 ${number_of_batches}); do
+        meta_sample_list="${sample_list_directory}/${meta_sample_list}"
+        local_meta_sample_list="${local_sample_list_directory}/${meta_sample_list}"
+
+        dx download --recursive --overwrite "${project_id}:/${meta_sample_list}" --output "${local_meta_sample_list}"
         
-                echo "submitting BWA_CHIP"
+        number_of_batches=$( wc -l "${meta_sample_list}" )
+    elif [[ ${number_of_batches} != 0 && -z ${meta_sample_list} ]]; then
+        echo "Error: a meta sample list must be provided if the number of batches is greater than 1"
+        exit 1
+    fi
                 
-               job_id=$(dx-jobutil-new-job run_job -iarray_number=${i} -ibatch_size=${batch_size} -ifile_list=${file_list} --instance-type mem3_ssd1_v2_x96)
-               echo "job_id: $job_id"
-               dx-jobutil-add-output Outputs_folder "${job_id}:Outputs_tar" --class=jobref --array
-
-        done
-
+    for array_number in $(seq 1 "${number_of_batches}"); do
+        job_id=$(dx-jobutil-new-job run_job -iarray_number="${array_number}" -ibatch_size="${batch_size}" -isample_list="${sample_list}" -imeta_sample_list="${meta_sample_list}" -isample_directory="${sample_directory}" -isample_list_directory="${sample_list_directory}" -ireference_directory="${references_directory}" -iinput_directory="${input_directory}" -iproject_id="${project_id}" -in_jobs="${n_jobs}" --instance-type mem3_ssd1_v2_x96)
+        dx-jobutil-add-output outputs_folder "${job_id}:outputs_tar" --class=jobref --array
+    done
 }
-
-#main $1

@@ -1,83 +1,73 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-echo "entering mutect script"
+# Run scripts to enable activating conda environments
+. "${HOME}/micromamba/etc/profile.d/conda.sh"
+. "${HOME}/micromamba/etc/profile.d/mamba.sh"
+mamba activate base
 
-SAMPLE_NAME=$1
-BWA_GREF=$2
-PARAMETER_FILE="${3}"
-OUTPUTS=${4}
-OUTPUT_DIRECTORY=${5}
-NORMAL_SAMPLE=${6}
-NORMAL_PILEUPS=${7}
-MODE=${8}
-LINE_NUMBER=${9}
-CONTAINER_ENGINE=${10}
-GATK_COMMAND=${11}
+set -o xtrace -o nounset -o pipefail -o errexit
 
-if [ $LINE_NUMBER -eq 1 ]; then
-         echo "arguments used for the mutect.sh script:
-               SAMPLE_NAME=$1
-               BWA_GREF=$2
-               PARAMETER_FILE=${3}
-               OUTPUTS=${4}
-               OUTPUT_DIRECTORY=${5}
-               NORMAL_SAMPLE=${6}
-               NORMAL_PILEUPS=${7}
-               MODE=${8}
-               LINE_NUMBER=${9}
-               CONTAINER_ENGINE=${10}
-               GATK_COMMAND=${11}
-                " >> $PARAMETER_FILE
-fi
+# Parse command line arguments with getopt
+arguments=$(getopt --options a --longoptions vcf_file:,pileups_table:,normal_pileups_table:,orientation_bias_priors:,reference_genome:,gatk_command: --name 'mutect_filter' -- "$@")
+eval set -- "${arguments}"
 
-cd $OUTPUTS
+check_for_file() {
+    argument_name="${1}"
+    file_path="${2}"
+    if [[ ${file_path} != false ]] && [[ ! -f ${file_path} ]]; then
+        echo "Error: file ${file_path} passed with ${argument_name} does not exist."
+        exit 1
+    fi
+}
 
-if [[ $MODE = "slurm" ]]; then
-    OUTPUT_NAME="${OUTPUTS}/${SAMPLE_NAME}"
-    echo "OUTPUT_NAME" $OUTPUT_NAME
+while true; do
+    case "${1}" in 
+        --vcf_file )
+            vcf_file="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --pileups_table )
+            pileups_table="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --normal_pileups_table )
+            normal_pileups_table="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --orientation_bias_priors )
+            orientation_bias_priors="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --reference_genome )
+            reference_genome="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --gatk_command )
+            gatk_command="${2}"; shift 2 ;;
+        --)
+            shift; break;;
+    esac
+done
+
+optional_args=""
+sample_name=$(echo "${vcf_file}" | sed -e 's/_mutect2.vcf//g' )
+
+# Calculate germline contamination using pileups at known common germline variants.
+if [[ ! -f "${sample_name}_contamination.table" ]] ; then
+    if [[ "${normal_pileups_table}" != false ]]; then
+        optional_args="--matched-normal ${normal_pileups_table}"
+    fi
+
+    echo "Getting contamination rate with CalculateContamination..."
+    ${gatk_command} CalculateContamination \
+        --input "${pileups_table}" \
+        ${optional_args} \
+        --output "${sample_name}_contamination.table"
+    echo "...contamination rate calculated."
 else
-    OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
-    echo "OUTPUT_NAME: $OUTPUT_NAME"
+    echo "Contamination rate already calculated in: ${sample_name}_contamination.table "
 fi
 
-if [[ $CONTAINER_ENGINE = "singularity" ]]; then
-         #INPUT_NAME="${SAMPLE_NAME}"
-         INPUT_NAME="${OUTPUT_NAME}"
-else
-         INPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
-fi
-
-# Move these two sections to mutect_filter.sh
-if [[ ! -f "${OUTPUT_NAME}_contamination.table" ]] ; then
-    INPUTS="${INPUT_NAME}_pileups.table"
-
-    # Uncomment this when testing tumor-normal
-    #if [ "${NORMAL_SAMPLE}" != "false" ]; then
-        #INPUTS="${INPUTS} -matched ${NORMAL_PILEUPS}"
-    #fi
-
-    echo "Getting contamination rate with CalculateContamination"
-    ${GATK_COMMAND} CalculateContamination \
-        --input "${INPUTS}" \
-        --output "${INPUT_NAME}_contamination.table"
-else
-    echo "Contamination rate already calculated."
-    echo "Contamination table: ${INPUT_NAME}_contamination.table "
-fi
-
-if [ ! -f "${OUTPUT_NAME}_mutect2_filter.vcf" ]; then
+# Add FILTER column to Mutect2 VCF to identify variants which pass or fail filters.
+if [[ ! -f "${sample_name}_mutect2_filtered.vcf" ]]; then
     echo "Filtering somatic variants with FilterMutectCalls..."
-    ${GATK_COMMAND} FilterMutectCalls \
-        --variant "${INPUT_NAME}_mutect2.vcf" \
-        --output "${INPUT_NAME}_mutect2_filter.vcf" \
-        --contamination-table ${INPUT_NAME}_contamination.table \
-        --ob-priors  ${INPUT_NAME}_mutect2_artifact_prior.tar.gz \
-        --reference "${BWA_GREF}"
-    #need to change so is dependent on if need contamination, CANNOT USE QOUTE TRICK
-
+    ${gatk_command} FilterMutectCalls \
+        --variant "${vcf_file}" \
+        --output "${sample_name}_mutect2_filtered.vcf" \
+        --contamination-table "${sample_name}_contamination.table" \
+        --ob-priors  "${orientation_bias_priors}" \
+        --reference "${reference_genome}"
     echo "...somatic variants filtered."
 else
     echo "Mutect2 somatic variants already filtered"
 fi
-
-echo "mutect_filter.sh complete"
