@@ -11,7 +11,7 @@ set -o xtrace -o nounset -o pipefail -o errexit
 check_for_file() {
     argument_name="${1}"
     file_path="${2}"
-    if [[ ${file_path} != false ]] && [[ ! -f ${file_path} ]]; then
+    if [[ -n ${file_path} ]] && [[ ! -f ${file_path} ]]; then
         echo "Error: file ${file_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -20,55 +20,68 @@ check_for_file() {
 check_for_directory() {
     argument_name="${1}"
     directory_path="${2}"
-    if [[ ${directory_path} != false ]] && [[ ! -d ${directory_path} ]]; then
+    if [[ -n ${directory_path} ]] && [[ ! -d ${directory_path} ]]; then
         echo "Error: directory ${directory_path} passed with ${argument_name} does not exist."
         exit 1
     fi
 }
 
 ##################################################################################################################################
-#############################################---STEP 1: SET UP PARAMETERS---######################################################
+#############################################---Step 1: set up parameters---######################################################
 ##################################################################################################################################
 
-arguments=$(getopt --options a --longoptions config_file:,input_directory:,input_file_list:,output_directory:,bam_extension:,fastq_extension:,assembly:,reference_genome:,slurm_mode,slurm_runtime:,slurm_account:,slurm_ncpus:,slurm_memory:,slurm_jobname:,mutect,interval_list:,split_intervals,sequence_dictionary:,mutect_bam_output,gnomad_reference:,normal_bam:,normal_pileups_table:,skip_funcotator,funcotator_sources:,transcript_list:,varscan,mpileup_interval_bed:,varscan_min_coverage:,varscan_min_var_freq:,varscan_max_pvalue:,skip_annovar,annovarroot:,haplotypecaller,germline_snps:,all,n_jobs:,remove_silent,realign --name 'submit_BWA_CHIP.sh' -- "$@")
+options_array=(
+    config_file
+    input_directory
+    input_file_list
+    output_directory
+    bam_extension
+    fastq_extension
+    assembly
+    reference_genome
+    slurm_runtime
+    slurm_account
+    slurm_ncpus
+    slurm_memory
+    slurm_jobname
+    interval_list
+    sequence_dictionary
+    gnomad_reference
+    normal_bam
+    normal_pileups_table
+    funcotator_sources
+    transcript_list
+    mpileup_interval_bed
+    varscan_min_coverage
+    varscan_min_var_freq
+    varscan_max_pvalue
+    annovarroot
+    germline_snps
+    n_jobs
+)
+
+flags_array=(
+    slurm_mode
+    run_mutect
+    run_varscan
+    run_haplotypecaller
+    all
+    mutect_bam_output
+    run_annovar
+    run_funcotator
+    split_intervals
+    realign
+)
+
+options_joined=$(echo "${options_array[@]}" | sed -e 's/ /:,/g')
+flags_joined=$(echo "${flags_array[@]}" | tr ' ' ',')
+longoptions="${options_joined}:,${flags_joined}"
+
+arguments=$(getopt --options a --longoptions "${longoptions}" --name 'submit_BWA_CHIP.sh' -- "$@")
 eval set -- "${arguments}"
-    
-config_file=false
-input_directory=false
-input_file_list=false
-output_directory=false
-bam_extension=false
-fastq_extension=false
-assembly=false
-reference_genome=false
-slurm_mode=false
-slurm_runtime=false
-slurm_account=false
-slurm_ncpus=false
-slurm_memory=false
-slurm_jobname=false
-run_mutect=false
-interval_list=false
-split_intervals=false
-sequence_dictionary=false
-mutect_bam_output=true
-gnomad_reference=false
-normal_bam=false
-normal_pileups_table=false
-run_funcotator=true
-funcotator_sources=false
-transcript_list=true
-run_varscan=false
-mpileup_interval_bed=false
-varscan_min_coverage=false
-varscan_min_var_freq=false
-varscan_max_pvalue=false
-run_annovar=true
-annovarroot=false
-run_haplotypecaller=false
-germline_snps=false
-n_jobs=1
-realign=false
+
+printf "%s\n" "${options_array[@]}" | xargs --replace=% declare %
+printf "%s\n" "${flags_array[@]}" | xargs --replace=% declare %=false
 
 while true; do
     case "$1" in
@@ -79,8 +92,7 @@ while true; do
     esac
 done
 
-code_directory=$(realpath .)
-if [[ ${config_file} != false ]]; then
+if [[ -n ${config_file} ]]; then
     source "${config_file}"
 fi
 
@@ -167,72 +179,61 @@ while true; do
     esac
 done
 
-
-#if [[ ${input_directory} == false ]] && [[ ${input_file_list} == false ]]; then
+#if [[ -z ${input_directory}  ]] && [[ -z ${input_file_list} ]]; then
     #echo "Error: an input directory or input file list must be provided as arguments (--input_directory [input directory] or --input_file_list [input file list]) or defined in a config file (input_directory=[input directory] or input_file_list=[input file list])"
     #exit 1
 #fi
 
-#if [[ ${output_directory} == false ]] && [[ ${slurm_mode} == true ]]; then
+#if [[ -z ${output_directory} ]] && [[ ${slurm_mode} == true ]]; then
     #echo "Warning: running in SLURM mode (--slurm_mode was provided as an argument or slurm_mode was set to true in a config file) without a dedicated output directory (--output_directory [output directory] was not provided as an argument and output_directory=[output directory] was not defined in a config file).  All output will be sent to $HOME, which usually has a low storage quota on HPC systems."
 #fi
 
-#if [[ ${bam_extension} == false ]] && [[ ${fastq_extension} == false ]]; then
+#if [[ -z ${bam_extension} ]] && [[ -z ${fastq_extension} ]]; then
     #echo "Error: a file extension must be provided as an argument (--bam_extension [BAM file extension] or --fastq_extension [FASTQ file extension]) or defined in a config file (bam_extension=[BAM file extension] or fastq_extension=[FASTQ file extension])"
     #exit 1
 #fi
 
-#if [[ ${bam_extension} != false ]] && [[ ${fastq_extension} != false ]]; then
+#if [[ -n ${bam_extension} ]] && [[ -n ${fastq_extension} ]]; then
     #echo "Error: only a file extension for BAM/CRAM or FASTQ files may be provided as an argument (--bam_extension [BAM file extension] or --fastq_extension [FASTQ file extension]) or defined in a config file (bam_extension=[BAM file extension] or fastq_extension=[FASTQ file extension])"
     #exit 1
 #fi
 
-#if [[ ${bam_extension} != "bam" ]] && [[ ${bam_extension} != "cram" ]] && [[ ${bam_extension} != false ]]; then
+#if [[ ${bam_extension} != "bam" ]] && [[ ${bam_extension} != "cram" ]] && [[ -n ${bam_extension} ]]; then
     #echo "Error: Valid values for the file extension for a BAM/CRAM provided as an argument (--bam_extension [BAM file extension]) or defined in a config file (bam_extension=[BAM extension]) are \"bam\" and \"cram\"."
     #exit 1
 #fi
 
-#if [[ ${assembly} == false ]] && [[ ${fastq_extension} != false ]]; then
+#if [[ -z ${assembly} ]] && [[ -n ${fastq_extension} ]]; then
     #echo "Error: a reference genome assembly (e.g. GRCh38 or hg38) name must be provided as an argument (--assembly [reference genome assembly name]) or defined in a config file (assembly=[reference genome assembly name]) if FASTQs are being aligned (--fastq_extension [FASTQ file extension] was provided as an argument or fastq_extension=[FASTQ file extension] was defined in a config file."
     #exit 1
 #fi
 
-#if [[ ${reference_genome} == false ]]; then
+#if [[ -z ${reference_genome} ]]; then
     #echo "Error: a reference genome FASTA must be provided as an argument (--reference_genome [path to reference genome FASTA]) or defined in a config file (reference_genome=[path to reference genome FASTA])."
     #exit 1
 #fi
 
-#if [[ ${slurm_mode} == false ]] && [[ ${cloud_mode} == false ]]; then
-    #echo "Error: one of SLURM mode or cloud mode must be provided as arguments (--slurm_mode or --cloud_mode) or set as true in a config file (slurm_mode=true or cloud_mode=true)"
-    #exit 1
-#fi
-
-#if [[ ${slurm_mode} == true ]] && [[ ${cloud_mode} == true ]]; then
-    #echo "Error: only one of SLURM mode or cloud mode may be provided as arguments (--slurm_mode or --cloud_mode) or set as true in a config file (slurm_mode=true or cloud_mode=true)"
-    #exit 1
-#fi
-
-#if [[ ${slurm_mode} == true ]] && [[ ${slurm_runtime} == false ]]; then
+#if [[ ${slurm_mode} == true ]] && [[ -z ${slurm_runtime} ]]; then
     #echo "Error: SLURM runtime must be provided as an argument (--slurm_runtime [SLURM runtime]) or defined in a config file (slurm_runtime=[SLURM runtime]) when running in SLURM mode (--slurm_mode provided as an argument or slurm_mode set as true in config file (slurm_mode=true))."
     #exit 1
 #fi
 
-#if [[ ${slurm_mode} == true ]] && [[ ${slurm_account} == false ]]; then
+#if [[ ${slurm_mode} == true ]] && [[ -z ${slurm_account} ]]; then
     #echo "Error: SLURM account must be provided as an argument (--slurm_account [SLURM account]) or defined in a config file (slurm_account=[SLURM account]) when running in SLURM mode (--slurm_mode provided as an argument or slurm_mode set as true in config file (slurm_mode=true))."
     #exit 1
 #fi
 
-#if [[ ${slurm_mode} == true ]] && [[ ${slurm_ncpus} == false ]]; then
+#if [[ ${slurm_mode} == true ]] && [[ -z ${slurm_ncpus} ]]; then
     #echo "Error: number of CPU cores for SLURM job must be provided as an argument (--slurm_ncpus [number of CPU cores for SLURM job] or in a config file (slurm_ncpus=[number of CPU cores for SLURM job]) when running in SLURM mode (--slurm_mode provided as an argument or slurm_mode set as true in config file (slurm_mode=true))."
     #exit 1
 #fi
 
-#if [[ ${slurm_mode} == true ]] && [[ ${slurm_memory} == false ]]; then
+#if [[ ${slurm_mode} == true ]] && [[ -z ${slurm_memory} ]]; then
     #echo "Error: memory usage for SLURM job must be provided as an argument (--slurm_memory [memory usage for SLURM job]) or defined in a config (slurm_memory=[memory usage for SLURM job]) file when running in SLURM mode (--slurm_mode provided as an argument or slurm_mode set as true in config file (slurm_mode=true))."
     #exit 1
 #fi
 
-#if [[ ${slurm_mode} == true ]] && [[ ${slurm_jobname} == false ]]; then
+#if [[ ${slurm_mode} == true ]] && [[ -z ${slurm_jobname} ]]; then
     #echo "Warning: a job name for the SLURM job was not provided as an argument (--slurm_jobname [name for SLURM job] or defined in a config file (slurm_jobname=[name for SLURM job]) when running in SLURM mode (--slurm_mode provided as an argument or slurm_mode set as true in config file).  Default job names will be used by SLURM."
 #fi
 
@@ -241,12 +242,12 @@ done
     #exit 1
 #fi
 
-#if [[ ${sequence_dictionary} != false ]] && ([[ ${run_mutect} == false ]] || [[ ${split_intervals} == false ]]); then
+#if [[ -n ${sequence_dictionary} ]] && ([[ ${run_mutect} == false ]] || [[ ${split_intervals} == false ]]); then
     #echo "Error: a sequence dictionary can only be provided as an argument (--sequence_dictionary [path to sequence dictionary]) or defined in a config file (sequence_dictionary=[path to sequence dictionary]) when Mutect and splitting across intervals are enabled (--mutect and --split_intervals provided as arguments or run_mutect and split_intervals set as true in a config file (run_mutect=true and split_intervals=true))."
     #exit 1
 #fi
 
-#if [[ ${sequence_dictionary} == false ]] && [[ ${split_intervals} == true ]]; then
+#if [[ -z ${sequence_dictionary} ]] && [[ ${split_intervals} == true ]]; then
     #echo "Error: a sequence dictionary must be provided as an argument (--sequence_dictionary [path to sequence dictionary]) or defined in a config file (sequence_dictionary=[path to sequence dictionary]) when splitting across intervals is enabled (--split_intervals provided as an argument or split_intervals set to true in a config file (split_intervals=true))."
     #exit 1
 #fi
@@ -256,76 +257,76 @@ done
     #exit 1
 #fi
 
-#if [[ ${run_mutect} == false ]] && [[ ${gnomad_reference} == true ]]; then
+#if [[ ${run_mutect} == false ]] && [[ -n ${gnomad_reference} ]]; then
     #echo "Error: a gnomAD reference can only be provided as an argument (--gnomad_reference [path to gnomAD reference]) or defined in a config file (gnomad_reference=[path to gnomAD reference]) when Mutect is enabled (--mutect is provided as an argument or run_mutect is set to true in a config file (run_mutect=true))."
     #exit 1
 #fi
 
-#if [[ ${run_mutect} == true ]] && [[ ${gnomad_reference} == false ]]; then
+#if [[ ${run_mutect} == true ]] && [[ -z ${gnomad_reference} ]]; then
     #echo "Error: a gnomAD reference must be provided as an argument (--gnomad_reference [path to gnomAD reference]) or defined in a config file (gnomad_reference=[path to gnomAD reference]) when Mutect is enabled (--mutect is provided as an argument or run_mutect is set to true in a config file (run_mutect=true))."
     #exit 1
 #fi
 
-#if [[ ${run_mutect} == false ]] && [[ ${normal_bam} != false ]]; then
+#if [[ ${run_mutect} == false ]] && [[ -n ${normal_bam} ]]; then
     #echo "Error: a normal BAM file can only be provided as an argument (--normal_bam [path to normal BAM]) or defined in a config file (normal_bam=[path to normal BAM]) when Mutect is enabled (--mutect is provided as an argument or run_mutect is set to true in a config file (run_mutect=true)). Tumor normal calling is currently not implemented for Varscan"
     #exit 1
 #fi
 
-#if [[ ${normal_pileups_table} == false ]] && [[ ${normal_bam} != false ]]; then
+#if [[ -z ${normal_pileups_table} ]] && [[ -n ${normal_bam} ]]; then
     #echo "Warning: a normal sample BAM was provided as an argument (--normal_bam [path to normal BAM]) or defined in a config file (normal_bam=[path to normal BAM]) with no corresponding pileups file (by providing --normal_pileups_table [path to normal pileups table] as an argument or defining normal_pileups_path in a config file (normal_pileups_table=[path to normal pileups table])).  Pileups will be calculated before running Mutect."
 #fi
 
-#if [[ ${normal_pileups_table} != false ]] && [[ ${normal_bam} == false ]]; then
+#if [[ -n ${normal_pileups_table} ]] && [[ -z ${normal_bam} ]]; then
     #echo "Error: a normal sample pileups table was provided as an argument (--normal_pileups_table [path to normal pileups table] or defined in a config file (normal_pileups_table=[path to normal pileups table]) with no corresponding normal BAM (by providing --normal_bam [path to normal BAM] as an argument or defining normal_bam in a config file (normal_bam=[path to normal BAM]))."
     #exit 1
 #fi
 
-#if [[ ${run_funcotator} == true ]] && [[ ${funcotator_sources} == false ]]; then
+#if [[ ${run_funcotator} == true ]] && [[ -z ${funcotator_sources} ]]; then
     #echo "Error: a Funcotator source must be provided as an argument (--funcotator_sources [path to Funcotator source]) or defined in a config file (funcotator_sources=[path to Funcotator source]) when Funcotator is enabled (--skip_funcotator is NOT provided as argument and/or run_funcotator=true is defined in a config file)."
     #exit 1
 #fi
 
-#if [[ ${run_funcotator} == false ]] && [[ ${funcotator_sources} != false ]]; then
+#if [[ ${run_funcotator} == false ]] && [[ -n ${funcotator_sources} ]]; then
     #echo "Error: Funcotator must be enabled (--skip_funcotator is NOT provided as argument and/or run_funcotator=true is defined in a config file) when a Funcotator source is provided as an argument (--funcotator_sources [path to Funcotator source]) or defined in a config file (funcotator_sources=[path to Funcotator source])."
     #exit 1
 #fi
 
-#if [[ ${run_funcotator} == false ]] && [[ ${transcript_list} != false ]]; then
+#if [[ ${run_funcotator} == false ]] && [[ -n ${transcript_list} ]]; then
     #echo "Error: Funcotator must be enabled (--skip_funcotator is NOT provided as argument and/or run_funcotator=true is defined in a config file) when a transcript list is provided as an argument (--transcript_list [path to transcript list]) or defined in a config file (transcript_list=[path to transcript list])."
     #exit 1
 #fi
 
-#if [[ ${run_varscan} == false ]] && [[ ${mpileup_interval_bed} != false ]]; then
+#if [[ ${run_varscan} == false ]] && [[ -n ${mpileup_interval_bed} ]]; then
     #echo "Error: Varscan must be enabled (--varscan is provided as an argument or run_varscan is set to true in a config file (run_varscan=true)) when a BED file with intervals samtools mpileup is provided as an argument (--mpileup_interval_bed [path to interval BED for samtools mpileup]) or defined in a config file (mpileup_interval_bed=[path to interval BED for samtools mpileup])."
     #exit 1
 #fi
 
-#if [[ ${run_varscan} == false ]] && [[ ${varscan_min_coverage} != false ]]; then
+#if [[ ${run_varscan} == false ]] && [[ -n ${varscan_min_coverage} ]]; then
     #echo "Error: Varscan must be enabled (--varscan is provided as an argument or run_varscan is set to true in a config file (run_varscan=true)) when minimum coverage for Varscan is provided as an argument (--varscan_min_coverage [minimum coverage of variant for Varscan]) or defined in a config file (varscan_min_coverage=[minimum coverage of variant for Varscan])."
     #exit 1
 #fi
 
-#if [[ ${run_varscan} == false ]] && [[ ${varscan_min_var_freq} != false ]]; then
+#if [[ ${run_varscan} == false ]] && [[ -n ${varscan_min_var_freq} ]]; then
     #echo "Error: Varscan must be enabled (--varscan is provided as an argument or run_varscan is set to true in a config file (run_varscan=true)) when minimum variant allele frequency for Varscan is provided as an argument (--varscan_min_var_freq [minimum variant allele fraction for a variant for Varscan]) or defined in a config file (varscan_min_var_freq=[minimum variant allele fraction for a variant for Varscan])."
     #exit 1
 #fi
 
-#if [[ ${run_varscan} == false ]] && [[ ${varscan_max_pvalue} != false ]]; then
+#if [[ ${run_varscan} == false ]] && [[ -n ${varscan_max_pvalue} ]]; then
     #echo "Error: Varscan must be enabled (--varscan is provided as an argument or run_varscan is set to true in a config file (run_varscan=true)) when maximum p-value for Varscan is provided as an argument (--varscan_max_pvalue [maximum p-value for a variant for Varscan]) or defined in a config file (varscan_max_pvalue=[maximum p-value for a variant for Varscan])."
     #exit 1
 #fi
 
-#if [[ ${run_annovar} == true ]] && [[ ${annovarroot} == false ]]; then
+#if [[ ${run_annovar} == true ]] && [[ -n ${annovarroot} ]]; then
     #echo "Error: the path to the Annovar root must be provided as an argument (--annovarroot [path to Annovar root]) or defined in a config file (annovarroot [path to Annovar root]) when Annovar is enabled (--skip_annovar is NOT provided as argument and/or run_annovar=true is defined in  a config file)"
     #exit 1
 #fi
 
-#if [[ ${run_haplotypecaller} == true ]] && [[ ${germline_snps} == false ]]; then
+#if [[ ${run_haplotypecaller} == true ]] && [[ -n ${germline_snps} ]]; then
     #echo "Error: an interval list of germline SNPs must be provided as an argument (--germline_snps [path to interval list of germline SNPs]) or defined in a config file (germline_snps=[path to interval list of germline SNPs]) when HaplotypeCaller is enabled (--haplotypecaller is provided as argument or run_haplotypecaller is set to true in a config file [run_haplotypecaller=true])"
     #exit 1
 #fi
 
-#if [[ ${fastq_extension} != false ]] && [[ ${realign} == true ]]; then
+#if [[ -n ${fastq_extension} ]] && [[ ${realign} == true ]]; then
     #echo "Error: realignment of a BAM file cannot be requested (--realign is provided an an argument or realign is set to true in a config file [realign=true]) when a FASTQ extension is provided (provided as an argument with --fastq_extension [FASTQ file extension] or defined in a config file (fastq_extension=[FASTQ file extension])), as this implies the starting files are FASTQs, not BAM file."
     #exit 1
 #fi
@@ -334,7 +335,6 @@ done
 #############################################--STEP 4: GET NORMAL PILEUPS---#######################################################
 ##################################################################################################################################
     #if [[ $normal_sample != false ]]; then
-        ##singularity
 
         #NORMAL_SAMPLE_BASENAME=$(basename "${normal_sample}")
         #NORMAL_SAMPLE_DIRNAME=$(dirname "${normal_sample}")
@@ -426,13 +426,11 @@ done
 #############################################--STEP 4: GET ARRAY LENGTHS---#######################################################
 ##################################################################################################################################
 
+code_directory=$(realpath .)
 parent_directory=$(dirname "${input_directory}") #get parent directory of $input_directory
 fastq_list="${parent_directory}/fastq_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
 bam_list="${parent_directory}/bam_files"
-
-if [[ ${output_directory} != false ]]; then
-    mkdir -p ${output_directory}/Logs
-fi
+mkdir -p "${output_directory}/logs"
 
 if [[ $bam_extension = "bam" ]] || [[ $bam_extension = "cram" ]]; then
     if [[ $bam_extension == "cram" ]] ; then
@@ -443,9 +441,9 @@ if [[ $bam_extension = "bam" ]] || [[ $bam_extension = "cram" ]]; then
         type_index_file="bai"
     fi
 
-    find -L "${input_directory}" -type f `#list all files in ${fastq_directory}` | \
-                grep ".*\.${type_file}$" `#only keep files with FASTQ in name (case insensitive)` | \
-                grep -v ".*\.${type_index_file}$" `#remove Undetermined FASTQs` | \
+    find -L "${input_directory}" -type f `#list all files in ${input_directory}` | \
+                grep ".*\.${type_file}$" `#only keep files with fastq_extension in name (case insensitive)` | \
+                grep -v ".*\.${type_index_file}$" `#remove index files` | \
                 sed -e 's/\.bam$//g' | \
                 sed -e 's/\.cram$//g' | \
                 sort -u  `#sort and remove duplicate names` > "${bam_list}"
@@ -472,7 +470,7 @@ if [[ $bam_extension = "bam" ]] || [[ $bam_extension = "cram" ]]; then
     array_file=${bam_list}
 else
     find -L "${input_directory}" -type f `#list all files in ${fastq_directory}` | \
-        grep ".*\.${fastq_extension}$" `#only keep files with FASTQ in name (case insensitive)` | \
+        grep ".*\.${fastq_extension}$" `#only keep files with fastq_extension in name (case insensitive)` | \
         grep -v "Undetermined" `#remove Undetermined FASTQs` | \
         sed -e 's/_R1.*$//g' | sed -e 's/_R2.*$//g' `#remove _R1/2_fastq.gz file extension`| \
         sort -u  `#sort and remove duplicate names` > "${fastq_list}"
@@ -484,74 +482,52 @@ fi
 ##################################################--STEP 4: BWA_CHIP.sh---########################################################
 ##################################################################################################################################
 
+passed_args_array=(
+    array_file 
+    output_directory 
+    bam_extension 
+    fastq_extension 
+    assembly 
+    reference_genome 
+    slurm_mode 
+    run_mutect 
+    interval_list 
+    split_intervals 
+    sequence_dictionary 
+    mutect_bam_output 
+    gnomad_reference 
+    normal_bam 
+    normal_pileups_table 
+    run_funcotator 
+    funcotator_sources 
+    transcript_list 
+    run_varscan 
+    mpileup_interval_bed 
+    varscan_min_coverage 
+    varscan_min_var_freq 
+    varscan_max_pvalue 
+    run_annovar 
+    annovarroot 
+    run_haplotypecaller 
+    germline_snps 
+)
+
+passed_args=$(eval echo "$(printf "%s\n" "${passed_args_array[@]}" | xargs --replace=% echo '--% "${%}"' | tr '\n' ' ')")
+
 if [[ $slurm_mode == true ]]; then
     sbatch --output "${output_directory}/Logs/%A_%a.log" `#put into log` \
         --error "${output_directory}/Logs/%A_%a.log" `#put into log` \
         --array "1-${array_length}" `#initiate job array equal to the number of fastq files` \
         --wait `#indicates to the script not to move on until the sbatch operation is complete` \
-        --time ${slurm_runtime} \
-        --account ${slurm_account} \
-        --cpus-per-task ${slurm_ncpus} \
-        --mem ${slurm_memory} \
-        --job-name ${slurm_jobname} \
-        "${code_directory}/BWA_CHIP.sh" \
-            --array_file "${array_file}" \
-            --output_directory "${output_directory}" \
-            --bam_extension "${bam_extension}" \
-            --fastq_extension "${fastq_extension}" \
-            --assembly "${assembly}" \
-            --reference_genome "${reference_genome}" \
-            --slurm_mode "${slurm_mode}" \
-            --run_mutect "${run_mutect}" \
-            --interval_list "${interval_list}" \
-            --split_intervals "${split_intervals}" \
-            --sequence_dictionary "${sequence_dictionary}" \
-            --mutect_bam_output "${mutect_bam_output}" \
-            --gnomad_reference "${gnomad_reference}" \
-            --normal_bam "${normal_bam}" \
-            --normal_pileups_table "${normal_pileups_table}" \
-            --run_funcotator "${run_funcotator}" \
-            --funcotator_sources "${funcotator_sources}" \
-            --transcript_list "${transcript_list}" \
-            --run_varscan "${run_varscan}" \
-            --mpileup_interval_bed "${mpileup_interval_bed}" \
-            --varscan_min_coverage "${varscan_min_coverage}" \
-            --varscan_min_var_freq "${varscan_min_var_freq}" \
-            --varscan_max_pvalue "${varscan_max_pvalue}" \
-            --run_annovar "${run_annovar}" \
-            --annovarroot "${annovarroot}" \
-            --run_haplotypecaller "${run_haplotypecaller}" \
-            --germline_snps "${germline_snps}"
+        --time "${slurm_runtime}" \
+        --account "${slurm_account}" \
+        --cpus-per-task "${slurm_ncpus}" \
+        --mem "${slurm_memory}" \
+        --job-name "${slurm_jobname}" \
+        "${code_directory}/BWA_CHIP.sh" "${passed_args}"
 else
     # change so log output is grouped
-    seq 1 "${array_length}" | parallel --progress -j "${n_jobs}" TASK_ID={} ${code_directory}/BWA_CHIP.sh \
-        --array_file "${array_file}" \
-        --output_directory "${output_directory}" \
-        --bam_extension "${bam_extension}" \
-        --fastq_extension "${fastq_extension}" \
-        --assembly "${assembly}" \
-        --reference_genome "${reference_genome}" \
-        --slurm_mode "${slurm_mode}" \
-        --run_mutect "${run_mutect}" \
-        --interval_list "${interval_list}" \
-        --split_intervals "${split_intervals}" \
-        --sequence_dictionary "${sequence_dictionary}" \
-        --mutect_bam_output "${mutect_bam_output}" \
-        --gnomad_reference "${gnomad_reference}" \
-        --normal_bam "${normal_bam}" \
-        --normal_pileups_table "${normal_pileups_table}" \
-        --run_funcotator "${run_funcotator}" \
-        --funcotator_sources "${funcotator_sources}" \
-        --transcript_list "${transcript_list}" \
-        --run_varscan "${run_varscan}" \
-        --mpileup_interval_bed "${mpileup_interval_bed}" \
-        --varscan_min_coverage "${varscan_min_coverage}" \
-        --varscan_min_var_freq "${varscan_min_var_freq}" \
-        --varscan_max_pvalue "${varscan_max_pvalue}" \
-        --run_annovar "${run_annovar}" \
-        --annovarroot "${annovarroot}" \
-        --run_haplotypecaller "${run_haplotypecaller}" \
-        --germline_snps "${germline_snps}"
+    seq 1 "${array_length}" | parallel --progress -j "${n_jobs}" TASK_ID={} "${code_directory}/BWA_CHIP.sh" "${passed_args}"
 fi
 wait
 ##################################################################################################################################

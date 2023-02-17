@@ -17,8 +17,17 @@ check_for_file() {
     fi
 }
 
+options_array=(
+    bam_file
+    reference_genome
+    germline_snps
+    gatk_command
+)
+
+longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g' | sed -e 's/$/:/')
+
 # Parse command line arguments with getopt
-arguments=$(getopt --options a --longoptions bam_file:,reference_genome:,germline_snps:,gatk_command: --name 'haplotypecaller' -- "$@")
+arguments=$(getopt --options a --longoptions "${longoptions}" --name 'haplotypecaller' -- "$@")
 eval set -- "${arguments}"
 
 while true; do

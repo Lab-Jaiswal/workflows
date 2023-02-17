@@ -7,14 +7,25 @@ mamba activate base
 
 set -o xtrace -o nounset -o pipefail -o errexit
 
+options_array=(
+    vcf_file
+    pileups_table
+    normal_pileups_table
+    orientation_bias_priors
+    reference_genome
+    gatk_command
+)
+
+longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g' | sed -e 's/$/:/')
+
 # Parse command line arguments with getopt
-arguments=$(getopt --options a --longoptions vcf_file:,pileups_table:,normal_pileups_table:,orientation_bias_priors:,reference_genome:,gatk_command: --name 'mutect_filter' -- "$@")
+arguments=$(getopt --options a --longoptions "${longoptions}" --name 'mutect_filter' -- "$@")
 eval set -- "${arguments}"
 
 check_for_file() {
     argument_name="${1}"
     file_path="${2}"
-    if [[ ${file_path} != false ]] && [[ ! -f ${file_path} ]]; then
+    if [[ -n ${file_path} ]] && [[ ! -f ${file_path} ]]; then
         echo "Error: file ${file_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -39,19 +50,19 @@ while true; do
     esac
 done
 
-optional_args=""
+declare optional_args
+if [[ -n "${normal_pileups_table}" ]]; then
+    optional_args="--matched-normal ${normal_pileups_table}"
+fi
+read -r -a optional_args_array <<< "${optional_args}"
 sample_name=$(echo "${vcf_file}" | sed -e 's/_mutect2.vcf//g' )
 
 # Calculate germline contamination using pileups at known common germline variants.
 if [[ ! -f "${sample_name}_contamination.table" ]] ; then
-    if [[ "${normal_pileups_table}" != false ]]; then
-        optional_args="--matched-normal ${normal_pileups_table}"
-    fi
-
     echo "Getting contamination rate with CalculateContamination..."
     ${gatk_command} CalculateContamination \
         --input "${pileups_table}" \
-        ${optional_args} \
+        "${optional_args_array[@]}" \
         --output "${sample_name}_contamination.table"
     echo "...contamination rate calculated."
 else

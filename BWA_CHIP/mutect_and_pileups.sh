@@ -11,7 +11,7 @@ set -o xtrace -o nounset -o pipefail -o errexit
 check_for_file() {
     argument_name="${1}"
     file_path="${2}"
-    if [[ ${file_path} != false ]] && [[ ! -f ${file_path} ]]; then
+    if [[ -n ${file_path} ]] && [[ ! -f ${file_path} ]]; then
         echo "Error: file ${file_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -20,18 +20,33 @@ check_for_file() {
 check_for_directory() {
     argument_name="${1}"
     directory_path="${2}"
-    if [[ ${directory_path} != false ]] && [[ ! -d ${directory_path} ]]; then
+    if [[ -n ${directory_path} ]] && [[ ! -d ${directory_path} ]]; then
         echo "Error: directory ${directory_path} passed with ${argument_name} does not exist."
         exit 1
     fi
 }
 
+options_array=(
+    bam_file
+    normal_bam_file
+    interval_list
+    interval_number
+    reference_genome
+    gnomad_reference
+    output_directory
+    mutect_bam_output
+    run_mutect
+    gatk_command
+)
+
+longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g' | sed -e 's/$/:/')
+
 # Parse command line arguments with getopt
-arguments=$(getopt --options a --longoptions bam_file:,normal_bam_file:,interval_list:,interval_number:,reference_genome:,gnomad_reference:,output_directory:,mutect_bam_output:,run_mutect:,gatk_command: --name 'mutect_and_pileups' -- "$@")
+arguments=$(getopt --options a --longoptions "${longoptions}" --name 'mutect_and_pileups' -- "$@")
 eval set -- "${arguments}"
 
 # Set defaults for some variables
-interval_number=false
+declare interval_number
 
 while true; do
     case "${1}" in
@@ -64,16 +79,16 @@ while true; do
 done
 
 sample_name=$(basename "${bam_file}" | sed -e 's/.bam$//g'  | sed -e 's/.cram$//g')
-optional_args="" # Initially blank so that optional arguments can be filled in later
+declare optional_args # Initially blank so that optional arguments can be filled in later
 
 # Extract header from normal BAM/CRAM file and get sample name
-if [[ ${normal_bam_file} != false ]]; then
+if [[ -n ${normal_bam_file} ]]; then
     normal_name=$(mamba run --no-capture-output -n samtools samtools samples -h "${normal_bam_file}" | tail -n 1 | cut -f 1)
     optional_args="${optional_args} --input ${normal_bam_file} --normal ${normal_name}"
 fi
          
 # If we are splitting by chromosome to run Mutect2 on the whole genome, subset the interval list file to only one interval.
-if [[ ${interval_number} != false ]]; then
+if [[ -n ${interval_number} ]]; then
     interval_line=$(grep -v "@" < "${interval_list}" | sed "${interval_number}q; d" ) # Remove header from interval list and choose appropriate line
     interval_name=$(echo "${interval_line}" | cut -f 1) # Extract chromosome name from interval line
     new_interval_list="${interval_name}.interval_list"
@@ -103,10 +118,11 @@ fi
 
 # Call somatic variants with Mutect2 and output orientation bias read counts and optionally a BAM file with additional annotations.
 if [[ ! -f "${vcf_name}_mutect2.vcf" ]] && [[ ${run_mutect} == true ]]; then
+    read -r -a optional_args_array <<< "${optional_args}"
     echo "Calling somatic variants with Mutect2..."
     ${gatk_command} Mutect2 \
         --input "${bam_file}" \
-        ${optional_args} \
+        "${optional_args_array[@]}" \
         --output "${vcf_name}_mutect2.vcf" \
         --reference "${reference_genome}" \
         --intervals "${interval_list}" \

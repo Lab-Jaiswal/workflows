@@ -11,7 +11,7 @@ set -o xtrace -o nounset -o pipefail -o errexit
 check_for_file() {
     argument_name="${1}"
     file_path="${2}"
-    if [[ ${file_path} != false ]] && [[ ! -f ${file_path} ]]; then
+    if [[ -n ${file_path} ]] && [[ ! -f ${file_path} ]]; then
         echo "Error: file ${file_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -20,7 +20,7 @@ check_for_file() {
 check_for_directory() {
     argument_name="${1}"
     directory_path="${2}"
-    if [[ ${directory_path} != false ]] && [[ ! -d ${directory_path} ]]; then
+    if [[ -n ${directory_path} ]] && [[ ! -d ${directory_path} ]]; then
         echo "Error: directory ${directory_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -29,8 +29,40 @@ check_for_directory() {
 ##################################################################################################################################
 #############################################---STEP 1: SET UP PARAMETERS---###################################################### 
 ##################################################################################################################################
+options_array=(
+    array_file
+    output_directory
+    varscan_min_coverage
+    varscan_min_var_freq
+    varscan_max_pvalue
+    annovarroot
+    mpileup_interval_bed
+    run_varscan
+    run_mutect
+    run_funcotator
+    run_annovar
+    run_haplotypecaller
+    bam_extension
+    fastq_extension
+    interval_list
+    split_intervals
+    normal_bam
+    normal_pileups_table
+    reference_genome
+    gnomad_reference
+    germline_snps
+    assembly
+    funcotator_sources
+    transcript_list
+    sequence_dictionary
+    mutect_bam_output
+    slurm_mode
+)
+
+longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g'):
+
 # Parse command line arguments with getopt
-arguments=$(getopt --options a --longoptions array_file:,output_directory:,varscan_min_coverage:,varscan_min_var_freq:,varscan_max_pvalue:,annovarroot:,mpileup_interval_bed:,run_varscan:,run_mutect:,run_funcotator:,run_annovar:,run_haplotypecaller:,bam_extension:,fastq_extension:,interval_list:,split_intervals:,normal_bam:,normal_pileups_table:,reference_genome:,gnomad_reference:,germline_snps:,assembly:,funcotator_sources:,transcript_list:,sequence_dictionary:,mutect_bam_output:,slurm_mode: --name 'somatic_variant_pipeline' -- "$@")
+arguments=$(getopt --options a --longoptions "${longoptions}" --name 'somatic_variant_pipeline' -- "$@")
 eval set -- "${arguments}"
 
 while true; do
@@ -109,7 +141,7 @@ bam_file="${array_prefix}.${bam_extension}"
 gatk_command="mamba run -n gatk4 gatk"
 code_directory=$(realpath .)
 
-if [[ $final_output_directory != false ]]; then
+if [[ -n $final_output_directory ]]; then
     final_output_directory=${final_output_directory}/${sample_name}
 fi
 
@@ -117,15 +149,15 @@ if [[ ${slurm_mode} == true ]]; then
     input_directory="${TMPDIR}/inputs"
     output_directory="${TMPDIR}/outputs/${sample_name}"
     references_directory="${TMPDIR}/references"
-    if [[ $normal_bam_file != false ]]; then
+    if [[ -n $normal_bam_file ]]; then
         normal_input_directory="${TMPDIR}/inputs/normal"
     fi
 
     rsync_command="rsync --human-readable --links --mkpath --progress --recursive --times --update --verbose"
-    mkdir -p ${final_output_directory}
+    mkdir -p "${final_output_directory}"
     ${rsync_command} --exclude "Logs" "${final_output_directory}/" "${output_directory}"
 
-    #if [[ ${fastq_extension} == false ]]; then
+    #if [[ -n ${fastq_extension} ]]; then
         #original_bam_file="${bam_file}"
         #bam_file="${input_directory}/$(basename ${original_bam_file})"
         #${rsync_command} "${original_bam_file}" "${bam_file}"
@@ -158,28 +190,28 @@ if [[ ${slurm_mode} == true ]]; then
     #check_for_file "${rsync_command}" "${gnomad_reference}"
     #check_for_file "${rsync_command}" "${gnomad_reference}.tbi"
 
-    #if [[ ${sequence_dictionary} != false ]]; then
+    #if [[ -n ${sequence_dictionary} ]]; then
         #original_sequence_dictionary="${sequence_dictionary}"
         #sequence_dictionary="${references_directory}/$(basename ${original_sequence_dictionary})"
         #${rsync_command} "${original_sequence_dictionary}" "${sequence_dictionary}"
         #check_for_file "${rsync_command}" "${sequence_dictionary}"
     #fi
 
-    #if [[ ${transcript_list} != false ]]; then
+    #if [[ -n ${transcript_list} ]]; then
         #original_transcript_list="${transcript_list}"
         #transcript_list="${references_directory}/$(basename ${original_transcript_list})"
         #${rsync_command} "${original_transcript_list}" "${transcript_list}"
         #check_for_file "${rsync_command}" "${transcript_list}"
     #fi
     
-    #if [[ ${funcotator_sources} != false ]]; then
+    #if [[ -n ${funcotator_sources} ]]; then
         #original_funcotator_sources="${funcotator_sources}"
         #funcotator_sources="${references_directory}/funcotator_sources/$(basename ${original_funcotator_sources})"
         #${rsync_command} "${original_funcotator_sources}/" "${funcotator_sources}"
         #check_for_directory "${rsync_command}" "${funcotator_sources}"
     #fi
 
-    #if [[ ${normal_bam_file} != false ]]; then
+    #if [[ -n ${normal_bam_file} ]]; then
         #original_normal_bam_file="${normal_bam_file}"
         #normal_bam_file="${normal_input_directory}/$(basename ${original_normal_bam_file})"
         #${rsync_command} "${original_normal_bam_file}" "${normal_bam_file}"
@@ -205,13 +237,13 @@ fi
 #################################################---STEP 2: MUTECT.sh---########################################################## 
 ##################################################################################################################################       
 
-if [[ ${fastq_extension} != false ]]; then
+if [[ -n ${fastq_extension} ]]; then
     fastq_read1="${array_prefix}_R1_001.fastq.gz"
     fastq_read2="${array_prefix}_R2_001.fastq.gz"
     read_group="@RG\tID:${sample_name}\tLB:${sample_name}\tPL:illumina\tSM:${sample_name}"
     sample_name="${sample_name}_${assembly}"
 
-    ${code_directory}/fastq_to_bam.sh \
+    "${code_directory}/fastq_to_bam.sh" \
         --sample_name "${sample_name}" \
         --read_group "${read_group}" \
         --reference_genome "${reference_genome}" \
@@ -250,9 +282,10 @@ if [[ ${run_mutect} == true ]]; then
         
         if [[ ! -f "${output_directory}/${sample_name}_pileups.table" ]]; then
             pileup_tables=$(find "${output_directory}/pileups" -type f | grep -E ".*_pileups.table$" | sort -V | sed -e 's/^/--input /g' | tr '\n' ' ')
+            read -r -a pileup_tables_array <<< "${pileup_tables}"
             ${gatk_command} GatherPileupSummaries \
                 --sequence-dictionary "${sequence_dictionary}" \
-                ${pileup_tables} \
+                "${pileup_tables_array[@]}" \
                 --output "${output_directory}/${sample_name}_pileups.table"
 
             if [[ ${slurm_mode} == true ]]; then
@@ -263,8 +296,9 @@ if [[ ${run_mutect} == true ]]; then
 
         if [[ ! -f "${output_directory}/${sample_name}_mutect2.vcf" ]]; then
             vcf_files=$(find "${output_directory}/vcfs" -type f | grep -E ".*.vcf$" | sort -V | sed -e 's/^/--INPUT /g' | tr '\n' ' ')
+            read -r -a vcf_files_array <<< "${vcf_files}"
             ${gatk_command} MergeVcfs \
-                ${vcf_files} \
+                "${vcf_files_array[@]}" \
                 --OUTPUT "${output_directory}/${sample_name}_mutect2.vcf"
 
             if [[ ${slurm_mode} == true ]]; then
@@ -275,8 +309,9 @@ if [[ ${run_mutect} == true ]]; then
 
         if [[ ! -f "${output_directory}/${sample_name}_mutect2.vcf.stats" ]]; then
             vcf_stats=$(find "${output_directory}/vcfs" -type f | grep -E ".*.vcf.stats$" | sort -V | sed -e 's/^/--stats /g' | tr '\n' ' ')
+            read -r -a vcf_stats_array <<< "${vcf_stats}"
             ${gatk_command} MergeMutectStats \
-                ${vcf_stats} \
+                "${vcf_stats_array[@]}" \
                 --output "${output_directory}/${sample_name}_mutect2.vcf.stats"
 
             if [[ ${slurm_mode} == true ]]; then
@@ -287,8 +322,9 @@ if [[ ${run_mutect} == true ]]; then
 
         if [[ ! -f "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz" ]]; then
             f1r2_files=$(find "${output_directory}/f1r2" -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
+            read -r -a f1r2_files_array <<< "${f1r2_files}"
             ${gatk_command} LearnReadOrientationModel \
-                ${f1r2_files} \
+                "${f1r2_files_array[@]}" \
                 --output "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz"
 
             if [[ ${slurm_mode} == true ]]; then
@@ -297,7 +333,7 @@ if [[ ${run_mutect} == true ]]; then
             fi
         fi
     else
-        ${code_directory}/mutect_and_pileups.sh \
+        "${code_directory}/mutect_and_pileups.sh" \
             --bam_file "${bam_file}" \
             --normal_bam_file "${normal_bam_file}" \
             --interval_list "${interval_list}" \
@@ -323,7 +359,7 @@ if [[ ${run_mutect} == true ]]; then
         fi
     fi
     
-    ${code_directory}/mutect_filter.sh \
+    "${code_directory}/mutect_filter.sh" \
         --vcf_file "${output_directory}/${sample_name}_mutect2.vcf" \
         --pileups_table "${output_directory}/${sample_name}_pileups.table" \
         --normal_pileups_table "${normal_pileups_table}" \
@@ -337,7 +373,7 @@ if [[ ${run_mutect} == true ]]; then
     fi
 
     if [[ ${run_funcotator} == true ]]; then
-        ${code_directory}/funcotator.sh \
+        "${code_directory}/funcotator.sh" \
             --filtered_vcf "${output_directory}/${sample_name}_mutect2_filtered.vcf" \
             --reference_genome "${reference_genome}" \
             --funcotator_sources "${funcotator_sources}" \
@@ -357,7 +393,7 @@ fi
 ############################################---STEP 3: HAPLOTYPECALLER.sh---######################################################
 ##################################################################################################################################    
 if [[ $run_haplotypecaller = true ]] ; then
-    ${code_directory}/haplotypecaller.sh \
+    "${code_directory}/haplotypecaller.sh" \
         --bam_file "${bam_file}" \
         --reference_genome "${reference_genome}" \
         --germline_snps "${germline_snps}" \
@@ -377,7 +413,7 @@ fi
 ##################################################################################################################################    
 if [[ ${run_varscan} = true ]]; then
     echo "Varscan analysis requested..."
-    ${code_directory}/varscan.sh \
+    "${code_directory}/varscan.sh" \
         --bam_file "${bam_file}" \
         --reference_genome "${reference_genome}" \
         --varscan_min_coverage "${varscan_min_coverage}" \

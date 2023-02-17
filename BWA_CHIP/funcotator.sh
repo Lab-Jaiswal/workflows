@@ -11,7 +11,7 @@ set -o xtrace -o nounset -o pipefail -o errexit
 check_for_file() {
     argument_name="${1}"
     file_path="${2}"
-    if [[ ${file_path} != false ]] && [[ ! -f ${file_path} ]]; then
+    if [[ -n ${file_path} ]] && [[ ! -f ${file_path} ]]; then
         echo "Error: file ${file_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -20,14 +20,24 @@ check_for_file() {
 check_for_directory() {
     argument_name="${1}"
     directory_path="${2}"
-    if [[ ${directory_path} != false ]] && [[ ! -d ${directory_path} ]]; then
+    if [[ -n ${directory_path} ]] && [[ ! -d ${directory_path} ]]; then
         echo "Error: directory ${directory_path} passed with ${argument_name} does not exist."
         exit 1
     fi
 }
 
+options_array=(
+    filtered_vcf
+    reference_genome
+    funcotator_sources
+    transcript_list
+    gatk_command
+)
+
+longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g' | sed -e 's/$/:/')
+
 # Parse command line arguments with getopt
-arguments=$(getopt --options a --longoptions filtered_vcf:,reference_genome:,funcotator_sources:,transcript_list:,gatk_command: --name 'funcotator' -- "$@")
+arguments=$(getopt --options a --longoptions "${longoptions}" --name 'funcotator' -- "$@")
 eval set -- "${arguments}"
 
 while true; do
@@ -50,12 +60,13 @@ while true; do
     esac
 done
 
-optional_args=""
+declare optional_args
 sample_name=$(echo "${filtered_vcf}" | sed -e 's/_mutect2_filtered.vcf//g')
 
-if [[ ${transcript_list} != false ]]; then
+if [[ -n ${transcript_list} ]]; then
     optional_args="--transcript-list ${transcript_list}"
 fi
+read -r -a optional_args_array <<< "${optional_args}"
 
 # Remove non-standard chromosomes from VCF header
 if [[ ! -f "${sample_name}_mutect2_filtered_reheadered.vcf" ]]; then
@@ -80,7 +91,7 @@ if [[ ! -f "${sample_name}_mutect2_filtered_funcotator.vcf" ]]; then
         --reference "${reference_genome}" \
         --ref-version hg38 \
         --data-sources-path "${funcotator_sources}" \
-        ${optional_args} \
+        "${optional_args_array[@]}" \
         --output "${sample_name}_mutect2_filtered_funcotator.vcf" \
         --output-file-format VCF 
     echo "...VCF annotated."
@@ -101,7 +112,7 @@ if [[ ! -f "${sample_name}_mutect2_filtered_funcotator.maf" ]]; then
         --reference "${reference_genome}" \
         --ref-version hg38 \
         --data-sources-path "${funcotator_sources}" \
-        ${optional_args} \
+        "${optional_args_array[@]}" \
         --output "${sample_name}_mutect2_filtered_funcotator.maf" \
         --output-file-format MAF
     echo "...VCF annotated (MAF ouput)."

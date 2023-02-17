@@ -1,120 +1,189 @@
 {
-  "name": "mutect2_applet",
-  "title": "mutect2_applet",
-  "summary": "Run GATK Mutect2, FilterMutectCalls, Funcotator, etc.",
-  "dxapi": "1.0.0",
-  "version": "0.0.1",
-  "inputSpec": [
-          {
+    "name": "mutect2_applet_refactored",
+    "title": "mutect2_applet",
+    "summary": "Run GATK Mutect2, FilterMutectCalls, Funcotator, etc.",
+    "dxapi": "1.0.0",
+    "version": "0.0.1",
+    "inputSpec": [
+        {
             "name": "number_of_batches",
             "class": "int",
             "default": 0,
             "optional": true,
             "help": ""
-           },
-           {
+        },
+        {
             "name": "batch_size",
             "class": "int",
             "default": 0,
             "optional": true,
             "help": ""
-           },
-           {
+        },
+        {
             "name": "sample_list",
             "class": "string",
             "default": "",
             "optional": true,
             "help": ""
-           },
-           {
+        },
+        {
             "name": "meta_sample_list",
-            "class": "boolean",
+            "class": "string",
             "default": "meta_filelist.txt",
             "optional": true,
             "help": ""
-           },
-           {
+        },
+        {
             "name": "sample_directory",
             "class": "string",
             "default": "Bulk/Exome sequences/Exome OQFE CRAM files",
             "optional": true,
             "help": ""
-           },
-           {
+        },
+        {
             "name": "sample_list_directory",
             "class": "string",
             "default": "sample_lists",
             "optional": true,
             "help": ""
-           },
-           {
+        },
+        {
             "name": "references_directory",
             "class": "string",
             "default": "references",
             "optional": true,
             "help": ""
-           },
-           {
+        },
+        {
             "name": "input_directory",
             "class": "string",
             "default": "inputs",
             "optional": true,
             "help": ""
-           },
-           {
+        },
+        {
             "name": "output_directory",
             "class": "string",
             "default": "outputs",
             "optional": true,
             "help": ""
-           },
-           {
+        },
+        {
             "name": "project_id",
             "class": "string",
             "default": "project-G5B07V8JPkg740v9GjfF9PzV",
             "optional": true,
             "help": ""
-           },
-           {
+        },
+        {
             "name": "n_jobs",
             "class": "int",
             "default": 1,
             "optional": true,
             "help": ""
-           }
-           
-  ],
-  "outputSpec": [
-    {
-      "name": "outputs_folder",
-      "class": "array:file",
-      "help": ""
-    }
-  ],
-  "runSpec": {
-    "timeoutPolicy": {
-      "*": {
-        "hours": 24
-      }
-    },
-    "interpreter": "bash",
-    "file": "src/submit_cloud.sh",
-    "distribution": "Ubuntu",
-    "release": "20.04",
-    "version": "0"
-  },
-  "access": {
-    "project": "CONTRIBUTE",
-    "allProjects": "VIEW",
-    "network": [ "*" ]
-  },
-  "regionalOptions": {
-    "aws:eu-west-2": {
-      "systemRequirements": {
-        "*": {
-          "instanceType": "mem3_ssd1_v2_x2"
+        },
+        {
+            "name": "git_branch",
+            "class": "string",
+            "default": "main",
+            "optional": true,
+            "help": ""
+        },
+        {
+            "name": "run_mutect",
+            "class": "boolean",
+            "default": true,
+            "optional": true,
+            "help": ""
+        },
+        {
+            "name": "mutect_bam_out",
+            "class": "boolean",
+            "default": true,
+            "optional": true,
+            "help": ""
+        },
+        {
+            "name": "run_haplotypecaller",
+            "class": "boolean",
+            "default": false,
+            "optional": true,
+            "help": ""
+        },
+        {
+            "name": "run_varscan",
+            "class": "boolean",
+            "default": false,
+            "optional": true,
+            "help": ""
+        },
+        {
+            "name": "reference_genome",
+            "class": "string",
+            "default": "cloud_references/GRCh38_full_analysis_set_plus_decoy_hla.fa",
+            "optional": true,
+            "help": ""
+        },
+        {
+            "name": "gnomad_reference",
+            "class": "string",
+            "default": "gnomad.genomes.v3.1.2.sites.maf05.vcf.bgz",
+            "optional": true,
+            "help": ""
+        },
+        {
+            "name": "funcotator_sources",
+            "class": "string",
+            "default": "funcotator_dataSources.v1.6.20190124s",
+            "optional": true,
+            "help": ""
+        },
+        {
+            "name": "interval_list",
+            "class": "string",
+            "default": "CHIP_exons.interval_list",
+            "optional": true,
+            "help": ""
+        },
+        {
+            "name": "instance_type",
+            "class": "string",
+            "default": "mem3_ssd1_v2_x96",
+            "optional": true,
+            "help": ""
         }
-      }
+    ],
+    "outputSpec": [
+        {
+            "name": "outputs_folder",
+            "class": "array:file",
+            "help": ""
+        }
+    ],
+    "runSpec": {
+        "timeoutPolicy": {
+            "*": {
+                "hours": 24
+            }
+        },
+        "interpreter": "bash",
+        "file": "src/submit_cloud.sh",
+        "distribution": "Ubuntu",
+        "release": "20.04",
+        "version": "0"
+    },
+    "access": {
+        "project": "CONTRIBUTE",
+        "allProjects": "VIEW",
+        "network": [ "*" ]
+    },
+    "regionalOptions": {
+        "aws:eu-west-2": {
+            "systemRequirements": {
+                "*": {
+                    "instanceType": "mem3_ssd1_v2_x2"
+                }
+            }
+        }
     }
-  }
 }

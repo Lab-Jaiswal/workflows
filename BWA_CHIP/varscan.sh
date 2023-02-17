@@ -11,7 +11,7 @@ set -o xtrace -o nounset -o pipefail -o errexit
 check_for_file() {
     argument_name="${1}"
     file_path="${2}"
-    if [[ ${file_path} != false ]] && [[ ! -f ${file_path} ]]; then
+    if [[ -n ${file_path} ]] && [[ ! -f ${file_path} ]]; then
         echo "Error: file ${file_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -20,14 +20,27 @@ check_for_file() {
 check_for_directory() {
     argument_name="${1}"
     directory_path="${2}"
-    if [[ ${directory_path} != false ]] && [[ ! -d ${directory_path} ]]; then
+    if [[ -n ${directory_path} ]] && [[ ! -d ${directory_path} ]]; then
         echo "Error: directory ${directory_path} passed with ${argument_name} does not exist."
         exit 1
     fi
 }
 
+options_array=(
+    bam_file
+    reference_genome
+    varscan_min_coverage
+    varscan_min_var_freq
+    varscan_max_pvalue
+    annovarroot
+    mpileup_interval_bed
+    run_annovar
+)
+
+longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g' | sed -e 's/$/:/')
+
 # Parse command line arguments with getopt
-arguments=$(getopt --options a --longoptions bam_file:,reference_genome:,varscan_min_coverage:,varscan_min_var_freq:,varscan_max_pvalue:,annovarroot:,mpileup_interval_bed:,run_annovar: --name 'varscan' -- "$@")
+arguments=$(getopt --options a --longoptions "${longoptions}" --name 'varscan' -- "$@")
 eval set -- "${arguments}"
 
 while true; do
@@ -57,11 +70,12 @@ while true; do
 done
 
 sample_name=$(echo "${bam_file}" | sed -e 's/\.bam//g')
-optional_args=""
+declare optional_args
 
-if [[ ${mpileup_interval_bed} != false ]]; then
+if [[ -n ${mpileup_interval_bed} ]]; then
     optional_args="--positions ${mpileup_interval_bed}"
 fi
+read -r -a optional_args_array <<< "${optional_args}"
 
 if [[ ! -f "${sample_name}.pileup" ]]; then
     echo "Generating pileup from BAM..."
@@ -70,7 +84,7 @@ if [[ ! -f "${sample_name}.pileup" ]]; then
         --max-depth 0 \
         --adjust-MQ 50 \
         --fasta-ref "${reference_genome}" \
-        ${optional_args} \
+        "${optional_args_array[@]}" \
         "${bam_file}" > "${sample_name}.pileup"
     echo "...pileup generated"
 else
