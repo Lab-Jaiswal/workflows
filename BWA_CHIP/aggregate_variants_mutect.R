@@ -61,19 +61,20 @@ if (filtered == 1){
     }
 
 #get a list of the vcf and maf funcotator file names
-split_names_vcf <- list.files(mutect_directory, pattern = vcf_pattern) %>% str_remove_all("_.*$")
-split_names_maf <- list.files(mutect_directory, pattern = maf_pattern) %>% str_remove_all("_.*$")
+split_names_vcf <- list.files(mutect_directory, pattern = vcf_pattern, recursive = TRUE) %>% str_remove_all("_.*$")
+split_names_maf <- list.files(mutect_directory, pattern = maf_pattern, recursive = TRUE) %>% str_remove_all("_.*$")
 if (length(unique(split_names_vcf)) >= 1){
-    sample_names_vcf <- list.files(mutect_directory, pattern = vcf_pattern) %>% str_remove_all("_G.*$")
-    sample_names_maf <- list.files(mutect_directory, pattern = maf_pattern) %>% str_remove_all("_G.*$")
+    sample_names_vcf <- list.files(mutect_directory, pattern = vcf_pattern, recursive = TRUE) %>% str_remove_all("_G.*$")
+    sample_names_maf <- list.files(mutect_directory, pattern = maf_pattern, recursive = TRUE) %>% str_remove_all("_G.*$")
 
     } else {
         sample_names_vcf <- split_names_vcf
         sample_names_maf <- split_names_maf
     }
 
-maf_files <- list.files(mutect_directory, pattern = maf_pattern, full.names = TRUE)
-vcf_files <- list.files(mutect_directory, pattern = vcf_pattern, full.names = TRUE)
+maf_files <- list.files(mutect_directory, pattern = maf_pattern, recursive = TRUE, full.names = TRUE)
+print(maf_files)
+vcf_files <- list.files(mutect_directory, pattern = vcf_pattern, recursive = TRUE, full.names = TRUE)
 
 # Extract the vcf files, as well as the information in the INFO, FORMAT, and DATA columns
 # Bind all of the newly formatted vcf files together horizontally
@@ -216,10 +217,10 @@ pruned_final_columns <- intersect(colnames(mutect_vcf_filter), final_columns)
 mutect_vcf_select <- select(mutect_vcf_filter, c(all_of(pruned_final_columns), contains("t_alt_count"), contains("f1r2_alternate"), contains("sb_alt"), contains("mfrl_alternate"), contains("mmq_alternate"), contains("f2r1_alternate"), contains("mbq_alternate")))
 
 directory <- dirname(mutect_directory)
-mutect_simple_file <- str_c("/home/maurertm/smontgom/maurertm", "/mutect_aggregated_noWL_Apr25.tsv")
+#mutect_simple_file <- str_c("/home/maurertm/smontgom/maurertm", "/mutect_aggregated_noWL_Apr25.tsv")
 
 # write output into tsv file
-write_tsv(mutect_vcf_select, mutect_simple_file)
+#write_tsv(mutect_vcf_select, mutect_simple_file)
 
 # Get twist panel (in same folder as aggregate variants mutect script)
 if (panel != "false") {
