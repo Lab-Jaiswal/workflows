@@ -11,7 +11,7 @@ set -o xtrace -o nounset -o pipefail -o errexit
 check_for_file() {
     argument_name="${1}"
     file_path="${2}"
-    if [[ -n ${file_path} ]] && [[ ! -f ${file_path} ]]; then
+    if [[ ${file_path} != "none" ]] && [[ ! -f ${file_path} ]]; then
         echo "Error: file ${file_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -20,7 +20,7 @@ check_for_file() {
 check_for_directory() {
     argument_name="${1}"
     directory_path="${2}"
-    if [[ -n ${directory_path} ]] && [[ ! -d ${directory_path} ]]; then
+    if [[ ${directory_path} != "none" ]] && [[ ! -d ${directory_path} ]]; then
         echo "Error: directory ${directory_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -141,7 +141,7 @@ bam_file="${array_prefix}.${bam_extension}"
 gatk_command="mamba run -n gatk4 gatk"
 code_directory=$(realpath .)
 
-if [[ -n $final_output_directory ]]; then
+if [[ $final_output_directory != "none" ]]; then
     final_output_directory=${final_output_directory}/${sample_name}
 fi
 
@@ -149,15 +149,15 @@ if [[ ${slurm_mode} == true ]]; then
     input_directory="${TMPDIR}/inputs"
     output_directory="${TMPDIR}/outputs/${sample_name}"
     references_directory="${TMPDIR}/references"
-    if [[ -n $normal_bam_file ]]; then
+    if [[ $normal_bam_file != "none" ]]; then
         normal_input_directory="${TMPDIR}/inputs/normal"
     fi
 
     rsync_command="rsync --human-readable --links --mkpath --progress --recursive --times --update --verbose"
     mkdir -p "${final_output_directory}"
-    ${rsync_command} --exclude "Logs" "${final_output_directory}/" "${output_directory}"
+    ${rsync_command} --exclude "logs" "${final_output_directory}/" "${output_directory}"
 
-    #if [[ -n ${fastq_extension} ]]; then
+    #if [[ ${fastq_extension} != "none" ]]; then
         #original_bam_file="${bam_file}"
         #bam_file="${input_directory}/$(basename ${original_bam_file})"
         #${rsync_command} "${original_bam_file}" "${bam_file}"
@@ -178,40 +178,44 @@ if [[ ${slurm_mode} == true ]]; then
     #${rsync_command} ${original_reference_genome%.*}* "${references_directory}"
     #check_for_file "${rsync_command}" "${reference_genome}"
 
-    #original_interval_list="${interval_list}"
-    #interval_list="${references_directory}/$(basename ${original_interval_list})"
-    #${rsync_command} "${original_interval_list}" "${interval_list}"
-    #check_for_file "${rsync_command}" "${interval_list}"
+    #if [[ ${interval_list} != "none" ]]; then
+        #original_interval_list="${interval_list}"
+        #interval_list="${references_directory}/$(basename ${original_interval_list})"
+        #${rsync_command} "${original_interval_list}" "${interval_list}"
+        #check_for_file "${rsync_command}" "${interval_list}"
+    #fi
 
-    #original_gnomad_reference="${gnomad_reference}"
-    #gnomad_reference="${references_directory}/$(basename ${original_gnomad_reference})"
-    #${rsync_command} "${original_gnomad_reference}" "${gnomad_reference}"
-    #${rsync_command} "${original_gnomad_reference}.tbi" "${gnomad_reference}.tbi"
-    #check_for_file "${rsync_command}" "${gnomad_reference}"
-    #check_for_file "${rsync_command}" "${gnomad_reference}.tbi"
+    #if [[ ${gnomad_reference} != "none" ]]; then
+        #original_gnomad_reference="${gnomad_reference}"
+        #gnomad_reference="${references_directory}/$(basename ${original_gnomad_reference})"
+        #${rsync_command} "${original_gnomad_reference}" "${gnomad_reference}"
+        #${rsync_command} "${original_gnomad_reference}.tbi" "${gnomad_reference}.tbi"
+        #check_for_file "${rsync_command}" "${gnomad_reference}"
+        #check_for_file "${rsync_command}" "${gnomad_reference}.tbi"
+    #fi
 
-    #if [[ -n ${sequence_dictionary} ]]; then
+    #if [[ ${sequence_dictionary} != "none" ]]; then
         #original_sequence_dictionary="${sequence_dictionary}"
         #sequence_dictionary="${references_directory}/$(basename ${original_sequence_dictionary})"
         #${rsync_command} "${original_sequence_dictionary}" "${sequence_dictionary}"
         #check_for_file "${rsync_command}" "${sequence_dictionary}"
     #fi
 
-    #if [[ -n ${transcript_list} ]]; then
+    #if [[ ${transcript_list} != "none" ]]; then
         #original_transcript_list="${transcript_list}"
         #transcript_list="${references_directory}/$(basename ${original_transcript_list})"
         #${rsync_command} "${original_transcript_list}" "${transcript_list}"
         #check_for_file "${rsync_command}" "${transcript_list}"
     #fi
     
-    #if [[ -n ${funcotator_sources} ]]; then
+    #if [[ ${funcotator_sources} != "none" ]]; then
         #original_funcotator_sources="${funcotator_sources}"
         #funcotator_sources="${references_directory}/funcotator_sources/$(basename ${original_funcotator_sources})"
         #${rsync_command} "${original_funcotator_sources}/" "${funcotator_sources}"
         #check_for_directory "${rsync_command}" "${funcotator_sources}"
     #fi
 
-    #if [[ -n ${normal_bam_file} ]]; then
+    #if [[ ${normal_bam_file} != "none" ]]; then
         #original_normal_bam_file="${normal_bam_file}"
         #normal_bam_file="${normal_input_directory}/$(basename ${original_normal_bam_file})"
         #${rsync_command} "${original_normal_bam_file}" "${normal_bam_file}"
@@ -237,7 +241,7 @@ fi
 #################################################---STEP 2: MUTECT.sh---########################################################## 
 ##################################################################################################################################       
 
-if [[ -n ${fastq_extension} ]]; then
+if [[ ${fastq_extension} != "none" ]]; then
     fastq_read1="${array_prefix}_R1_001.fastq.gz"
     fastq_read2="${array_prefix}_R2_001.fastq.gz"
     read_group="@RG\tID:${sample_name}\tLB:${sample_name}\tPL:illumina\tSM:${sample_name}"
@@ -264,16 +268,16 @@ if [[ ${run_mutect} == true ]]; then
         num_intervals=$(grep -c -v "@" < "${interval_list}")
         echo "Number of intervals: $num_intervals"
         seq 1 "${num_intervals}" | parallel -j8 --progress --ungroup \
-            "${code_directory}/mutect_and_pileups.sh \
-                --bam_file ${bam_file} \
-                --normal_bam_file ${normal_bam_file} \
-                --interval_list ${interval_list} \
+            "${code_directory}/mutect_and_pileups.sh" \
+                --bam_file "${bam_file}" \
+                --normal_bam_file "${normal_bam_file}" \
+                --interval_list "${interval_list}" \
                 --interval_number {} \
-                --reference_genome ${reference_genome} \
-                --gnomad_reference ${gnomad_reference} \
-                --output_directory ${output_directory} \
-                --mutect_bam_output ${mutect_bam_output} \
-                --gatk_command ${gatk_command}"
+                --reference_genome "${reference_genome}" \
+                --gnomad_reference "${gnomad_reference}" \
+                --output_directory "${output_directory}" \
+                --mutect_bam_output "${mutect_bam_output}" \
+                --gatk_command "${gatk_command}"
            
         if [[ ${slurm_mode} == true ]]; then
             ${rsync_command} "${output_directory}/" "${final_output_directory}"
@@ -379,12 +383,12 @@ if [[ ${run_mutect} == true ]]; then
             --funcotator_sources "${funcotator_sources}" \
             --transcript_list "${transcript_list}" \
             --gatk_command "${gatk_command}"
+        if [[ ${slurm_mode} == true ]]; then
+            ${rsync_command} "${output_directory}/" "${final_output_directory}"
+            check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_mutect2_filtered_funcotator.vcf"
+        fi
     fi
         
-    if [[ ${slurm_mode} == true ]]; then
-        ${rsync_command} "${output_directory}/" "${final_output_directory}"
-        check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_mutect2_filtered_funcotator.vcf"
-    fi
 else
     echo "Mutect2 calling of somatic variants not requested"
 fi

@@ -91,8 +91,9 @@ function submit_job() {
     array_number=${1}
     job_args=${2}
     instance_type=${3}
+    read -r -a job_args_array <<< "${job_args}"
 
-    job_id=$(dx-jobutil-new-job run_job -i"${array_number}" "${job_args}" --instance-type="${instance_type}")
+    job_id=$(dx-jobutil-new-job run_job -i"${array_number}" "${job_args_array[@]}" --instance-type="${instance_type}")
     dx-jobutil-add-output outputs_folder "${job_id}:outputs_tar" --class=jobref --array
 }
 

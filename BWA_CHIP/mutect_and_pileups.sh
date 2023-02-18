@@ -11,7 +11,7 @@ set -o xtrace -o nounset -o pipefail -o errexit
 check_for_file() {
     argument_name="${1}"
     file_path="${2}"
-    if [[ -n ${file_path} ]] && [[ ! -f ${file_path} ]]; then
+    if [[ ${file_path} != "none" ]] && [[ ! -f ${file_path} ]]; then
         echo "Error: file ${file_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -20,7 +20,7 @@ check_for_file() {
 check_for_directory() {
     argument_name="${1}"
     directory_path="${2}"
-    if [[ -n ${directory_path} ]] && [[ ! -d ${directory_path} ]]; then
+    if [[ ${directory_path} != "none" ]] && [[ ! -d ${directory_path} ]]; then
         echo "Error: directory ${directory_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -46,7 +46,7 @@ arguments=$(getopt --options a --longoptions "${longoptions}" --name 'mutect_and
 eval set -- "${arguments}"
 
 # Set defaults for some variables
-declare interval_number
+declare interval_number="none"
 
 while true; do
     case "${1}" in
@@ -79,16 +79,16 @@ while true; do
 done
 
 sample_name=$(basename "${bam_file}" | sed -e 's/.bam$//g'  | sed -e 's/.cram$//g')
-declare optional_args # Initially blank so that optional arguments can be filled in later
+declare optional_args="" # Initially blank so that optional arguments can be filled in later
 
 # Extract header from normal BAM/CRAM file and get sample name
-if [[ -n ${normal_bam_file} ]]; then
+if [[ ${normal_bam_file} != "none" ]]; then
     normal_name=$(mamba run --no-capture-output -n samtools samtools samples -h "${normal_bam_file}" | tail -n 1 | cut -f 1)
     optional_args="${optional_args} --input ${normal_bam_file} --normal ${normal_name}"
 fi
          
 # If we are splitting by chromosome to run Mutect2 on the whole genome, subset the interval list file to only one interval.
-if [[ -n ${interval_number} ]]; then
+if [[ ${interval_number} != "none" ]]; then
     interval_line=$(grep -v "@" < "${interval_list}" | sed "${interval_number}q; d" ) # Remove header from interval list and choose appropriate line
     interval_name=$(echo "${interval_line}" | cut -f 1) # Extract chromosome name from interval line
     new_interval_list="${interval_name}.interval_list"
@@ -132,7 +132,8 @@ if [[ ! -f "${vcf_name}_mutect2.vcf" ]] && [[ ${run_mutect} == true ]]; then
 
     if [[ ${mutect_bam_output} = true ]]; then
         ${gatk_command} BuildBamIndex \
-        --INPUT "${vcf_name}_mutect2.bam"
+        --INPUT "${vcf_name}_mutect2.bam" \
+        --OUTPUT "${vcf_name}_mutect2.bam.bai"
     fi
 
     echo "...somatic variants called."

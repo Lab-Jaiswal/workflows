@@ -11,7 +11,7 @@ set -o xtrace -o nounset -o pipefail -o errexit
 check_for_file() {
     argument_name="${1}"
     file_path="${2}"
-    if [[ -n ${file_path} ]] && [[ ! -f ${file_path} ]]; then
+    if [[ ${file_path} != "none" ]] && [[ ! -f ${file_path} ]]; then
         echo "Error: file ${file_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -20,7 +20,7 @@ check_for_file() {
 check_for_directory() {
     argument_name="${1}"
     directory_path="${2}"
-    if [[ -n ${directory_path} ]] && [[ ! -d ${directory_path} ]]; then
+    if [[ ${directory_path} != "none" ]] && [[ ! -d ${directory_path} ]]; then
         echo "Error: directory ${directory_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -73,15 +73,15 @@ flags_array=(
     realign
 )
 
+eval "$(printf "%s\n" "${options_array[@]}" | xargs --replace=% echo "declare %=none;")"
+eval "$(printf "%s\n" "${flags_array[@]}" | xargs --replace=% echo "declare %=false;")"
+
 options_joined=$(echo "${options_array[@]}" | sed -e 's/ /:,/g')
 flags_joined=$(echo "${flags_array[@]}" | tr ' ' ',')
 longoptions="${options_joined}:,${flags_joined}"
 
 arguments=$(getopt --options a --longoptions "${longoptions}" --name 'submit_BWA_CHIP.sh' -- "$@")
 eval set -- "${arguments}"
-
-printf "%s\n" "${options_array[@]}" | xargs --replace=% declare %
-printf "%s\n" "${flags_array[@]}" | xargs --replace=% declare %=false
 
 while true; do
     case "$1" in
@@ -92,10 +92,11 @@ while true; do
     esac
 done
 
-if [[ -n ${config_file} ]]; then
+if [[ ${config_file} != "none" ]]; then
     source "${config_file}"
 fi
 
+eval set -- "${arguments}"
 while true; do
     case "$1" in
         --input_directory )
@@ -432,7 +433,7 @@ fastq_list="${parent_directory}/fastq_files" #give a path to a file to store the
 bam_list="${parent_directory}/bam_files"
 mkdir -p "${output_directory}/logs"
 
-if [[ $bam_extension = "bam" ]] || [[ $bam_extension = "cram" ]]; then
+if [[ $bam_extension == "bam" ]] || [[ $bam_extension == "cram" ]]; then
     if [[ $bam_extension == "cram" ]] ; then
         type_file="cram"
         type_index_file="crai"
@@ -478,7 +479,7 @@ else
     array_file=${fastq_list}
 fi
     
-    ##################################################################################################################################
+##################################################################################################################################
 ##################################################--STEP 4: BWA_CHIP.sh---########################################################
 ##################################################################################################################################
 
@@ -509,14 +510,15 @@ passed_args_array=(
     run_annovar 
     annovarroot 
     run_haplotypecaller 
-    germline_snps 
+    germline_snps
 )
 
 passed_args=$(eval echo "$(printf "%s\n" "${passed_args_array[@]}" | xargs --replace=% echo '--% "${%}"' | tr '\n' ' ')")
+read -r -a passed_args_array <<< "${passed_args}"
 
 if [[ $slurm_mode == true ]]; then
-    sbatch --output "${output_directory}/Logs/%A_%a.log" `#put into log` \
-        --error "${output_directory}/Logs/%A_%a.log" `#put into log` \
+    sbatch --output "${output_directory}/logs/%A_%a.log" `#put into log` \
+        --error "${output_directory}/logs/%A_%a.log" `#put into log` \
         --array "1-${array_length}" `#initiate job array equal to the number of fastq files` \
         --wait `#indicates to the script not to move on until the sbatch operation is complete` \
         --time "${slurm_runtime}" \
@@ -524,10 +526,10 @@ if [[ $slurm_mode == true ]]; then
         --cpus-per-task "${slurm_ncpus}" \
         --mem "${slurm_memory}" \
         --job-name "${slurm_jobname}" \
-        "${code_directory}/BWA_CHIP.sh" "${passed_args}"
+        "${code_directory}/BWA_CHIP.sh" "${passed_args_array[@]}"
 else
     # change so log output is grouped
-    seq 1 "${array_length}" | parallel --progress -j "${n_jobs}" TASK_ID={} "${code_directory}/BWA_CHIP.sh" "${passed_args}"
+    seq 1 "${array_length}" | parallel --progress -j "${n_jobs}" TASK_ID={} "${code_directory}/BWA_CHIP.sh" "${passed_args_array[@]}"
 fi
 wait
 ##################################################################################################################################

@@ -11,7 +11,7 @@ set -o xtrace -o nounset -o pipefail -o errexit
 check_for_file() {
     argument_name="${1}"
     file_path="${2}"
-    if [[ -n ${file_path} ]] && [[ ! -f ${file_path} ]]; then
+    if [[ ${file_path} != "none" ]] && [[ ! -f ${file_path} ]]; then
         echo "Error: file ${file_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -20,7 +20,7 @@ check_for_file() {
 check_for_directory() {
     argument_name="${1}"
     directory_path="${2}"
-    if [[ -n ${directory_path} ]] && [[ ! -d ${directory_path} ]]; then
+    if [[ ${directory_path} != "none" ]] && [[ ! -d ${directory_path} ]]; then
         echo "Error: directory ${directory_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -70,9 +70,9 @@ while true; do
 done
 
 sample_name=$(echo "${bam_file}" | sed -e 's/\.bam//g')
-declare optional_args
+declare optional_args=""
 
-if [[ -n ${mpileup_interval_bed} ]]; then
+if [[ ${mpileup_interval_bed} != "none" ]]; then
     optional_args="--positions ${mpileup_interval_bed}"
 fi
 read -r -a optional_args_array <<< "${optional_args}"

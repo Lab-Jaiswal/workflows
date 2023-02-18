@@ -25,7 +25,7 @@ eval set -- "${arguments}"
 check_for_file() {
     argument_name="${1}"
     file_path="${2}"
-    if [[ -n ${file_path} ]] && [[ ! -f ${file_path} ]]; then
+    if [[ ${file_path} != "none" ]] && [[ ! -f ${file_path} ]]; then
         echo "Error: file ${file_path} passed with ${argument_name} does not exist."
         exit 1
     fi
@@ -50,8 +50,8 @@ while true; do
     esac
 done
 
-declare optional_args
-if [[ -n "${normal_pileups_table}" ]]; then
+declare optional_args=""
+if [[ "${normal_pileups_table}" != "none" ]]; then
     optional_args="--matched-normal ${normal_pileups_table}"
 fi
 read -r -a optional_args_array <<< "${optional_args}"
