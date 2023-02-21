@@ -429,7 +429,7 @@ done
 #############################################--STEP 4: GET ARRAY LENGTHS---#######################################################
 ##################################################################################################################################
 
-code_directory=$(realpath .)
+code_directory=$(realpath $(dirname ${BASH_SOURCE[0]}))
 parent_directory=$(dirname "${input_directory}") #get parent directory of $input_directory
 fastq_list="${parent_directory}/fastq_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
 bam_list="${parent_directory}/bam_files"
