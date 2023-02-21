@@ -106,7 +106,7 @@ while true; do
         --input_file_list )
             input_file_list="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         --output_directory )
-            output_directory="$2"; check_for_directory "${1}" "${2}"; shift 2 ;;
+            output_directory="$2"; shift 2 ;;
         --bam_extension )
             bam_extension="$2"; shift 2 ;;
         --fastq_extension )
@@ -433,7 +433,7 @@ code_directory=$(realpath .)
 parent_directory=$(dirname "${input_directory}") #get parent directory of $input_directory
 fastq_list="${parent_directory}/fastq_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
 bam_list="${parent_directory}/bam_files"
-mkdir -p "${output_directory}/logs"
+mkdir -p "${output_directory}"
 
 if [[ $bam_extension == "bam" ]] || [[ $bam_extension == "cram" ]]; then
     if [[ $bam_extension == "cram" ]] ; then
@@ -519,6 +519,7 @@ passed_args=$(eval echo "$(printf "%s\n" "${passed_args_array[@]}" | xargs --rep
 read -r -a passed_args_array <<< "${passed_args}"
 
 if [[ $slurm_mode == true ]]; then
+    mkdir -p "${output_directory}/logs"
     sbatch --output "${output_directory}/logs/%A_%a.log" `#put into log` \
         --error "${output_directory}/logs/%A_%a.log" `#put into log` \
         --array "1-${array_length}" `#initiate job array equal to the number of fastq files` \
