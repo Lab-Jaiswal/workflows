@@ -35,7 +35,6 @@ options_array=(
     input_directory
     input_file_list
     output_directory
-    code_directory
     bam_extension
     fastq_extension
     assembly
@@ -100,8 +99,6 @@ while true; do
             input_file_list="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         --output_directory )
             output_directory="$2"; shift 2 ;;
-        --code_directory )
-            code_directory="$2"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --bam_extension )
             bam_extension="$2"; shift 2 ;;
         --fastq_extension )
@@ -422,9 +419,7 @@ done
 #############################################--STEP 4: GET ARRAY LENGTHS---#######################################################
 ##################################################################################################################################
 
-if [[ ${code_directory} == "none" ]]; then
-    code_directory=$(realpath $(dirname ${BASH_SOURCE[0]}))
-fi
+code_directory=$(realpath $(dirname ${BASH_SOURCE[0]}))
 parent_directory=$(dirname "${input_directory}") #get parent directory of $input_directory
 fastq_list="${parent_directory}/fastq_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
 bam_list="${parent_directory}/bam_files"
