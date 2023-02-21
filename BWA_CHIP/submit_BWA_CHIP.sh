@@ -35,6 +35,7 @@ options_array=(
     input_directory
     input_file_list
     output_directory
+    code_directory
     bam_extension
     fastq_extension
     assembly
@@ -58,14 +59,10 @@ options_array=(
     annovarroot
     germline_snps
     n_jobs
-)
-
-flags_array=(
     slurm_mode
     run_mutect
     run_varscan
     run_haplotypecaller
-    all
     mutect_bam_output
     run_annovar
     run_funcotator
@@ -74,11 +71,7 @@ flags_array=(
 )
 
 eval "$(printf "%s\n" "${options_array[@]}" | xargs --replace=% echo "declare %=none;")"
-eval "$(printf "%s\n" "${flags_array[@]}" | xargs --replace=% echo "declare %=false;")"
-
-options_joined=$(echo "${options_array[@]}" | sed -e 's/ /:,/g')
-flags_joined=$(echo "${flags_array[@]}" | tr ' ' ',')
-longoptions="${options_joined}:,${flags_joined}"
+longoptions="$(echo "${options_array[@]}" | sed -e 's/ /:,/g'):"
 
 arguments=$(getopt --options a --longoptions "${longoptions}" --name 'submit_BWA_CHIP.sh' -- "$@")
 eval set -- "${arguments}"
@@ -107,6 +100,8 @@ while true; do
             input_file_list="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         --output_directory )
             output_directory="$2"; shift 2 ;;
+        --code_directory )
+            code_directory="$2"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --bam_extension )
             bam_extension="$2"; shift 2 ;;
         --fastq_extension )
@@ -116,7 +111,7 @@ while true; do
         --reference_genome )
             reference_genome="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         --slurm_mode )
-            slurm_mode=true; shift ;;
+            slurm_mode="$2"; shift 2 ;;
         --slurm_runtime )
             slurm_runtime="$2"; shift 2 ;;
         --slurm_account )
@@ -128,15 +123,15 @@ while true; do
         --slurm_jobname )
             slurm_jobname="$2"; shift 2 ;;
         --run_mutect )
-            run_mutect=true; shift ;;
+            run_mutect="$2"; shift 2 ;;
         --interval_list )
             interval_list="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         --split_intervals )
-            split_intervals=true; shift ;;
+            split_intervals="$2"; shift 2 ;;
         --sequence_dictionary )
             sequence_dictionary="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         --mutect_bam_output )
-            mutect_bam_output=true; shift ;;
+            mutect_bam_output="$2"; shift 2 ;;
         --gnomad_reference )
             gnomad_reference="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         --normal_bam )
@@ -144,13 +139,13 @@ while true; do
         --normal_pileups_table )
             normal_pileups_table="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         --run_funcotator )
-            run_funcotator=true; shift ;;
+            run_funcotator="$2"; shift 2 ;;
         --funcotator_sources )
             funcotator_sources="$2"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --transcript_list )
             transcript_list="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         --run_varscan )
-            run_varscan=true; shift ;;
+            run_varscan="$2"; shift 2 ;;
         --mpileup_interval_bed )
             mpileup_interval_bed="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         --varscan_min_coverage )
@@ -160,19 +155,17 @@ while true; do
         --varscan_max_pvalue )
             varscan_max_pvalue="$2"; shift 2 ;;
         --run_annovar )
-            run_annovar=true; shift ;;
+            run_annovar="$2"; shift 2 ;;
         --annnovarroot )
             annovarroot="$2"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --run_haplotypecaller )
-            run_haplotypecaller=true; shift ;;
+            run_haplotypecaller="$2"; shift 2 ;;
         --germline_snps )
             germline_snps="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
-        --all )
-            run_mutect=true; run_haplotypecaller=true; run_varscan=true; shift ;;
         --n_jobs )
             n_jobs="$2"; shift 2 ;;
         --realign )
-            realign=true; shift ;;
+            realign="$2"; shift 2 ;;
         -- )
             shift; break ;;
         * )
@@ -429,7 +422,9 @@ done
 #############################################--STEP 4: GET ARRAY LENGTHS---#######################################################
 ##################################################################################################################################
 
-code_directory=$(realpath $(dirname ${BASH_SOURCE[0]}))
+if [[ ${code_directory} == "none" ]]; then
+    code_directory=$(realpath $(dirname ${BASH_SOURCE[0]}))
+fi
 parent_directory=$(dirname "${input_directory}") #get parent directory of $input_directory
 fastq_list="${parent_directory}/fastq_files" #give a path to a file to store the paths to the fastq files in $fastq_directory
 bam_list="${parent_directory}/bam_files"
