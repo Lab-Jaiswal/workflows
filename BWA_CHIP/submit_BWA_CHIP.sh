@@ -163,7 +163,7 @@ while true; do
             run_annovar=true; shift ;;
         --annnovarroot )
             annovarroot="$2"; check_for_directory "${1}" "${2}"; shift 2 ;;
-        --haplotypecaller )
+        --run_haplotypecaller )
             run_haplotypecaller=true; shift ;;
         --germline_snps )
             germline_snps="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
