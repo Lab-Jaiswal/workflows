@@ -97,6 +97,7 @@ if [[ ${config_file} != "none" ]]; then
 fi
 
 eval set -- "${arguments}"
+exit 1
 while true; do
     case "$1" in
         --input_directory )
