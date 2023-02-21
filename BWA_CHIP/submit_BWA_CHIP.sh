@@ -89,6 +89,8 @@ while true; do
             config_file="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         -- )
             shift; break ;;
+        * )
+            shift; 
     esac
 done
 
@@ -97,7 +99,6 @@ if [[ ${config_file} != "none" ]]; then
 fi
 
 eval set -- "${arguments}"
-exit 1
 while true; do
     case "$1" in
         --input_directory )
