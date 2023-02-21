@@ -127,7 +127,7 @@ while true; do
             slurm_memory="$2"; shift 2 ;;
         --slurm_jobname )
             slurm_jobname="$2"; shift 2 ;;
-        --mutect )
+        --run_mutect )
             run_mutect=true; shift ;;
         --interval_list )
             interval_list="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
@@ -143,13 +143,13 @@ while true; do
             normal_bam="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         --normal_pileups_table )
             normal_pileups_table="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
-        --skip_funcotator )
-            run_funcotator=false; shift ;;
+        --run_funcotator )
+            run_funcotator=true; shift ;;
         --funcotator_sources )
             funcotator_sources="$2"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --transcript_list )
             transcript_list="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
-        --varscan )
+        --run_varscan )
             run_varscan=true; shift ;;
         --mpileup_interval_bed )
             mpileup_interval_bed="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
@@ -159,8 +159,8 @@ while true; do
             varscan_min_var_freq="$2"; shift 2 ;;
         --varscan_max_pvalue )
             varscan_max_pvalue="$2"; shift 2 ;;
-        --skip_annovar )
-            run_annovar=false; shift ;;
+        --run_annovar )
+            run_annovar=true; shift ;;
         --annnovarroot )
             annovarroot="$2"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --haplotypecaller )
