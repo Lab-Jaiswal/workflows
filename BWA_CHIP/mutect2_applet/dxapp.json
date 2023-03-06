@@ -1,0 +1,294 @@
+{
+    "name": "mutect2_applet",
+    "title": "mutect2_applet",
+    "summary": "Run GATK Mutect2, FilterMutectCalls, Funcotator, etc.",
+    "dxapi": "1.0.0",
+    "version": "0.0.1",
+    "inputSpec": [
+        {
+            "name": "number_of_batches",
+            "class": "int",
+            "default": 0,
+            "optional": true,
+            "help": "Number of batches to run as separate jobs"
+        },
+        {
+            "name": "batch_size",
+            "class": "int",
+            "default": 0,
+            "optional": true,
+            "help": "Size of each batch - default value 0 will use all samples in sample list"
+        },
+        {
+            "name": "sample_list",
+            "class": "string",
+            "default": "none",
+            "optional": true,
+            "help": "Path on DNA Nexus project storage relative to project root with list of samples to download"
+        },
+        {
+            "name": "sample_directory",
+            "class": "string",
+            "default": "Bulk/Exome sequences/Exome OQFE CRAM files",
+            "optional": false,
+            "help": "Path on DNA Nexus project storage relative to project root of directory containing samples"
+        },
+        {
+            "name": "sample_list_directory",
+            "class": "string",
+            "default": "sample_lists",
+            "optional": false,
+            "help": "Path relative to $HOME where sample list will be downloaded (default: sample_lists)" 
+        },
+        {
+            "name": "references_directory",
+            "class": "string",
+            "default": "references",
+            "optional": false,
+            "help": "Path on DNA Nexus project storage relative to project root where references are stored (default: references)" 
+        },
+        {
+            "name": "input_directory",
+            "class": "string",
+            "default": "inputs",
+            "optional": false,
+            "help": "Path relative to $HOME where samples will be downloaded (default: inputs)"
+        },
+        {
+            "name": "output_directory",
+            "class": "string",
+            "default": "outputs",
+            "optional": false,
+            "help": "Path relative to $HOME where pipeline output will be stored (default: outputs)"
+        },
+        {
+            "name": "project_id",
+            "class": "string",
+            "default": "project-G5B07V8JPkg740v9GjfF9PzV",
+            "optional": false,
+            "help": "DNA Nexus project ID"
+        },
+        {
+            "name": "git_branch",
+            "class": "string",
+            "default": "main",
+            "optional": false,
+            "help": "Git branch to checkout for workflow code (default: main)"
+        },
+        {
+            "name": "instance_type",
+            "class": "string",
+            "default": "mem3_ssd1_v2_x96",
+            "optional": false,
+            "help": "Instance type for job nodes (default: mem3_ssd1_v2_x96)"
+        },
+        {
+            "name": "bam_extension",
+            "class": "string",
+            "default": "cram",
+            "optional": true,
+            "help": "File extension for BAM files (default: cram; can also be bam)"
+        },
+        {
+            "name": "fastq_extension",
+            "class": "string",
+            "default": "none",
+            "optional": true,
+            "help": "File extension for FASTQ files (default: none)"
+        },
+        {
+            "name": "assembly",
+            "class": "string",
+            "default": "GRCh38",
+            "optional": true,
+            "help": "Assembly version of reference genome when aligning FASTQs (default: GRCh38)"
+        },
+        {
+            "name": "run_mutect",
+            "class": "boolean",
+            "default": true,
+            "optional": false,
+            "help": "Boolean indicating if Mutect2 should be run to call somatic variants"
+        },
+        {
+            "name": "run_haplotypecaller",
+            "class": "boolean",
+            "default": false,
+            "optional": false,
+            "help": "Boolean indicating if HaplotypeCaller should be run to call germline variants"
+        },
+        {
+            "name": "run_varscan",
+            "class": "boolean",
+            "default": false,
+            "optional": false,
+            "help": "Boolean indicating if VarScan should be run to call somatic variants"
+        },
+        {
+            "name": "mutect_bam_out",
+            "class": "boolean",
+            "default": true,
+            "optional": false,
+            "help": "Boolean indicating if Mutect2 should emit a BAM output with additional annotation used for somatic variant calling"
+        },
+        {
+            "name": "run_funcotator",
+            "class": "boolean",
+            "default": true,
+            "optional": false,
+            "help": "Boolean indicating if Funcotator should be run to annotate somatic variant calls from Mutect2"
+        },
+        {
+            "name": "run_annovar",
+            "class": "boolean",
+            "default": false,
+            "optional": false,
+            "help": "Boolean indicating if Annovar should be run to annotate somatic variant calls from Varscan"
+        },
+        {
+            "name": "split_intervals",
+            "class": "boolean",
+            "default": false,
+            "optional": true,
+            "help": "Boolean indicating if intervals for calling CHIP should be split across separate jobs to parallelize somatic variant calling with Mutect2"
+        },
+        {
+            "name": "realign",
+            "class": "boolean",
+            "default": false,
+            "optional": false,
+            "help": "Boolean indicating if BAM files should be realigned to the reference genome with bwa-mem2"
+        },
+        {
+            "name": "varscan_min_coverage",
+            "class": "int",
+            "default": 10,
+            "optional": true,
+            "help": "Minimum number of reads required for a variant to pass VarScan variant filtering (default: 10)"
+        },
+        {
+            "name": "varscan_min_var_freq",
+            "class": "float",
+            "default": 0.001,
+            "optional": true,
+            "help": "Minimum variant allele fraction required for a variant to pass VarScan variant filtering (default: 0.001)"
+        },
+        {
+            "name": "varscan_max_pvalue",
+            "class": "float",
+            "default": 0.1,
+            "optional": true,
+            "help": "Maximum p-value allowed for a variant to pass VarScan variant filtering (default: 0.1)"
+        },
+        {
+            "name": "n_jobs",
+            "class": "int",
+            "default": 1,
+            "optional": false,
+            "help": "Number of parallel jobs to run on job node (default: 1)"
+        },
+        {
+            "name": "reference_genome",
+            "class": "string",
+            "default": "cloud_references/GRCh38_full_analysis_set_plus_decoy_hla.fa",
+            "optional": false,
+            "help": "Path to reference to genome FASTQ within references_directory"
+        },
+        {
+            "name": "interval_list",
+            "class": "string",
+            "default": "CHIP_exons.interval_list",
+            "optional": true,
+            "help": "Path to interval list over which to call CHIP with Mutect2"
+        },
+        {
+            "name": "sequence_dictionary",
+            "class": "string",
+            "default": "none",
+            "optional": true,
+            "help": "Path to sequence dictionary for reference genome used when joining VCF output for a single sample when split_intervals is true"
+        },
+        {
+            "name": "gnomad_reference",
+            "class": "string",
+            "default": "gnomad.genomes.v3.1.2.sites.maf05.vcf.bgz",
+            "optional": true,
+            "help": "Path to GnomAD reference genomes used for assessing germline contamination"
+        },
+        {
+            "name": "normal_bam",
+            "class": "string",
+            "default": "none",
+            "optional": true,
+            "help": "Path to normal BAM file used for tumor normal somatic variant calling with Mutect2"
+        },
+        {
+            "name": "normal_pileups_table",
+            "class": "string",
+            "default": "none",
+            "optional": true,
+            "help": "Path to pileups file generated from normal BAM file used for tumor normal somatic variant calling with Mutect2"
+        },
+        {
+            "name": "funcotator_sources",
+            "class": "string",
+            "default": "funcotator_dataSources.v1.6.20190124s",
+            "optional": true,
+            "help": "Path to annotation sources used by Funcotator to annotate somatic variants called by Mutect2"
+        },
+        {
+            "name": "transcript_list",
+            "class": "string",
+            "default": "chip_transcript_list.txt",
+            "optional": true,
+            "help": "List of transcript IDs to be used by Funcotator when choosing the transcript to be used for specific genes when annotating somatic variants called by Mutect2"
+        },
+        {
+            "name": "mpileup_interval_bed",
+            "class": "string",
+            "default": "none",
+            "optional": true,
+            "help": "BED file of intervals to calculate pileups with samtools when calling somatic variants with VarScan"
+        },
+        {
+            "name": "annovarroot",
+            "class": "string",
+            "default": "annovar",
+            "optional": true,
+            "help": "Path to folder containing AnnoVar, which is used to annotate somatic variants called by VarScan "
+        }
+    ],
+    "outputSpec": [
+        {
+            "name": "outputs_folder",
+            "class": "array:file",
+            "help": "Path on DNA Nexus project storage relative to project root where job output will be saved (default: outputs)"
+        }
+    ],
+    "runSpec": {
+        "timeoutPolicy": {
+            "*": {
+                "hours": 24
+            }
+        },
+        "interpreter": "bash",
+        "file": "src/submit_cloud.sh",
+        "distribution": "Ubuntu",
+        "release": "20.04",
+        "version": "0"
+    },
+    "access": {
+        "project": "CONTRIBUTE",
+        "allProjects": "VIEW",
+        "network": [ "*" ]
+    },
+    "regionalOptions": {
+        "aws:eu-west-2": {
+            "systemRequirements": {
+                "*": {
+                    "instanceType": "mem3_ssd1_v2_x2"
+                }
+            }
+        }
+    }
+}
