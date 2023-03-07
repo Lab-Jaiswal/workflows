@@ -188,6 +188,13 @@
             "help": "Number of parallel jobs to run on job node (default: 1)"
         },
         {
+            "name": "n_downloads",
+            "class": "int",
+            "default": 1,
+            "optional": false,
+            "help": "Number of parallel downloads to run on job node (default: 1)"
+        },
+        {
             "name": "reference_genome",
             "class": "string",
             "default": "cloud_references/GRCh38_full_analysis_set_plus_decoy_hla.fa",
