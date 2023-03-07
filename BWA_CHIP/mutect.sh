@@ -76,7 +76,7 @@ fi
 if [ ! -f "${SAMPLE_NAME}_mutect2.vcf" ]; then
     module load gatk4
 
-    echo "Calling somatic variants with Mutect2 with the following command:
+    echo "Calling somatic variants with Mutect2 with the following command:"
             gatk Mutect2 \
             $INPUTS \
             --output "${SAMPLE_NAME}_mutect2.vcf" \

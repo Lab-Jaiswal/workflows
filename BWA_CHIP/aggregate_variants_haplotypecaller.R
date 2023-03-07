@@ -20,10 +20,12 @@ ParseHaplotypeCallerVCF <- function(haplotypecaller_vcf) {
   haplotypecaller_info_df <- map2(haplotypecaller_info_names, haplotypecaller_info, names_set) %>% bind_rows
   
   haplotypecaller_info_nums <- mutate(haplotypecaller_info_df, across(everything(), as.numeric)) %>% select(-DP)
+  haplotypecaller_info
   
   haplotypecaller_data_names <- str_split(haplotypecaller_vcf$FORMAT, ":")  
   haplotypecaller_data <- str_split(haplotypecaller_vcf$DATA, ":") 
   haplotypecaller_data_df <- map2(haplotypecaller_data_names, haplotypecaller_data, names_set) %>% bind_rows
+  print(colnames(haplotypecaller_data_df))
   
   haplotypecaller_vcf_bind <- select(haplotypecaller_vcf, `#CHROM`:FILTER) %>% bind_cols(haplotypecaller_data_df) %>% bind_cols(haplotypecaller_info_nums)
   haplotypecaller_vcf_bind
@@ -32,12 +34,14 @@ ParseHaplotypeCallerVCF <- function(haplotypecaller_vcf) {
 # Define the location of the FastQs and the twist panel
 command_args <- commandArgs(trailingOnly = TRUE)
 panel_coordinates <- command_args[1]
+panel_coordinates <- "/labs/sjaiswal/chip_submitted_targets_Twist.xls"
 mutect_directory <- command_args[2]
+mutect_directory <- "~/sjaiswal/"
 
-sample_names <- list.files(mutect_directory, pattern = "*_haplotypecaller_genotypes.vcf$") %>% str_remove_all("_.*$")
+sample_names <- list.files(mutect_directory, pattern = "*_haplotypecaller.vcf$", recursive = TRUE) %>% str_remove_all("_.*$")
 
 # Parse germline genotype VCFs from HaplotypeCaller
-haplotypecaller_vcf_files <- list.files(mutect_directory, pattern = "*_haplotypecaller_genotypes.vcf$", full.names = TRUE)
+haplotypecaller_vcf_files <- list.files(mutect_directory, pattern = "*_haplotypecaller.vcf$", recursive = TRUE, full.names = TRUE)
 haplotypecaller_vcf_header <- read_lines(haplotypecaller_vcf_files[1]) # Read first VCF to get header 
 haplotypecaller_vcf_colnames <- str_subset(haplotypecaller_vcf_header, "^#") %>% # Only keep rows that begin with # because they are from the header
   str_subset("^##", negate = T) %>% str_split("\\t") %>% extract2(1) # Only keep line with a single # at the beginning because that is the column name

@@ -1,132 +1,126 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-echo "entering funcotator script"
+# Run scripts to enable activating conda environments
+. "${HOME}/micromamba/etc/profile.d/conda.sh"
+. "${HOME}/micromamba/etc/profile.d/mamba.sh"
+mamba activate base
 
-SAMPLE_NAME=$1
-BWA_GREF=$2
-FUNCOTATOR_SOURCES=$3
-TRANSCRIPT_LIST=$4
-PARAMETER_FILE="${5}"
-FILTERED=${6}
-OUTPUTS=${7}
-RUN_FUNCOTATOR=${8}
-OUTPUT_DIRECTORY=${9}
-MODE=${10}
-LINE_NUMBER=${11}
-CONTAINER_ENGINE=${12}
-GATK_COMMAND="${13}"
+# Set bash options for verbose output and to fail immediately on errors or if variables are undefined.
+set -o xtrace -o nounset -o pipefail -o errexit
 
-if [ $LINE_NUMBER = "1" ]; then
-         echo "arguments used for the funcotator.sh script:
-               SAMPLE_NAME=$1
-               BWA_GREF=$2
-               FUNCOTATOR_SOURCES=$3
-               TRANSCRIPT_LIST=$4
-               PARAMETER_FILE=${5}
-               FILTERED=${6}
-               OUTPUTS=${7}
-               RUN_FUNCOTATOR=${8}
-               OUTPUT_DIRECTORY=${9}
-               MODE=${10}
-               LINE_NUMBER=${11}
-               CONTAINER_ENGINE=${12}
-               GATK_COMMAND=${13}
-                " >> $PARAMETER_FILE
+check_for_file() {
+    argument_name="${1}"
+    file_path="${2}"
+    if [[ ${file_path} != "none" ]] && [[ ! -f ${file_path} ]]; then
+        echo "Error: file ${file_path} passed with ${argument_name} does not exist."
+        exit 1
+    fi
+}
+
+check_for_directory() {
+    argument_name="${1}"
+    directory_path="${2}"
+    if [[ ${directory_path} != "none" ]] && [[ ! -d ${directory_path} ]]; then
+        echo "Error: directory ${directory_path} passed with ${argument_name} does not exist."
+        exit 1
+    fi
+}
+
+options_array=(
+    filtered_vcf
+    reference_genome
+    funcotator_sources
+    transcript_list
+    gatk_command
+)
+
+longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g' | sed -e 's/$/:/')
+
+# Parse command line arguments with getopt
+arguments=$(getopt --options a --longoptions "${longoptions}" --name 'funcotator' -- "$@")
+eval set -- "${arguments}"
+
+while true; do
+    case "${1}" in
+        --filtered_vcf )
+            filtered_vcf="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --reference_genome )
+            reference_genome="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --funcotator_sources )
+            funcotator_sources="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --transcript_list )
+            transcript_list="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --gatk_command )
+            gatk_command="${2}"; shift 2 ;;
+        -- )
+            shift; break;;
+        * )
+            echo "Invalid argument ${1} ${2}" >&2
+            exit 1
+    esac
+done
+
+declare optional_args=""
+sample_name=$(echo "${filtered_vcf}" | sed -e 's/_mutect2_filtered.vcf//g')
+
+if [[ ${transcript_list} != "none" ]]; then
+    optional_args="--transcript-list ${transcript_list}"
+fi
+read -r -a optional_args_array <<< "${optional_args}"
+
+# Remove non-standard chromosomes from VCF header
+if [[ ! -f "${sample_name}_mutect2_filtered_reheadered.vcf" ]]; then
+    new_header="${sample_name}_new_header"
+    reheadered_vcf="${sample_name}_mutect2_filtered_reheadered.vcf"
+
+    grep "^#" < "${filtered_vcf}" | grep -v -E "chrM|chr.*_|HLA|chrEBV" > "${new_header}"
+
+    echo "Removing non-standard chromosomes from VCF header..."
+    ${gatk_command} FixVcfHeader \
+        --INPUT "${filtered_vcf}" \
+        --OUTPUT "${reheadered_vcf}" \
+        --HEADER "${new_header}"
+    echo "...header fixed."
 fi
 
-echo "!!!!!!!RUN_FUNCOTATOR: $RUN_FUNCOTATOR !!!!!!!!!!!!!!!^^^^^^^^^"
-
-cd $OUTPUTS
-
-#change outputs to output temp
-if [[ $CONTAINER_ENGINE = "singularity" ]]; then
-        OUTPUT_NAME="${OUTPUTS}/${SAMPLE_NAME}"
-        #OUTPUT_NAME="${OUTPUTS}/${SAMPLE_NAME}/${SAMPLE_NAME}"
-else
-        OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
-fi
-
-echo " OUTPUT DIRECTORY"
-
-# Move to funcotator.sh
-if [ $RUN_FUNCOTATOR = true ]; then
-    if [ ! -f "${OUTPUT_NAME}_mutect2_filter_funcotator.vcf" ]; then
-        MUTECT_FILTER="${OUTPUT_NAME}_mutect2_filter.vcf"
-        NEW_HEADER="${OUTPUT_NAME}_new_header"
-        MUTECT_REHEADERED="${OUTPUT_NAME}_mutect2_filter_reheadered.vcf"
-                  
-        grep "^#" < ${MUTECT_FILTER} | grep -v -E "chrM|chr.*_|HLA|chrEBV" > ${NEW_HEADER} 
-        
-        echo "incorrect header filtered"
-
-        ${GATK_COMMAND} FixVcfHeader -I ${MUTECT_FILTER} -O ${MUTECT_REHEADERED} --HEADER ${NEW_HEADER}
-
-echo "incorrect header replaced"
-        echo "Annotating Mutect2 VCF with Funcotator..."
-        ${GATK_COMMAND} Funcotator \
-        --variant "${MUTECT_REHEADERED}" \
-        --reference "${BWA_GREF}" \
+# Annotate filtered Mutect2 VCF with Funcotator annotations
+if [[ ! -f "${sample_name}_mutect2_filtered_funcotator.vcf" ]]; then
+    echo "Annotating Mutect2 VCF with Funcotator..."
+    ${gatk_command} Funcotator \
+        --variant "${reheadered_vcf}" \
+        --reference "${reference_genome}" \
         --ref-version hg38 \
-        --data-sources-path "${FUNCOTATOR_SOURCES}" \
-        --transcript-list "${TRANSCRIPT_LIST}" \
-        --output "${OUTPUT_NAME}_mutect2_filter_funcotator.vcf" \
+        --data-sources-path "${funcotator_sources}" \
+        "${optional_args_array[@]}" \
+        --output "${sample_name}_mutect2_filtered_funcotator.vcf" \
         --output-file-format VCF 
-        
-        echo "...VCF annotated."
-    else
-        echo "Mutect2 VCF already annotated"
-    fi
-
-
-
-    if [[ $FILTERED -eq 1 ]] && [[ ! -f "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.vcf" ]] ; then
-        grep -E "^#|FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" <  "${OUTPUT_NAME}_mutect2_filter_funcotator.vcf" > "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.vcf"
-
-        number_nonsyn_vcf=$(grep -E "FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" < "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.vcf" | wc -l)        
-        if [ $number_nonsyn_vcf -lt 1 ]; then
-            mv "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.vcf" "${OUTPUT_NAME}_mutect2_filter_funcotator_coding_null.vcf"
-        fi
-    else 
-        number_nonsyn_vcf=$(grep -E "FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" < "${OUTPUT_NAME}_mutect2_filter_funcotator.vcf" | wc -l)        
-        if [ $number_nonsyn_vcf -lt 1 ]; then
-            mv "${OUTPUT_NAME}_mutect2_filter_funcotator.vcf" "${OUTPUT_NAME}_mutect2_filter_funcotator_null.vcf"
-        fi
-
-    fi
-    
-    if  [ ! -f "${OUTPUT_NAME}_mutect2_filter_funcotator.maf" ]; then
-        echo "Annotating VCF with Funcotator (MAF output)..."
-        ${GATK_COMMAND} Funcotator \
-        --variant "${MUTECT_REHEADERED}" \
-        --reference "${BWA_GREF}" \
-        --ref-version hg38 \
-        --data-sources-path "${FUNCOTATOR_SOURCES}" \
-        --transcript-list "${TRANSCRIPT_LIST}" \
-        --output "${OUTPUT_NAME}_mutect2_filter_funcotator.maf" \
-        --output-file-format MAF
-            echo "...VCF annotated (MAF ouput)."
-    else
-        echo "Mutect2 VCF already annotated (MAF output)"
-    fi
-
-      
-
-    if  [[ $FILTERED -eq 1 ]] && [[ ! -f "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.maf" ]]; then
-        grep -E "^#|^Hugo_Symbol|Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" <  "${OUTPUT_NAME}_mutect2_filter_funcotator.maf" > "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.maf" 
-        number_nonsyn_maf=$(grep -E "Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" < "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.maf" | wc -l)        
-        if [ $number_nonsyn_maf -lt 1 ]; then
-            mv "${OUTPUT_NAME}_mutect2_filter_funcotator_coding.maf" "${OUTPUT_NAME}_mutect2_filter_funcotator_coding_null.maf"
-        fi
-
-    else
-        number_nonsyn_maf=$(grep -E "Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" < "${OUTPUT_NAME}_mutect2_filter_funcotator.maf" | wc -l) 
-        if [ $number_nonsyn_maf -lt 1 ]; then
-            mv "${OUTPUT_NAME}_mutect2_filter_funcotator.maf" "${OUTPUT_NAME}_mutect2_filter_funcotator_null.maf"
-        fi
-
-    fi
-else 
-    echo "Funcotator analysis not requested"
+    echo "...VCF annotated."
+else
+    echo "Mutect2 VCF already annotated"
 fi
 
-echo "funcotator.sh complete"
+# Filter VCF for coding mutations to reduce size, since non-coding mutations will be removed.
+if [[ ! -f "${sample_name}_mutect2_filtered_funcotator_coding.vcf" ]]; then
+    grep -E "^#|FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" < "${sample_name}_mutect2_filtered_funcotator.vcf" > "${sample_name}_mutect2_filtered_funcotator_coding.vcf"
+fi
+
+# Annotate filtered Mutect2 VCF with Funcotator annotations and output as a MAF file
+if [[ ! -f "${sample_name}_mutect2_filtered_funcotator.maf" ]]; then
+    echo "Annotating VCF with Funcotator (MAF output)..."
+    ${gatk_command} Funcotator \
+        --variant "${reheadered_vcf}" \
+        --reference "${reference_genome}" \
+        --ref-version hg38 \
+        --data-sources-path "${funcotator_sources}" \
+        "${optional_args_array[@]}" \
+        --output "${sample_name}_mutect2_filtered_funcotator.maf" \
+        --output-file-format MAF
+    echo "...VCF annotated (MAF ouput)."
+else
+    echo "Mutect2 VCF already annotated (MAF output)"
+fi
+
+# Filter MAF for coding mutations to reduce size, since non-coding mutations will be removed.
+if [[ ! -f "${sample_name}_mutect2_filtered_funcotator_coding.maf" ]]; then
+    grep -E "^#|^Hugo_Symbol|Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" <  "${sample_name}_mutect2_filtered_funcotator.maf" > "${sample_name}_mutect2_filtered_funcotator_coding.maf" 
+fi

@@ -1,45 +1,56 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-echo "entering fastq_to_bam.sh"
+# Run scripts to enable activating conda environments
+. $HOME/micromamba/etc/profile.d/conda.sh
+. $HOME/micromamba/etc/profile.d/mamba.sh
+mamba activate base
 
-SAMPLE_NAME=$1
-READGROUP=$2
-BWA_GREF=$3
-R1=$4
-R2=$5
-PARAMETER_FILE=$6
+# Set bash options for verbose output and to fail immediately on errors or if variables are undefined.
+set -o xtrace -o nounset -o pipefail -o errexit
 
-echo "fastq_to_bam command used the following parameters:
-$0 $1 $2 $3 $4 $5 $6"
+# Parse command line arguments with getopt
+arguments=$(getopt --options a --longoptions sample_name:,read_group:,reference_genome:,fastq_read1:,fastq_read2:,output_directory: --name 'fastq_to_bam' -- "$@")
+eval set -- "$arguments"
 
-if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-  echo "arguments used for the fastq_to_bam.sh script:
-        SAMPLE_NAME=$1
-        READGROUP=$2
-        BWA_GREF=$3
-        R1=$4
-        R2=$5
-        PARAMETER_FILE=$6
-        " >> $PARAMETER_FILE
-fi
+while true; do
+    case "$1" in 
+        --sample_name )
+            sample_name=$2 ; shift 2 ;;
+        --read_group )
+            read_group=$2 ; shift 2 ;;
+        --reference_genome )
+            reference_genome=$2 ; shift 2 ;;
+        --fastq_read1 )
+            fastq_read1=$2 ; shift 2 ;;
+        --fastq_read2 )
+            fastq_read2=$2 ; shift 2 ;;
+        --output_directory )
+            output_directory=$2 ; shift 2 ;;
+        -- )
+            shift; break ;;
+        * )
+            echo "Invalid argument ${1} ${2}" >&2
+            exit 1
+    esac
+done
 
-if [ ! -f "${SAMPLE_NAME}.bam" ]; then
-    echo "Aligning to reference genome..."
-    module load bwa
-    module load samtools
-    bwa mem -R "${READGROUP}" "${BWA_GREF}" "${R1}" "${R2}" | samtools view -b - | samtools sort - -o "${SAMPLE_NAME}.bam"
+bam_name="${output_directory}/${sample_name}.bam"
+mkdir -p "${output_directory}"
+
+if [ ! -f "${bam_name}" ]; then
+    echo "Aligning to reference genome with bwa-mem2..."
+    set +o xtrace +o nounset; mamba activate --stack bwa; set -o xtrace -o nounset
+    bwa-mem2 mem -R "${read_group}" "${reference_genome}" "${fastq_read1}" "${fastq_read2}" | samtools view -b - | samtools sort - -o "${bam_name}"
+    set +o xtrace +o nounset; mamba deactivate; set -o xtrace -o nounset
     echo "...alignment complete"
 else
     echo "Alignment already completed"
 fi
 
-if [ ! -f "${SAMPLE_NAME}.bam.bai" ]; then
-    echo "Indexing BAM file..."
-    module load samtools
-    samtools index "${SAMPLE_NAME}.bam" "${SAMPLE_NAM}.bam.bai"
+if [ ! -f "${bam_name}.bai" ]; then
+    echo "Indexing BAM file with samtools..."
+    mamba run -n samtools samtools index "${bam_name}" "${bam_name}.bai"
     echo "...indexing complete"
 else
     echo "Indexing of BAM already completed"
 fi
-
-echo "fastq_to_bam.sh complete"

@@ -1,57 +1,80 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-echo "entering haplotypecaller.sh script"
+# Run scripts to enable activating conda environments
+. "${HOME}/micromamba/etc/profile.d/conda.sh"
+. "${HOME}/micromamba/etc/profile.d/mamba.sh"
+mamba activate base
 
-SAMPLE_NAME=$1
-BWA_GREF=$2
-TWIST_SNPS=$3
-PARAMETER_FILE=$4
-MODE=$5
+# Set bash options for verbose output and to fail immediately on errors or if variables are undefined.
+set -o xtrace -o nounset -o pipefail -o errexit
 
-echo "haplotypecaller command used the following parameters:
-$0 $1 $2 $3 $4"
+check_for_file() {
+    argument_name="${1}"
+    file_path="${2}"
+    if [[ ! -f ${file_path} ]]; then
+        echo "Error: file ${file_path} passed with ${argument_name} does not exist."
+        exit 1
+    fi
+}
 
-if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-        echo "arguments used for the haplotypecaller.sh script:
-            SAMPLE_NAME=$1
-            BWA_GREF=$2
-            TWIST_SNPS=$3
-            PARAMETER_FILE=$4
-            MODE=$5
-             " >> $PARAMETER_FILE
-fi
+options_array=(
+    bam_file
+    reference_genome
+    germline_snps
+    gatk_command
+)
 
-if [ ! -f "${SAMPLE_NAME}_haplotypecaller.gvcf" ]; then
+longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g' | sed -e 's/$/:/')
+
+# Parse command line arguments with getopt
+arguments=$(getopt --options a --longoptions "${longoptions}" --name 'haplotypecaller' -- "$@")
+eval set -- "${arguments}"
+
+while true; do
+    case "${1}" in
+        --bam_file )
+            bam_file="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --reference_genome )
+            reference_genome="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --germline_snps )
+            germline_snps="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --gatk_command )
+            gatk_command="${2}"; shift 2 ;;
+        -- )
+            shift; break ;;
+        * )
+            echo "Invalid argument ${1} ${2}" >&2
+            exit 1
+    esac
+done
+
+sample_name=$(echo "${bam_file}" | sed -e 's/\.bam$//g' | sed -e 's/\.cram$//g')
+
+if [[ ! -f "${sample_name}_haplotypecaller.gvcf" ]]; then
     echo "Calling germline variants with HaplotypeCaller..."
-    if [[ $MODE = "slurm" ]]; then
-        module load gatk4
-    fi
-    gatk HaplotypeCaller \
-    --input "${SAMPLE_NAME}.bam" \
-    --output "${SAMPLE_NAME}_haplotypecaller.gvcf" \
-    --reference "${BWA_GREF}" \
-    --intervals "${TWIST_SNPS}" \
-    --bamout "${SAMPLE_NAME}_haplotypecaller.bam" \
-    --emit-ref-confidence GVCF
+    ${gatk_command} HaplotypeCaller \
+        --input "${bam_file}" \
+        --output "${sample_name}_haplotypecaller.gvcf" \
+        --reference "${reference_genome}" \
+        --intervals "${germline_snps}" \
+        --bamout "${sample_name}_haplotypecaller.bam" \
+        --emit-ref-confidence GVCF
 
-    if [[ $MODE = "slurm" ]]; then
-        module load samtools
-    fi
-    samtools index "${SAMPLE_NAME}_haplotypecaller.bam" "${SAMPLE_NAME}_haplotypecaller.bam.bai"
+    mamba run -n samtools samtools index "${sample_name}_haplotypecaller.bam" "${sample_name}_haplotypecaller.bam.bai"
 
     echo "...germline variants called."
 else
     echo "HaplotypeCaller gVCF already exists"
 fi
 
-if [ ! -f "${SAMPLE_NAME}_haplotypecaller_genotypes.vcf" ]; then
+if [ ! -f "${sample_name}_haplotypecaller.vcf" ]; then
     echo "Genotyping germline variants in gVCF with GenotypeGVCF..."
-    if [[ $MODE = "slurm" ]]; then
-        module load gatk4
-    fi
-    gatk GenotypeGVCFs \
-    --variant "${SAMPLE_NAME}_haplotypecaller.gvcf" \
+    ${gatk_command} GenotypeGVCFs \
+        --variant "${sample_name}_haplotypecaller.gvcf" \
+        --reference "${reference_genome}" \
+        --force-output-intervals "${germline_snps}" \
+        --output "${sample_name}_haplotypecaller.vcf"
+    echo "...germline variants genotyped."
+else
     echo "Germline variants already genotyped with GenotypeGVCFs"
 fi
-
-echo "haploypecaller.sh complete"

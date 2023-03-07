@@ -1,92 +1,136 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-echo "entering varscan.sh script"
+# Run scripts to enable activating conda environments
+. "${HOME}/micromamba/etc/profile.d/conda.sh"
+. "${HOME}/micromamba/etc/profile.d/mamba.sh"
+mamba activate base
 
-SAMPLE_NAME=$1
-BWA_GREF=$2
-min_coverage=$3
-min_var_freq=$4
-p_value=$5
-PARAMETER_FILE=$6
-MODE=$7
+# Set bash options for verbose output and to fail immediately on errors or if variables are undefined.
+set -o xtrace -o nounset -o pipefail -o errexit
 
-echo "varscan command used the following parameters:
-$0 $1 $2 $3 $4 $5 $6"
-
-if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-        echo "arguments used for the varscan.sh script:
-            SAMPLE_NAME=$1
-            BWA_GREF=$2
-            min_coverage=$3
-            min_var_freq=$4
-            p_value=$5
-            PARAMETER_FILE=$6
-            MODE=$7
-            " >> $PARAMETER_FILE
-fi
-
-if [ ! -f "${SAMPLE_NAMEY}.pileup" ]; then
-    if [[ $MODE = "slurm" ]]; then
-        module load samtools
+check_for_file() {
+    argument_name="${1}"
+    file_path="${2}"
+    if [[ ${file_path} != "none" ]] && [[ ! -f ${file_path} ]]; then
+        echo "Error: file ${file_path} passed with ${argument_name} does not exist."
+        exit 1
     fi
+}
+
+check_for_directory() {
+    argument_name="${1}"
+    directory_path="${2}"
+    if [[ ${directory_path} != "none" ]] && [[ ! -d ${directory_path} ]]; then
+        echo "Error: directory ${directory_path} passed with ${argument_name} does not exist."
+        exit 1
+    fi
+}
+
+options_array=(
+    bam_file
+    reference_genome
+    varscan_min_coverage
+    varscan_min_var_freq
+    varscan_max_pvalue
+    annovarroot
+    mpileup_interval_bed
+    run_annovar
+)
+
+longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g' | sed -e 's/$/:/')
+
+# Parse command line arguments with getopt
+arguments=$(getopt --options a --longoptions "${longoptions}" --name 'varscan' -- "$@")
+eval set -- "${arguments}"
+
+while true; do
+    case "${1}" in
+        --bam_file )
+            bam_file="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --reference_genome )
+            reference_genome="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --varscan_min_coverage )
+            varscan_min_coverage="${2}"; shift 2 ;;
+        --varscan_min_var_freq )
+            varscan_min_var_freq="${2}"; shift 2 ;;
+        --varscan_max_pvalue )
+            varscan_max_pvalue="${2}"; shift 2 ;;
+        --run_annovar )
+            run_annovar="${2}"; shift 2 ;;
+        --annovarroot )
+            annovarroot="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --mpileup_interval_bed )
+            mpileup_interval_bed="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        -- )
+            shift; break ;;
+        * )
+            echo "Invalid argument ${1} ${2}" >&2
+            exit 1
+    esac
+done
+
+sample_name=$(echo "${bam_file}" | sed -e 's/\.bam//g')
+declare optional_args=""
+
+if [[ ${mpileup_interval_bed} != "none" ]]; then
+    optional_args="--positions ${mpileup_interval_bed}"
+fi
+read -r -a optional_args_array <<< "${optional_args}"
+
+if [[ ! -f "${sample_name}.pileup" ]]; then
     echo "Generating pileup from BAM..."
-    samtools mpileup \
-    -A \
-    --max-depth 0 \
-    -C50 \
-    -f "${BWA_GREF}" \
-    "${SAMPLE_NAME}.bam" > "${SAMPLE_NAME}.pileup"
+    mamba run -n samtools samtools mpileup \
+        --count-orphans \
+        --max-depth 0 \
+        --adjust-MQ 50 \
+        --fasta-ref "${reference_genome}" \
+        "${optional_args_array[@]}" \
+        "${bam_file}" > "${sample_name}.pileup"
     echo "...pileup generated"
 else
     echo "Pileup already generated"
 fi
-if [ ! -f "${SAMPLE_NAME}_varscan2.vcf" ]; then
+
+if [[ ! -f "${sample_name}_varscan2.vcf" ]]; then
     echo "Calling variants from pileup..."
-    if [[ $MODE = "slurm" ]]; then
-        module load varscan
-    fi
-    varscan mpileup2cns \
-    "${SAMPLE_NAME}.pileup" \
-    --min-coverage "${min_coverage}" \
-    --min-var-freq "${min_var_freq}" \
-    --p-value "${p_value}" \
-    --output-vcf 1 > "${SAMPLE_NAME}_varscan2.vcf"
+    mamba run -n varscan varscan mpileup2cns \
+    "${sample_name}.pileup" \
+        --min-coverage "${varscan_min_coverage}" \
+        --min-var-freq "${varscan_min_var_freq}" \
+        --p-value "${varscan_max_pvalue}" \
+        --output-vcf 1 > "${sample_name}_varscan2.vcf"
     echo "...variants called"
 else
     echo "Variants already called"
 fi
 
-if [ ! -f "${SAMPLE_NAME}_varscan2_filter.vcf" ]; then
+if [[ ! -f "${sample_name}_varscan2_filter.vcf" ]]; then
     echo "Filtering variants in VCF..."
-    varscan filter \
-    "${SAMPLE_NAME}_varscan2.vcf" \
-    --output-file "${SAMPLE_NAME}_varscan2_filter.vcf" \
-    --min-coverage "${min_coverage}" \
-    --min-var-freq "${min_var_freq}" \
-    --p-value "${p_value}"
+    mamba run -n varscan varscan filter \
+        "${sample_name}_varscan2.vcf" \
+        --output-file "${sample_name}_varscan2_filter.vcf" \
+        --min-coverage "${varscan_min_coverage}" \
+        --min-var-freq "${varscan_min_var_freq}" \
+        --p-value "${varscan_max_pvalue}"
     echo "...variants filtered"
 else
     echo "Variants already filtered"
 fi
 
-if [ ! -f "${SAMPLE_NAME}_varscan2_filter_annovar.hg38_multianno.vcf" ]; then
+if [[ ! -f "${sample_name}_varscan2_filter_annovar.hg38_multianno.vcf" ]] && [[ $run_annovar == true ]]; then
     echo "Annotating VCF with Annovar..."
-    ASSEMBLY_REFGENE="hg38"
-    ANNOVARROOT="/labs/sjaiswal/tools/annovar"
-    "${ANNOVARROOT}/table_annovar.pl" \
-    "${SAMPLE_NAME}_varscan2_filter.vcf" \
-    "${ANNOVARROOT}/humandb" \
-    --buildver "${ASSEMBLY_REFGENE}" \
-    --remove \
-    --outfile "${SAMPLE_NAME}_varscan2_filter_annovar" \
-    --protocol ensGene \
-    --operation g \
-    --nastring '.' \
-    --vcfinput \
-    --thread 1
+    perl "${annovarroot}/table_annovar.pl" \
+        "${sample_name}_varscan2_filter.vcf" \
+        "${annovarroot}/humandb" \
+        --buildver hg38 \
+        --remove \
+        --outfile "${sample_name}_varscan2_filter_annovar" \
+        --protocol ensGene \
+        --operation g \
+        --nastring '.' \
+        --vcfinput \
+        --thread 1
     echo "...VCF annotated"
 else
     echo "VCF already annotated"
 fi
-
-echo "varscan analysis complete"

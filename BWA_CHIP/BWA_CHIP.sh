@@ -1,537 +1,440 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-#SBATCH --time=72:00:00
-#SBATCH --account=sjaiswal
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=124GB
-#SBATCH --job-name=CHIP_variant_call
+# Run scripts to enable activating conda environments
+. "${HOME}/micromamba/etc/profile.d/conda.sh"
+. "${HOME}/micromamba/etc/profile.d/mamba.sh"
+mamba activate base
 
-set -u
+# Set bash options for verbose output and to fail immediately on errors or if variables are undefined.
+set -o xtrace -o nounset -o pipefail -o errexit
+
+check_for_file() {
+    argument_name="${1}"
+    file_path="${2}"
+    if [[ ${file_path} != "none" ]] && [[ ! -f ${file_path} ]]; then
+        echo "Error: file ${file_path} passed with ${argument_name} does not exist."
+        exit 1
+    fi
+}
+
+check_for_directory() {
+    argument_name="${1}"
+    directory_path="${2}"
+    if [[ ${directory_path} != "none" ]] && [[ ! -d ${directory_path} ]]; then
+        echo "Error: directory ${directory_path} passed with ${argument_name} does not exist."
+        exit 1
+    fi
+}
 
 ##################################################################################################################################
 #############################################---STEP 1: SET UP PARAMETERS---###################################################### 
 ##################################################################################################################################
-PARENT_DIRECTORY=$1
-OUTPUT_DIRECTORY="$2"
-MIN_COVERAGE="$3"
-MIN_VAR_FREQ="$4"
-P_VALUE="$5"
-GET_MUTECT="$6"
-GET_VARSCAN="$7"
-GET_HAPLOTYPE="$8"
-FILE_EXT=${9}
-INTERVALS_FILENAME="${10}"
-NORMAL_SAMPLE_FILENAME="${11}"
-CODE_DIRECTORY="${12}"
-PARAMETER_FILE=${13}
-BWA_GREF_FILENAME=${14}
-TWIST_SNPS=${15}
-ASSEMBLY=${16}
-FUNCOTATOR_SOURCES_FILENAME=${17}    
-TRANSCRIPT_LIST_FILENAME=${18}
-FILTERED=${19}
-RUN_FUNCOTATOR=${20}
-BAM_OUT=${21}
-NORMAL_PILEUPS_FILENAME="${22}"
-MODE=${23}
-DOCKER_IMAGE=${24}
-CONTAINER_ENGINE=${25}
-SPLIT_BY_CHR=${26}
-SEQUENCE_DICT_FILENAME=${27}
-CHR_INTERVALS_FILENAME=${28}
-GNOMAD_GENOMES_FILENAME=${29}
-RUN_MUTECT=${30}
+options_array=(
+    array_file
+    output_directory
+    varscan_min_coverage
+    varscan_min_var_freq
+    varscan_max_pvalue
+    annovarroot
+    mpileup_interval_bed
+    run_varscan
+    run_mutect
+    run_funcotator
+    run_annovar
+    run_haplotypecaller
+    bam_extension
+    fastq_extension
+    interval_list
+    split_intervals
+    normal_bam
+    normal_pileups_table
+    reference_genome
+    gnomad_reference
+    germline_snps
+    assembly
+    funcotator_sources
+    transcript_list
+    sequence_dictionary
+    mutect_bam_output
+    slurm_mode
+)
 
-if [[ $CONTAINER_ENGINE = "singularity" ]]; then
-    gatk_command="singularity run instance://gatk_container gatk"
-elif [[ $CONTAINER_ENGINE = "docker" ]]; then
-    gatk_command="docker exec gatk_container gatk"
-fi
+longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g'):
 
-if [[ $MODE = "slurm" ]]; then
-    LINE_NUMBER=$SLURM_ARRAY_TASK_ID #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
+# Parse command line arguments with getopt
+arguments=$(getopt --options a --longoptions "${longoptions}" --name 'somatic_variant_pipeline' -- "$@")
+eval set -- "${arguments}"
+
+while true; do
+    case "${1}" in
+        --array_file )
+            array_file="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --output_directory )
+            final_output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --bam_extension )
+            bam_extension="${2}"; shift 2 ;;
+        --fastq_extension )
+            fastq_extension="${2}"; shift 2 ;;
+        --assembly )
+            assembly="${2}"; shift 2 ;;
+        --reference_genome )
+            reference_genome="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --slurm_mode )
+            slurm_mode="${2}"; shift 2 ;;
+        --run_mutect )
+            run_mutect="${2}"; shift 2 ;;
+        --interval_list )
+            interval_list="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --split_intervals )
+            split_intervals="${2}"; shift 2 ;;
+        --sequence_dictionary )
+            sequence_dictionary="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --mutect_bam_output )
+            mutect_bam_output="${2}"; shift 2 ;;
+        --gnomad_reference )
+            gnomad_reference="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --normal_bam )
+            normal_bam_file="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --normal_pileups_table )
+            normal_pileups_table="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --run_funcotator )
+            run_funcotator="${2}"; shift 2 ;;
+        --funcotator_sources )
+            funcotator_sources="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --transcript_list )
+            transcript_list="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --run_varscan )
+            run_varscan="${2}"; shift 2 ;;
+        --mpileup_interval_bed )
+            mpileup_interval_bed="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --varscan_min_coverage )
+            varscan_min_coverage="${2}"; shift 2 ;;
+        --varscan_min_var_freq )
+            varscan_min_var_freq="${2}"; shift 2 ;;
+        --varscan_max_pvalue )
+            varscan_max_pvalue="${2}"; shift 2 ;;
+        --run_annovar )
+            run_annovar="${2}"; shift 2 ;;
+        --annovarroot )
+            annovarroot="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --run_haplotypecaller )
+            run_haplotypecaller="${2}"; shift 2 ;;
+        --germline_snps )
+            germline_snps="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        -- )
+            shift; break ;;
+        * )
+            echo "Invalid argument ${1} ${2}" >&2
+            exit 1
+    esac
+done
+
+if [[ ${slurm_mode} == true ]]; then
+    line_number=${SLURM_ARRAY_TASK_ID} #get index of which file to process from $SLURM_ARRAY_TASK_ID provided by SLURM
 else
-    LINE_NUMBER=${TASK_ID}
+    line_number=${TASK_ID}
 fi
 
-if [[ $LINE_NUMBER = 1 ]]; then
-    echo "PARENT_DIRECTORY=$1 \
-        OUTPUT_DIRECTORY=$2 \
-        MIN_COVERAGE=$3 \
-        MIN_VAR_FREQ=$4 \
-        P_VALUE=$5 \
-        GET_MUTECT=$6 \
-        GET_VARSCAN=$7 \
-        GET_HAPLOTYPE=$8 \
-        FILE_EXT=$9 \
-        INTERVALS_FILENAME=${10} \
-        NORMAL_SAMPLE_FILENAME=${11} \
-        CODE_DIRECTORY=${12} \
-        PARAMETER_FILE=${13} \
-        BWA_GREF_FILENAME=${14} \
-        TWIST_SNPS=${15} \
-        ASSEMBLY=${16} \
-        FUNCOTATOR_SOURCES_FILENAME=${17} \ 
-        TRANSCRIPT_LIST_FILENAME=${18} \
-        FILTERED=${19} \
-        RUN_FUNCOTATOR=${20} \
-        BAM_OUT=${21} \
-        NORMAL_PILEUPS_FILENAME=${22} \
-        MODE=${23} \
-        DOCKER_IMAGE=${24} \
-        CONTAINER_ENGINE=${25} \
-        SPLIT_BY_CHR=${26} \
-        SEQUENCE_DICT_FILENAME=${27} \
-        CHR_INTERVALS_FILENAME=${28} \
-        GNOMAD_GENOMES_FILENAME=${29} \
-        RUN_MUTECT=${30}" # >> $PARAMETER_FILE
+array_prefix="$(sed "${line_number}q; d" "${array_file}")" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
+sample_name=$(basename "${array_prefix}")
+bam_file="${array_prefix}.${bam_extension}"
+gatk_command="mamba run -n gatk4 gatk"
+code_directory=$(realpath $(dirname ${BASH_SOURCE[0]}))
+
+if [[ $final_output_directory != "none" ]]; then
+    final_output_directory=${final_output_directory}/${sample_name}
 fi
 
-if [[ $RUN_MUTECT = false ]]; then
-    NORMAL_SAMPLE_FILENAME=false
-    NORMAL_PILEUPS_FILENAME=false
-fi
-
-if [[ $FILE_EXT = "fastq" ]]; then
-    ARRAY_FILE="${PARENT_DIRECTORY}/fastq_files" #provide path to file containing list of fastq files
-else 
-    ARRAY_FILE="${PARENT_DIRECTORY}/bam_files" #provide path to file containing list of fastq files
-fi
-
-if [[ $FILE_EXT = "fastq" ]]; then #what is this doing?????
-    ARRAY_FILE="${PARENT_DIRECTORY}/normal_sample_path" #provide path to file containing list of fastq files
-fi
-
-
-ARRAY_PREFIX="$(sed "${LINE_NUMBER}q; d" "${ARRAY_FILE}")" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
-
-#CHR_INTERVALS="${CODE_DIRECTORY}/whole_genome_intervals.interval_list"
-#CHR_INTERVALS="/oak/stanford/groups/smontgom/maurertm/ADRC/workflows/Interval_filtering/chr21_chr22.interval_list"
-
-#Run script and save files in the same location of the fastq files
-
-FILENAME=$(basename "${ARRAY_PREFIX}")
-SAMPLE_NAME="${FILENAME}_${ASSEMBLY}"
-if [[ $FILE_EXT = "fastq" ]]; then
-   R1="${ARRAY_PREFIX}_R1_001.fastq.gz"
-   R2="${ARRAY_PREFIX}_R2_001.fastq.gz"
-   READGROUP="@RG\tID:${FILENAME}\tLB:${FILENAME}\tPL:illumina\tSM:${FILENAME}"
-   echo "$READGROUP"
-   MUTECT_INPUT_FILENAME="${FILENAME}_${ASSEMBLY}"
-
-   echo "FILENAME: $FILENAME"
-
-   bash ${CODE_DIRECTORY}/fastq_to_bam.sh $SAMPLE_NAME $READGROUP $BWA_GREF_FILENAME $R1 $R2 $PARAMETER_FILE
-else
-    MUTECT_INPUT_FILENAME="${ARRAY_PREFIX}"
-fi
-
-#maybe don't there two lines in cloud mode
-#maybe need to fix regex
-if [[ $MODE = "slurm" ]]; then
-    OUTPUT_DIRECTORY=${OUTPUT_DIRECTORY}/${SAMPLE_NAME}
-    mkdir -p $OUTPUT_DIRECTORY
-fi
-
-if [[ $MODE = "slurm" ]]; then
-    cd "${OUTPUT_DIRECTORY}" || exit
-else 
-    #cd $WORKING_DIRECTORY || exit
-    WORKING_DIRECTORY=$PARENT_DIRECTORY
-    #OUTPUT_DIRECTORY=$WORKING_DIRECTORY
-fi
-
-echo "MODE: $MODE !!!!!!!!!!!!!!!"
-echo "RUN_FUNCOTATOR: $RUN_FUNCOTATOR"
-
-if [[ $MODE = "slurm" ]]; then
-    INPUT="${TMPDIR}/Inputs"
-    OUTPUTS="${TMPDIR}/Outputs"
-    PARAMS="${TMPDIR}/Params"
-    NORMAL="${TMPDIR}/Normal"
-    mkdir -p $INPUT
-    mkdir -p $PARAMS
-    mkdir -p $NORMAL
-
-    #COPY_COMMAND="rsync -vurPhlt"
-else
-    if [[ $CONTAINER_ENGINE = "singularity" ]]; then
-                INPUT="${WORKING_DIRECTORY}/Inputs"
-                OUTPUTS="${WORKING_DIRECTORY}/Outputs/${SAMPLE_NAME}"
-                PARAMS="${WORKING_DIRECTORY}/Params"
-                NORMAL="${WORKING_DIRECTORY}/Normal"
-        else
-                INPUT=~/Inputs
-                OUTPUTS=~/Outputs
-                PARAMS=~/References
-                NORMAL=~/Normal
-        fi
-fi
-
-mkdir -p $OUTPUTS
-
-echo "copying FASTQs from the data path..." #copy data from data_path to the temp_path
-
-
-if [[ $MODE = "slurm" ]]; then
-    MUTECT_INPUT_DIRNAME=$(dirname "${MUTECT_INPUT_FILENAME}")
-    MUTECT_INPUT_BASENAME=$(basename "${MUTECT_INPUT_FILENAME}")
-    MUTECT_INPUT="${INPUT}/${MUTECT_INPUT_BASENAME}"
-
-    if [[ $LINE_NUMBER = 1 ]]; then
-        echo "MUTECT_INPUT_BASENAME: $MUTECT_INPUT_BASENAME
-              MUTECT_INPUT: $MUTECT_INPUT" >> $PARAMETER_FILE
+if [[ ${slurm_mode} == true ]]; then
+    input_directory="${TMPDIR}/inputs"
+    output_directory="${TMPDIR}/outputs/${sample_name}"
+    references_directory="${TMPDIR}/references"
+    if [[ $normal_bam_file != "none" ]]; then
+        normal_input_directory="${TMPDIR}/inputs/normal"
     fi
 
-    rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.${FILE_EXT}" "${MUTECT_INPUT}.${FILE_EXT}"
-    if [[ $FILE_EXT = "bam" ]]; then
-        rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.bai" "${MUTECT_INPUT}.bai"
-    else
-        rsync -vurPhlt "${MUTECT_INPUT_FILENAME}.crai" "${MUTECT_INPUT}.crai"
-    fi
-else
-    MUTECT_INPUT=$MUTECT_INPUT_FILENAME
+    rsync_command="rsync --human-readable --links --mkpath --progress --recursive --times --update --verbose"
+    mkdir -p "${final_output_directory}"
+    ${rsync_command} --exclude "logs" "${final_output_directory}/" "${output_directory}"
+
+    #if [[ ${fastq_extension} != "none" ]]; then
+        #original_bam_file="${bam_file}"
+        #bam_file="${input_directory}/$(basename ${original_bam_file})"
+        #${rsync_command} "${original_bam_file}" "${bam_file}"
+        #check_for_file "${rsync_command}" "${bam_file}"
+
+        #if [[ ${bam_extension} == "bam" ]]; then
+            #original_index_file="${original_bam_file}.bai"
+        #else
+            #original_index_file="${original_bam_file%.*}.crai"
+        #fi
+        #index_file="${input_directory}/$(basename ${original_index_file})"
+        #${rsync_command} "${original_index_file}" "${index_file}"
+        #check_for_file "${rsync_command}" "${index_file}"
+    #fi
+
+    #original_reference_genome="${reference_genome}"
+    #reference_genome="${references_directory}/$(basename ${original_reference_genome})"
+    #${rsync_command} ${original_reference_genome%.*}* "${references_directory}"
+    #check_for_file "${rsync_command}" "${reference_genome}"
+
+    #if [[ ${interval_list} != "none" ]]; then
+        #original_interval_list="${interval_list}"
+        #interval_list="${references_directory}/$(basename ${original_interval_list})"
+        #${rsync_command} "${original_interval_list}" "${interval_list}"
+        #check_for_file "${rsync_command}" "${interval_list}"
+    #fi
+
+    #if [[ ${gnomad_reference} != "none" ]]; then
+        #original_gnomad_reference="${gnomad_reference}"
+        #gnomad_reference="${references_directory}/$(basename ${original_gnomad_reference})"
+        #${rsync_command} "${original_gnomad_reference}" "${gnomad_reference}"
+        #${rsync_command} "${original_gnomad_reference}.tbi" "${gnomad_reference}.tbi"
+        #check_for_file "${rsync_command}" "${gnomad_reference}"
+        #check_for_file "${rsync_command}" "${gnomad_reference}.tbi"
+    #fi
+
+    #if [[ ${sequence_dictionary} != "none" ]]; then
+        #original_sequence_dictionary="${sequence_dictionary}"
+        #sequence_dictionary="${references_directory}/$(basename ${original_sequence_dictionary})"
+        #${rsync_command} "${original_sequence_dictionary}" "${sequence_dictionary}"
+        #check_for_file "${rsync_command}" "${sequence_dictionary}"
+    #fi
+
+    #if [[ ${transcript_list} != "none" ]]; then
+        #original_transcript_list="${transcript_list}"
+        #transcript_list="${references_directory}/$(basename ${original_transcript_list})"
+        #${rsync_command} "${original_transcript_list}" "${transcript_list}"
+        #check_for_file "${rsync_command}" "${transcript_list}"
+    #fi
+    
+    #if [[ ${funcotator_sources} != "none" ]]; then
+        #original_funcotator_sources="${funcotator_sources}"
+        #funcotator_sources="${references_directory}/funcotator_sources/$(basename ${original_funcotator_sources})"
+        #${rsync_command} "${original_funcotator_sources}/" "${funcotator_sources}"
+        #check_for_directory "${rsync_command}" "${funcotator_sources}"
+    #fi
+
+    #if [[ ${normal_bam_file} != "none" ]]; then
+        #original_normal_bam_file="${normal_bam_file}"
+        #normal_bam_file="${normal_input_directory}/$(basename ${original_normal_bam_file})"
+        #${rsync_command} "${original_normal_bam_file}" "${normal_bam_file}"
+        #check_for_file "${rsync_command}" "${normal_bam_file}"
+
+        #if [[ ${bam_extension} == "bam" ]]; then
+            #original_normal_index_file="${original_normal_bam_file}.bai"
+        #else
+            #original_normal_index_file="${original_normal_bam_file%.*}.crai"
+        #fi
+        #normal_index_file="${normal_input_directory}/$(basename ${original_normal_index_file})"
+        #${rsync_command} "${original_normal_index_file}" "${normal_index_file}"
+        #check_for_file "${rsync_command}" "${normal_index_file}"
+
+        #original_normal_pileups_table="${normal_pileups_table}"
+        #normal_pileups_table="${normal_input_directory}/$(basename ${original_normal_pileups_table})"
+        #${rsync_command} "${original_normal_pileups_table}" "${normal_pileups_table}"
+        #check_for_file "${rsync_command}" "${normal_pileups_table}"
+    #fi
 fi
-
-if [[ $RUN_MUTECT = true ]] && [[ $MODE = "slurm" ]]; then
-    BWA_GREF_DIRNAME=$(dirname "${BWA_GREF_FILENAME}")
-    BWA_GREF_BASENAME=$(basename "${BWA_GREF_FILENAME}")
-    BWA_GREF="${PARAMS}/${BWA_GREF_BASENAME}"
-
-    rsync -vurPhlt "$BWA_GREF_FILENAME" $BWA_GREF
-    BWA_GREF_PATTERN=${BWA_GREF_BASENAME%.*}
-    rsync -vurPhlt $BWA_GREF_DIRNAME/$BWA_GREF_PATTERN* $PARAMS/
-
-else
-    BWA_GREF=$BWA_GREF_FILENAME
-fi
-
-if [[ $SPLIT_BY_CHR = true ]] && [[ $MODE = "slurm" ]]; then
-    SEQUENCE_DICT_DIRNAME=$(dirname "${SEQUENCE_DICT_FILENAME}")
-    SEQUENCE_DICT_BASENAME=$(basename "${SEQUENCE_DICT_FILENAME}")
-    SEQUENCE_DICT="${PARAMS}/${SEQUENCE_DICT_BASENAME}"
-    rsync -vurPhlt "$SEQUENCE_DICT_FILENAME" $SEQUENCE_DICT
-else
-    SEQUENCE_DICT=$SEQUENCE_DICT_FILENAME
-fi
-
-if [[ $MODE = "slurm" ]]; then
-    INTERVALS_FILE_DIRNAME=$(dirname "${INTERVALS_FILENAME}")
-    INTERVALS_FILE_BASENAME=$(basename "${INTERVALS_FILENAME}")
-    INTERVALS_FILE="${PARAMS}/${INTERVALS_FILE_BASENAME}"
-    rsync -vurPhlt "$INTERVALS_FILENAME" $INTERVALS_FILE
-
-    CHR_INTERVALS_DIRNAME=$(dirname "${CHR_INTERVALS_FILENAME}")
-    CHR_INTERVALS_BASENAME=$(basename "${CHR_INTERVALS_FILENAME}")
-    CHR_INTERVALS="${PARAMS}/${CHR_INTERVALS_BASENAME}"
-    rsync -vurPhlt "$CHR_INTERVALS_FILENAME" $CHR_INTERVALS
-
-    GNOMAD_GENOMES_DIRNAME=$(dirname "${GNOMAD_GENOMES_FILENAME}")
-    GNOMAD_GENOMES_BASENAME=$(basename "${GNOMAD_GENOMES_FILENAME}")
-    GNOMAD_GENOMES="${PARAMS}/${GNOMAD_GENOMES_BASENAME}"
-    GNOMAD_GENOMES_INDEX="${PARAMS}/${GNOMAD_GENOMES_BASENAME}.tbi"
-    rsync -vurPhlt "$GNOMAD_GENOMES_FILENAME" $GNOMAD_GENOMES
-    rsync -vurPhlt "${GNOMAD_GENOMES_FILENAME}.tbi" $GNOMAD_GENOMES_INDEX
-else
-    INTERVALS_FILE=$INTERVALS_FILENAME
-    CHR_INTERVALS=$CHR_INTERVALS_FILENAME
-    GNOMAD_GENOMES=$GNOMAD_GENOMES_FILENAME
-fi
-
-    #INPUT="${PARENT_DIRECTORY}"
-    #OUTPUTS="${OUTPUT_DIRECTORY}"
-    #PARAMS="${PARENT_DIRECTORY}/References"
-
-    #MUTECT_INPUT_BASENAME=$(basename "${MUTECT_INPUT_FILENAME}")
-    #MUTECT_INPUT=$INPUT/$MUTECT_INPUT_BASENAME
-    #mkdir -p $MUTECT_INPUT
-    #mv $MUTECT_INPUT_FILENAME $MUTECT_INPUT/
-
-    #BWA_GREF=$BWA_GREF_FILENAME
-    #SEQUENCE_DICT=$SEQUENCE_DICT_FILENAME
-    #INTERVALS_FILE=$INTERVALS_FILENAME
-    #CHR_INTERVALS=$CHR_INTERVALS_FILENAME
-    #GNOMAD_GENOMES=$GNOMAD_GENOMES_FILENAME
 
 ##################################################################################################################################
 #################################################---STEP 2: MUTECT.sh---########################################################## 
 ##################################################################################################################################       
 
-#Note: will need changes to also work with Docker
-echo "OUTPUT_DIRECTORY (before running singularity): $(readlink -f $OUTPUT_DIRECTORY)"
+if [[ ${fastq_extension} != "none" ]]; then
+    fastq_read1="${array_prefix}_R1_001.fastq.gz"
+    fastq_read2="${array_prefix}_R2_001.fastq.gz"
+    read_group="@RG\tID:${sample_name}\tLB:${sample_name}\tPL:illumina\tSM:${sample_name}"
+    sample_name="${sample_name}_${assembly}"
 
-if [[ $CONTAINER_ENGINE = "singularity" ]]; then
-    if [[ "$(grep -c "gatk_container" <(singularity instance list))" -ge 1 ]]; then
-        echo "deleting running instance"
-        singularity instance stop gatk_container
-        singularity delete --force gatk_container
-    fi
-    if [[ $MODE = "slurm" ]]; then
-        singularity instance start -B $(readlink -f $TMPDIR) docker://broadinstitute/gatk:latest gatk_container
-    else
-        singularity instance start -B $(readlink -f $WORKING_DIRECTORY) docker://broadinstitute/gatk:latest gatk_container
-    fi
-elif [[ $CONTAINER_ENGINE = "docker" ]] && [[ $MODE == "slurm" ]]; then
-    #this cannot work in dna nexus or on scg because scg/sherlock doesn't allow docker AND
-    #DNA Nexus is running multiple samples on the same node
-    #I am only keeping this code for the eventually it is run on a slrum based system that allows docker (not applicable to my research at Stanford)
-    if [[ "$(grep -c "gatk_container" <(docker container ls))" -ge 1 ]]; then
-        echo "deleting running container"
-        docker stop gatk_container
-        docker rm gatk_container
-    fi
+    "${code_directory}/fastq_to_bam.sh" \
+        --sample_name "${sample_name}" \
+        --read_group "${read_group}" \
+        --reference_genome "${reference_genome}" \
+        --fastq_read1 "${fastq_read1}" \
+        --fastq_read2 "${fastq_read2}" \
+        --output_directory "${output_directory}"
 
-    docker run --rm --detach --name gatk_container --workdir /home/dnanexus --volume /home/dnanexus:/home/dnanexus broadinstitute/gatk:latest sleep inf
+    bam_file="${output_directory}/${sample_name}.bam"
+
+    if [[ ${slurm_mode} == true ]]; then
+        ${rsync_command} "${output_directory}/" "${final_output_directory}"
+        check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}.bam"
+    fi
 fi
-    
-if [ $GET_MUTECT = true ]; then
-    echo "Mutect analysis requested"
-    echo "$PARAMETER_FILE"
 
-     TRANSCRIPT_LIST=$TRANSCRIPT_LIST_FILENAME
-
-     if [ $RUN_FUNCOTATOR = false ]; then
-        FUNCOTATOR_SOURCES=false
-     fi
-    
-     if [ $NORMAL_SAMPLE_FILENAME = false ]; then
-        NORMAL_SAMPLE=false
-    fi
-
-    if [ $NORMAL_PILEUPS_FILENAME = false ]; then
-        NORMAL_PILEUPS=false
-    fi
-
-    if [[ $MODE = "slurm" ]]; then     
-        TRANSCRIPT_LIST_BASENAME=$(basename "${TRANSCRIPT_LIST_FILENAME}")
-        TRANSCRIPT_LIST="${PARAMS}/${TRANSCRIPT_LIST_BASENAME}"
-
-        rsync -vurPhlt "$TRANSCRIPT_LIST_FILENAME" $TRANSCRIPT_LIST
-    else
-        TRANSCRIPT_LIST=$TRANSCRIPT_LIST_FILENAME
-    fi
-
-    if [[ $RUN_FUNCOTATOR = true ]] && [[ $RUN_MUTECT = true ]]; then
-        if [[ $MODE = "slurm" ]]; then
-            FUNCOTATOR_SOURCES="$PARAMS/FUNCOTATOR_SOURCES"
-            mkdir -p $FUNCOTATOR_SOURCES 
-            rsync -vurPhlt $FUNCOTATOR_SOURCES_FILENAME/ $FUNCOTATOR_SOURCES
-        else
-            FUNCOTATOR_SOURCES=$FUNCOTATOR_SOURCES_FILENAME
+if [[ ${run_mutect} == true ]]; then
+    if [[ ${split_intervals} == true ]]; then
+        num_intervals=$(grep -c -v "@" < "${interval_list}")
+        echo "Number of intervals: $num_intervals"
+        seq 1 "${num_intervals}" | parallel -j8 --progress --ungroup \
+            "${code_directory}/mutect_and_pileups.sh" \
+                --bam_file "${bam_file}" \
+                --normal_bam_file "${normal_bam_file}" \
+                --interval_list "${interval_list}" \
+                --interval_number {} \
+                --reference_genome "${reference_genome}" \
+                --gnomad_reference "${gnomad_reference}" \
+                --output_directory "${output_directory}" \
+                --mutect_bam_output "${mutect_bam_output}" \
+                --gatk_command "${gatk_command}"
+           
+        if [[ ${slurm_mode} == true ]]; then
+            ${rsync_command} "${output_directory}/" "${final_output_directory}"
+            check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_mutect2.vcf"
         fi
-    fi
-    
-    if [[ $NORMAL_SAMPLE_FILENAME != false ]]; then 
-        if [[ $MODE = "slurm" ]]; then
-            NORMAL_SAMPLE_DIRNAME=$(dirname "${NORMAL_SAMPLE_FILENAME}")
-            NORMAL_SAMPLE_BASENAME=$(basename "${NORMAL_SAMPLE_FILENAME}")
-            NORMAL_SAMPLE_PATTERN=${NORMAL_SAMPLE_BASENAME%.*}
-            INPUT_NORMAL="${NORMAL_SAMPLE_DIRNAME}/${NORMAL_SAMPLE_PATTERN}"
-            OUTPUT_NORMAL="${NORMAL}/${NORMAL_SAMPLE_PATTERN}"
-            NORMAL_SAMPLE="${NORMAL}/${NORMAL_SAMPLE_PATTERN}.${FILE_EXT}"
-
-            rsync -vurPhlt "${INPUT_NORMAL}.${FILE_EXT}" "${OUTPUT_NORMAL}.${FILE_EXT}"
-            if [[ $FILE_EXT = "bam" ]]; then
-                rsync -vurPhlt "${INPUT_NORMAL}.bai" "${OUTPUT_NORMAL}.bai"
-            else
-                rsync -vurPhlt "${INPUT_NORMAL}.crai" "${OUTPUT_NORMAL}.crai"
-            fi
-        else
-            NORMAL_SAMPLE=$NORMAL_SAMPLE_FILENAME
-        fi
-    fi
         
-    if [ $NORMAL_PILEUPS_FILENAME != false ]; then
-        if [[ $MODE = "slurm" ]]; then
-            NORMAL_PILEUPS_DIRNAME=$(dirname "${NORMAL_PILEUPS_FILENAME}")
-            NORMAL_PILEUPS_BASENAME=$(basename "${NORMAL_PILEUPS_FILENAME}")
-            NORMAL_PILEUPS="${NORMAL}/${NORMAL_PILEUPS_BASENAME}"
-            rsync -vurPhlt "$NORMAL_PILEUPS_FILENAME" $NORMAL_PILEUPS
-        else
-            NORMAL_PILEUPS=$NORMAL_PILEUPS_FILENAME
-        fi
-    fi
-    
-    if [[ $MODE = "slurm" ]]; then
-        if [ -d "${OUTPUT_DIRECTORY}/pileups" ]; then
-            rsync -vurPhlt "${OUTPUT_DIRECTORY}/pileups" "${OUTPUTS}"
-            ls ${OUTPUTS}
-        fi
-        if [ -d "${OUTPUT_DIRECTORY}/vcfs" ]; then
-            rsync -vurPhlt "${OUTPUT_DIRECTORY}/vcfs" "${OUTPUTS}"
-            ls ${OUTPUTS}
-        fi
-        if [ -d "${OUTPUT_DIRECTORY}/Intervals" ]; then
-            rsync -vurPhlt "${OUTPUT_DIRECTORY}/Intervals" "${OUTPUTS}"
-            ls ${OUTPUTS}
-        fi
-        if [ -d "${OUTPUT_DIRECTORY}/f1r2" ]; then
-            rsync -vurPhlt "${OUTPUT_DIRECTORY}/f1r2" "${OUTPUTS}"
-            ls ${OUTPUTS}
-        fi
-        DIRECTORY_CONTENTS=$(ls -A "${OUTPUT_DIRECTORY}")
-        echo "OUTPUT DIRECTORY CONTENTS: $DIRECTORY_CONTENTS"
-        if [[ ! -z "$DIRECTORY_CONTENTS" ]]; then
-            rsync -vurPhlt "${OUTPUT_DIRECTORY}" "${OUTPUTS}"
-        fi 
-    fi
-
-    
-    if [ $SPLIT_BY_CHR = true ]; then
-        if [[ ! -f "${OUTPUTS}/${SAMPLE_NAME}_pileups.table" ]]; then
-            num_intervals=$(grep -v "@" < $CHR_INTERVALS | wc -l)
-            echo "num_intervals: $num_intervals"
-            seq 1 ${num_intervals} | parallel -j8 --progress --ungroup "bash ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT $CONTAINER_ENGINE '${gatk_command}' {}"
-            
-            if ( [[ -d "${OUTPUTS}/pileups" ]] || [[ $MODE = "slurm" ]] ); then
-                  rsync -vurPhlt "${OUTPUTS}/pileups" "${OUTPUT_DIRECTORY}"
-            fi
-            # Add GatherPileupSummaries for pileups
-            chr_pileups=$(find $OUTPUTS/pileups -type f | sort -V)
-               
-            if ( [[ -d "${OUTPUTS}/pileups" ]] || [[ $MODE = "slurm" ]] ); then
-                rsync -vurPhlt "${OUTPUTS}/pileups" "${OUTPUT_DIRECTORY}"
-            fi
-        
-            pileup_tables=$(find $OUTPUTS/pileups -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
-            echo "gatk GatherPileupSummaries --sequence-dictionary $SEQUENCE_DICT ${pileup_tables} -O ${OUTPUTS}/${SAMPLE_NAME}_pileups.table"
-        
+        if [[ ! -f "${output_directory}/${sample_name}_pileups.table" ]]; then
+            pileup_tables=$(find "${output_directory}/pileups" -type f | grep -E ".*_pileups.table$" | sort -V | sed -e 's/^/--input /g' | tr '\n' ' ')
+            read -r -a pileup_tables_array <<< "${pileup_tables}"
             ${gatk_command} GatherPileupSummaries \
-                --sequence-dictionary $SEQUENCE_DICT ${pileup_tables} -O ${OUTPUTS}/${SAMPLE_NAME}_pileups.table
-        fi
-        
-    else
-        bash ${CODE_DIRECTORY}/mutect_and_pileups.sh  $NORMAL_SAMPLE $INTERVALS_FILE $MUTECT_INPUT $SAMPLE_NAME $BWA_GREF  $PARAMETER_FILE  $OUTPUTS $BAM_OUT $OUTPUT_DIRECTORY $MODE $SPLIT_BY_CHR $LINE_NUMBER $CHR_INTERVALS $GNOMAD_GENOMES $RUN_MUTECT $FILE_EXT $CONTAINER_ENGINE "${gatk_command}"   
-    fi
-    
-    if [[ $RUN_MUTECT = false ]]; then
-        if [[ $MODE = "slurm" ]]; then
-            echo "THIS IS THE RSYNC STEP"
-            OVERALL_OUTPUT_FOLDER=$(dirname "${OUTPUT_DIRECTORY}")
-            NORMAL_PILEUPS_FOLDER="${OVERALL_OUTPUT_FOLDER}/NORMAL_PILEUPS"
-            mkdir -p $NORMAL_PILEUPS_FOLDER
+                --sequence-dictionary "${sequence_dictionary}" \
+                "${pileup_tables_array[@]}" \
+                --output "${output_directory}/${sample_name}_pileups.table"
 
-            rsync -vurPhlt $OUTPUTS/ $NORMAL_PILEUPS_FOLDER
+            if [[ ${slurm_mode} == true ]]; then
+                ${rsync_command} "${output_directory}/" "${final_output_directory}"
+                check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_pileups.table"
+            fi
+        fi
+
+        if [[ ! -f "${output_directory}/${sample_name}_mutect2.vcf" ]]; then
+            vcf_files=$(find "${output_directory}/vcfs" -type f | grep -E ".*.vcf$" | sort -V | sed -e 's/^/--INPUT /g' | tr '\n' ' ')
+            read -r -a vcf_files_array <<< "${vcf_files}"
+            ${gatk_command} MergeVcfs \
+                "${vcf_files_array[@]}" \
+                --OUTPUT "${output_directory}/${sample_name}_mutect2.vcf"
+
+            if [[ ${slurm_mode} == true ]]; then
+                ${rsync_command} "${output_directory}/" "${final_output_directory}"
+                check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_mutect2.vcf"
+            fi
+        fi
+
+        if [[ ! -f "${output_directory}/${sample_name}_mutect2.vcf.stats" ]]; then
+            vcf_stats=$(find "${output_directory}/vcfs" -type f | grep -E ".*.vcf.stats$" | sort -V | sed -e 's/^/--stats /g' | tr '\n' ' ')
+            read -r -a vcf_stats_array <<< "${vcf_stats}"
+            ${gatk_command} MergeMutectStats \
+                "${vcf_stats_array[@]}" \
+                --output "${output_directory}/${sample_name}_mutect2.vcf.stats"
+
+            if [[ ${slurm_mode} == true ]]; then
+                ${rsync_command} "${output_directory}/" "${final_output_directory}"
+                check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_mutect2.vcf.stats"
+            fi
+        fi
+
+        if [[ ! -f "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz" ]]; then
+            f1r2_files=$(find "${output_directory}/f1r2" -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
+            read -r -a f1r2_files_array <<< "${f1r2_files}"
+            ${gatk_command} LearnReadOrientationModel \
+                "${f1r2_files_array[@]}" \
+                --output "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz"
+
+            if [[ ${slurm_mode} == true ]]; then
+                ${rsync_command} "${output_directory}/" "${final_output_directory}"
+                check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz"
+            fi
         fi
     else
-            echo "FOR SOME REASON THIS RSYNC STEP WAS SKIPPED"
-    fi
-    
-   
-   echo "mutect_and_pileups.sh analysis complete"
-   
-   if [[ $RUN_MUTECT = true ]]; then 
-  
-       if [ $SPLIT_BY_CHR = true ]; then
-           if [[ ! -f "${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf" ]]; then
-               chr_vcfs=$(find $OUTPUTS/vcfs -type f | sort -V)
+        "${code_directory}/mutect_and_pileups.sh" \
+            --bam_file "${bam_file}" \
+            --normal_bam_file "${normal_bam_file}" \
+            --interval_list "${interval_list}" \
+            --reference_genome "${reference_genome}" \
+            --gnomad_reference "${gnomad_reference}" \
+            --output_directory "${output_directory}" \
+            --mutect_bam_output "${mutect_bam_output}" \
+            --gatk_command "${gatk_command}" \
+            --run_mutect "${run_mutect}"
         
-               #if [[ $(echo "${chr_vcfs}" | wc -l) -lt ${num_intervals} ]] && [[ -d "${OUTPUT_DIRECTORY}/vcfs" ]]; then
-               if ( [[ -d "${OUTPUTS}/vcfs" ]] || [[ $MODE = "slurm" ]] ); then
-                  rsync -vurPhlt "${OUTPUTS}/vcfs" "${OUTPUT_DIRECTORY}"
-               fi
-        
-               # Change to MergeVCFs
-               echo "bcftools concat $(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf$" | sort -V) > ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf"
-               vcf_files=$(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf$" | sed -e 's/^/--INPUT /g' | tr '\n' ' ')
-               ${gatk_command} MergeVcfs \
-                  ${vcf_files} --OUTPUT ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf
-               #bcftools concat $(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf$" | sort -V) > ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf
-            fi
-            if [[ ! -f "${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf.stats" ]]; then
-               vcf_stats=$(find $OUTPUTS/vcfs -type f | grep -E ".*.vcf.stats$" | sed -e 's/^/--stats /g' | tr '\n' ' ')
-              ${gatk_command} MergeMutectStats \
-                  ${vcf_stats} -O "${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf.stats"
-        
-               echo "gatk MergeMutectStats ${vcf_stats} -O ${OUTPUTS}/${SAMPLE_NAME}_mutect2.vcf.stats"
-            fi
+        if [[ ! -f "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz" ]]; then
+            ${gatk_command} LearnReadOrientationModel \
+                --input "${output_directory}/${sample_name}_f1r2.tar.gz" \
+                --output "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz"
+        fi
 
-            if [[ ! -f "${OUTPUTS}/${SAMPLE_NAME}_mutect2_artifact_prior.tar.gz" ]]; then
-               f1r2_files=$(find $OUTPUTS/f1r2 -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
-               ${gatk_command} LearnReadOrientationModel \
-                  ${f1r2_files} -O "${OUTPUTS}/${SAMPLE_NAME}_mutect2_artifact_prior.tar.gz"
-            fi
-        else
-            echo "running LearnReadOrientationModel"
-            echo "LearnReadOrientationModel input: ${OUTPUTS}/f1r2/${SAMPLE_NAME}_f1r2.tar.gz"
-            if [[ $CONTAINER_ENGINE = "singularity" ]]; then
-                    F1R2_NAME="${OUTPUTS}/f1r2/${SAMPLE_NAME}"
-                    LROM_OUTPUTS_NAME="${OUTPUTS}/${SAMPLE_NAME}"
-            else
-                    F1R2_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/f1r2/${SAMPLE_NAME}"
-                    LROM_OUTPUTS_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
-            fi
-        
-        ${gatk_command} LearnReadOrientationModel \
-            -I ${F1R2_NAME}_f1r2.tar.gz -O "${LROM_OUTPUTS_NAME}_mutect2_artifact_prior.tar.gz"
-       fi
-    
-       if [[ $MODE = "slurm" ]]; then
-            rsync -vurPhlt "${OUTPUTS}/f1r2" "${OUTPUT_DIRECTORY}"
-       fi
-       echo "what is in f1r2:" 
-       ls "$OUTPUT_DIRECTORY/f1r2"
-      
-    
-      echo "$OUTPUTS folder contains:"
-      tree -h $OUTPUTS
-    
-        bash ${CODE_DIRECTORY}/mutect_filter.sh $SAMPLE_NAME $BWA_GREF $PARAMETER_FILE $OUTPUTS $OUTPUT_DIRECTORY $NORMAL_SAMPLE $NORMAL_PILEUPS $MODE $LINE_NUMBER $CONTAINER_ENGINE "${gatk_command}"
-    
-        #header for vcf header need to change
-        #_mutect2_filter.vcf
-    
-        bash ${CODE_DIRECTORY}/funcotator.sh $SAMPLE_NAME $BWA_GREF $FUNCOTATOR_SOURCES $TRANSCRIPT_LIST $PARAMETER_FILE $FILTERED $OUTPUTS $RUN_FUNCOTATOR $OUTPUT_DIRECTORY $MODE $LINE_NUMBER $CONTAINER_ENGINE "${gatk_command}"
-        
-       if [[ $MODE = "slurm" ]]; then 
-            rsync -vurPhlt $OUTPUTS/ $OUTPUT_DIRECTORY
-            echo "Results copied over to specified output directory"
-       fi
+        if [[ $slurm_mode == true ]]; then
+            ${rsync_command} "${output_directory}/" "${final_output_directory}"
+            check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_pileups.table"
+            check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_mutect2.vcf"
+            check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_mutect2.vcf.stats"
+            check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz"
+        fi
     fi
+    
+    "${code_directory}/mutect_filter.sh" \
+        --vcf_file "${output_directory}/${sample_name}_mutect2.vcf" \
+        --pileups_table "${output_directory}/${sample_name}_pileups.table" \
+        --normal_pileups_table "${normal_pileups_table}" \
+        --orientation_bias_priors "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz" \
+        --reference_genome "${reference_genome}" \
+        --gatk_command "${gatk_command}" \
+
+    if [[ ${slurm_mode} == true ]]; then
+        ${rsync_command} "${output_directory}/" "${final_output_directory}"
+        check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_mutect2_filtered.vcf"
+    fi
+
+    if [[ ${run_funcotator} == true ]]; then
+        "${code_directory}/funcotator.sh" \
+            --filtered_vcf "${output_directory}/${sample_name}_mutect2_filtered.vcf" \
+            --reference_genome "${reference_genome}" \
+            --funcotator_sources "${funcotator_sources}" \
+            --transcript_list "${transcript_list}" \
+            --gatk_command "${gatk_command}"
+        if [[ ${slurm_mode} == true ]]; then
+            ${rsync_command} "${output_directory}/" "${final_output_directory}"
+            check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_mutect2_filtered_funcotator.vcf"
+        fi
+    fi
+        
 else
-    echo "No mutect analysis requested"
+    echo "Mutect2 calling of somatic variants not requested"
 fi
             
 ##################################################################################################################################
 ############################################---STEP 3: HAPLOTYPECALLER.sh---######################################################
 ##################################################################################################################################    
-if [[ $GET_HAPLOTYPE = true ]] && [[ $RUN_MUTECT = true ]]; then
-    echo "Haplotypecaller analysis requested"
-    bash ${CODE_DIRECTORY}/haplotypecaller.sh $SAMPLE_NAME $BWA_GREF $TWIST_SNPS $PARAMETER_FILE $MODE
-    echo "Haplotypecaller analysis complete"
+if [[ $run_haplotypecaller = true ]] ; then
+    "${code_directory}/haplotypecaller.sh" \
+        --bam_file "${bam_file}" \
+        --reference_genome "${reference_genome}" \
+        --germline_snps "${germline_snps}" \
+        --gatk_command "${gatk_command}"
 
-    if [[ $MODE = "slurm" ]]; then 
-        rsync -vurPhlt $OUTPUTS/ $OUTPUT_DIRECTORY
-        echo "Results copied over to specified output directory"
-   fi
-
+    if [[ ${slurm_mode} == true ]]; then
+        ${rsync_command} "${output_directory}/" "${final_output_directory}"
+        check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_haplotypecaller.bam"
+        check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_haplotypecaller.vcf"
+    fi
 else
-    echo "No HaplotypeCaller analysis requested"
-fi
-
-if [[ $MODE = "slurm" ]]; then
-    singularity instance stop gatk_container
-    singularity delete --force gatk_container
-#else
-    #docker stop gatk_container
-    #docker rm gatk_container
+    echo "HaplotypeCaller analysis not requested"
 fi
 
 ##################################################################################################################################
 ################################################---STEP 4: VARSCAN.sh---########################################################## 
 ##################################################################################################################################    
-if [[ $GET_VARSCAN = true ]] && [[ $RUN_MUTECT = true ]]; then
-    echo "Varscan analysis requested"
-   bash ${CODE_DIRECTORY}/varscan.sh $SAMPLE_NAME $BWA_GREF $MIN_COVERAGE $MIN_VAR_FREQ $P_VALUE $PARAMETER_FILE $MODE
-   echo "Varscan analysis complete"
+if [[ ${run_varscan} = true ]]; then
+    echo "Varscan analysis requested..."
+    "${code_directory}/varscan.sh" \
+        --bam_file "${bam_file}" \
+        --reference_genome "${reference_genome}" \
+        --varscan_min_coverage "${varscan_min_coverage}" \
+        --varscan_min_var_freq "${varscan_min_var_freq}" \
+        --varscan_max_pvalue "${varscan_max_pvalue}" \
+        --run_annovar "${run_annovar}" \
+        --annovarroot "${annovarroot}" \
+        --mpileup_interval_bed "${mpileup_interval_bed}"
+    echo "...Varscan analysis complete"
 
-    if [[ $MODE = "slurm" ]]; then 
-        rsync -vurPhlt $OUTPUTS/ $OUTPUT_DIRECTORY
-        echo "Results copied over to specified output directory"
-   fi
-
+    if [[ ${slurm_mode} == true ]]; then
+        ${rsync_command} "${output_directory}/" "${final_output_directory}"
+        check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}.pileup"
+        check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_varscan2.vcf"
+        check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_varscan2_filter.vcf"
+        check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}_varscan2_filter_annovar.hg38_multianno.vcf"
+    fi
 else 
-    echo "No Varscan analysis requested"
+    echo "Varscan analysis not requested"
 fi
-
-#export $Outputs

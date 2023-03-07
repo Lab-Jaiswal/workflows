@@ -12,9 +12,9 @@ rename <- function(df, column, new){
 
 
 command_args <- commandArgs(trailingOnly = TRUE)
-whitelist_coordinates <- "/home/maurertm/labs/variant_whitelist_real.xls"
-mutect_coordinates <- "/oak/stanford/groups/smontgom/maurertm/mutect_aggregated_noWL_Apr25.tsv"
-output <- "/labs/sjaiswal/maurertm/ADRC_results"
+whitelist_coordinates <- "/labs/sjaiswal/variant_whitelist_real.xls"
+mutect_coordinates <- "/oak/stanford/groups/sjaiswal/Herra/Twist_AGS_Batch_2a/output/mutect_aggregated_twist.tsv"
+output <- "/oak/stanford/groups/sjaiswal/Herra/Twist_AGS_Batch_2a/output"
 
 mutect <- read_tsv(mutect_coordinates)
 mutect<-as.data.frame(fread(mutect_coordinates))
@@ -62,8 +62,8 @@ deviant_NA <- dplyr::filter(mutect_no_p, is.na(Protein_Change_No_P))
 #clean deviant_NA
     deviant_na <- mutate(deviant_NA, Initial_Protein = NA) %>%
         mutate(Protein_Position = NA) %>%
-        mutate(Final_Protein = NA) %>%
-        select(-joined)
+        mutate(Final_Protein = NA)# %>%
+        #select(-joined)
 
 #split up deviant by insertion type
 deviant_ins <- dplyr::filter(deviant_insertion, grepl("ins", Protein_Change_No_P))

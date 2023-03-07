@@ -1,196 +1,156 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-echo "entering mutect script"
+# Run scripts to enable activating conda environments
+. "${HOME}/micromamba/etc/profile.d/conda.sh"
+. "${HOME}/micromamba/etc/profile.d/mamba.sh"
+mamba activate base
 
-NORMAL_SAMPLE=$1
-INTERVALS_FILE=$2
-MUTECT_INPUT=$3
-SAMPLE_NAME=$4
-BWA_GREF=$5
-PARAMETER_FILE="${6}"
-OUTPUTS=${7}
-BAM_OUT=${8}
-OUTPUT_DIRECTORY=${9}
-MODE=${10}
-SPLIT_BY_CHR=${11}
-LINE_NUMBER=${12}
-CHR_INTERVALS=${13}
-GNOMAD_GENOMES=${14}
-RUN_MUTECT=${15}
-FILE_EXT=${16}
-CONTAINER_ENGINE="${17}"
-GATK_COMMAND="${18}"
-INTERVAL_NUMBER="${19}"
+# Set bash options for verbose output and to fail immediately on errors or if variables are undefined.
+set -o xtrace -o nounset -o pipefail -o errexit
 
-if [ $LINE_NUMBER = "1" ]; then
-         echo "###########################################################
-               arguments used for the mutect_and_pileups.sh script: 
-                    NORMAL_SAMPLE=$1
-                    INTERVALS_FILE=$2
-                    MUTECT_INPUT=$3
-                    SAMPLE_NAME=$4
-                    BWA_GREF=$5
-                    PARAMETER_FILE=${6}
-                    OUTPUTS=${7}
-                    BAM_OUT=${8}
-                    OUTPUT_DIRECTORY=${9}
-                    MODE=${10}
-                    SPLIT_BY_CHR=${11}
-                    LINE_NUMBER=${12}
-                    CHR_INTERVALS=${13}
-                    GNOMAD_GENOMES=${14}
-                    RUN_MUTECT=${15}
-                    FILE_EXT=${16}
-                    CONTAINER_ENGINE="${17}"
-                    GATK_COMMAND="${18}"
-                    INTERVAL_NUMBER="${19}"               
-                   ########################################################
-                " >> $PARAMETER_FILE
-fi
-
-cd $OUTPUTS
-
-INPUTS="--input "$MUTECT_INPUT.${FILE_EXT}""
-
-if [ $NORMAL_SAMPLE != false ]; then
-    NORMAL_NAME=$(samtools samples -h $NORMAL_SAMPLE | tail -n 1 | cut -f 1)
-    echo "normal name $NORMAL_NAME"
-
-    INPUTS_MUTECT="${INPUTS} --input ${NORMAL_SAMPLE} --normal $NORMAL_NAME"
-    echo "$NORMAL_SAMPLE: $NORMAL_SAMPLE"
-else 
-    INPUTS_MUTECT="$INPUTS"
-fi
-
-if [ $SPLIT_BY_CHR = true ]; then
-    if [ ! -d ${OUTPUTS}/Intervals ]; then
-        mkdir -p Intervals
+check_for_file() {
+    argument_name="${1}"
+    file_path="${2}"
+    if [[ ${file_path} != "none" ]] && [[ ! -f ${file_path} ]]; then
+        echo "Error: file ${file_path} passed with ${argument_name} does not exist."
+        exit 1
     fi
-    interval_line=$(grep -v "@" < $CHR_INTERVALS | sed "${INTERVAL_NUMBER}q; d" ) # Remove header from interval list and choose appropriate line
-    interval_name=$(echo "${interval_line}" | cut -f 1) # Extract chromosome name from interval line
-    new_interval_file=Intervals/${interval_name}.interval_list
-    grep "@" < $CHR_INTERVALS > $new_interval_file # Copy header from original interval list into new interval list
-    echo "${interval_line}" >> $new_interval_file # Append line after header in new interval list
-    SAMPLE_NAME="${interval_name}_${SAMPLE_NAME}"
-    OPTIONAL_ARGS="--intervals $new_interval_file --dont-use-soft-clipped-bases" # Tell Mutect2 to use new interval list
-else
-    OPTIONAL_ARGS="--intervals $INTERVALS_FILE --dont-use-soft-clipped-bases"
-fi
-if [[ $FILE_EXTENSION = "cram" ]]; then
-   OPTIONAL_ARGS="$OPTIONAL_ARGS -R ${BWA_GREF}"
+}
+
+check_for_directory() {
+    argument_name="${1}"
+    directory_path="${2}"
+    if [[ ${directory_path} != "none" ]] && [[ ! -d ${directory_path} ]]; then
+        echo "Error: directory ${directory_path} passed with ${argument_name} does not exist."
+        exit 1
+    fi
+}
+
+options_array=(
+    bam_file
+    normal_bam_file
+    interval_list
+    interval_number
+    reference_genome
+    gnomad_reference
+    output_directory
+    mutect_bam_output
+    run_mutect
+    gatk_command
+)
+
+longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g' | sed -e 's/$/:/')
+
+# Parse command line arguments with getopt
+arguments=$(getopt --options a --longoptions "${longoptions}" --name 'mutect_and_pileups' -- "$@")
+eval set -- "${arguments}"
+
+# Set defaults for some variables
+declare interval_number="none"
+
+while true; do
+    case "${1}" in
+        --bam_file )
+            bam_file="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --normal_bam_file )
+            normal_bam_file="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --interval_list )
+            interval_list="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --interval_number )
+            interval_number="${2}"; shift 2 ;;
+        --reference_genome )
+            reference_genome="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --gnomad_reference )
+            gnomad_reference="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --output_directory )
+            output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --mutect_bam_output )
+            mutect_bam_output="${2}"; shift 2 ;;
+        --gatk_command )
+            gatk_command="${2}"; shift 2 ;;
+        --run_mutect )
+            run_mutect="${2}"; shift 2 ;;
+        --)
+            shift; break;;
+        * )
+            echo "Invalid argument ${1} ${2}" >&2
+            exit 1
+    esac
+done
+
+sample_name=$(basename "${bam_file}" | sed -e 's/.bam$//g'  | sed -e 's/.cram$//g')
+declare optional_args="" # Initially blank so that optional arguments can be filled in later
+
+# Extract header from normal BAM/CRAM file and get sample name
+if [[ ${normal_bam_file} != "none" ]]; then
+    normal_name=$(mamba run --no-capture-output -n samtools samtools samples -h "${normal_bam_file}" | tail -n 1 | cut -f 1)
+    optional_args="${optional_args} --input ${normal_bam_file} --normal ${normal_name}"
 fi
          
-if [ $BAM_OUT = true ]; then
-    OPTIONAL_ARGS="$OPTIONAL_ARGS --bamout ${SAMPLE_NAME}_mutect2.bam"
+# If we are splitting by chromosome to run Mutect2 on the whole genome, subset the interval list file to only one interval.
+if [[ ${interval_number} != "none" ]]; then
+    interval_line=$(grep -v "@" < "${interval_list}" | sed "${interval_number}q; d" ) # Remove header from interval list and choose appropriate line
+    interval_name=$(echo "${interval_line}" | cut -f 1) # Extract chromosome name from interval line
+    new_interval_list="${interval_name}.interval_list"
+    grep "@" < "${interval_list}" > "${new_interval_list}" # Copy header from original interval list into new interval list
+    echo "${interval_line}" >> "${new_interval_list}" # Append line after header in new interval list
+    sample_name="${interval_name}_${sample_name}"
+    interval_list="${new_interval_list}"
+
+    mkdir -p "${output_directory}/vcfs"
+    mkdir -p "${output_directory}/pileups"
+    mkdir -p "${output_directory}/f1r2"
+
+    vcf_name="${output_directory}/vcfs/${sample_name}"
+    pileup_name="${output_directory}/pileups/${sample_name}"
+    f1r2_name="${output_directory}/f1r2/${sample_name}"
 else
-    echo "BAM output not requested"
+    vcf_name="${output_directory}/${sample_name}"
+    pileup_name="${output_directory}/${sample_name}"
+    f1r2_name="${output_directory}/${sample_name}"
 fi
 
-if [[ $SPLIT_BY_CHR == true ]]; then
-    if [ ! -d ${OUTPUTS}/vcfs ]; then
-        mkdir -p vcfs
-    fi
-    OUTPUT_TEMP_NAME="$OUTPUTS/vcfs/${SAMPLE_NAME}"
-    OUTPUT_NAME="$OUTPUT_DIRECTORY/vcfs/${SAMPLE_NAME}"
-    
-        if [ ! -d ${OUTPUTS}/pileups ]; then
-                mkdir -p pileups
-        fi
-        PILEUP_TEMP_NAME="$OUTPUTS/pileups/${SAMPLE_NAME}"
-        PILEUP_NAME="${OUTPUT_DIRECTORY}/pileups/${SAMPLE_NAME}"
-
+if [[ ${mutect_bam_output} == true ]]; then
+    optional_args="${optional_args} --bamout ${vcf_name}_mutect2.bam"
 else
-         if [[ $CONTAINER_ENGINE == "singularity" ]]; then
-                  OUTPUT_TEMP_NAME=${SAMPLE_NAME}
-                  OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
-    
-                  PILEUP_TEMP_NAME="${SAMPLE_NAME}"
-                  PILEUP_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}"
-         else
-                  OUTPUT_TEMP_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
-                  OUTPUT_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
-    
-                  PILEUP_TEMP_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
-                  PILEUP_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/${SAMPLE_NAME}"
-          fi
-
+    echo "Mutect2 BAM output not requested"
 fi
 
-if [[ ! -f "${OUTPUT_NAME}_mutect2.vcf" ]] && [[ $RUN_MUTECT = true ]]; then
-    echo "output name: ${OUTPUT_NAME}_mutect2.vcf"
-    echo "mutect analysis requested"
-    if [[ $CONTAINER_ENGINE == "singularity" ]]; then
-         F1R2="${OUTPUTS}/f1r2"
-         if [ ! -d ${OUTPUTS}/f1r2 ]; then
-            mkdir -p $F1R2
-        fi
-         F1R2_TEMP_NAME="${OUTPUTS}/f1r2/${SAMPLE_NAME}"
-         echo "F1R2 TEMP NAME: $F1R2_TEMP_NAME"
-     else
-         F1R2="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/f1r2/"
-         mkdir -p $F1R2
-         F1R2_TEMP_NAME="${OUTPUT_DIRECTORY}/${SAMPLE_NAME}/f1r2/${SAMPLE_NAME}"
-         echo "F1R2 TEMP NAME: $F1R2_TEMP_NAME" 
-     fi
-
-    echo "Calling somatic variants with Mutect2 with the following command:
-            gatk Mutect2 \
-            $INPUTS_MUTECT \
-            --output "${OUTPUT_TEMP_NAME}_mutect2.vcf" \
-            --reference "${BWA_GREF}" \
-            "${OPTIONAL_ARGS}" \
-            --f1r2-tar-gz "${F1R2_TEMP_NAME}_f1r2.tar.gz" \
-            --annotation OrientationBiasReadCounts"
-
-    # Next time sleep inf, log in to node.
-    
-    #gatk Mutect2 \
-    ${GATK_COMMAND} Mutect2 \
-        $INPUTS_MUTECT \
-        --output "${OUTPUT_TEMP_NAME}_mutect2.vcf" \
-        --reference "${BWA_GREF}" \
-        $OPTIONAL_ARGS \
-        --f1r2-tar-gz "${F1R2_TEMP_NAME}_f1r2.tar.gz" \
+# Call somatic variants with Mutect2 and output orientation bias read counts and optionally a BAM file with additional annotations.
+if [[ ! -f "${vcf_name}_mutect2.vcf" ]] && [[ ${run_mutect} == true ]]; then
+    read -r -a optional_args_array <<< "${optional_args}"
+    echo "Calling somatic variants with Mutect2..."
+    ${gatk_command} Mutect2 \
+        --input "${bam_file}" \
+        "${optional_args_array[@]}" \
+        --output "${vcf_name}_mutect2.vcf" \
+        --reference "${reference_genome}" \
+        --intervals "${interval_list}" \
+        --dont-use-soft-clipped-bases \
+        --f1r2-tar-gz "${f1r2_name}_f1r2.tar.gz" \
         --annotation OrientationBiasReadCounts
 
-    if [ $BAM_OUT = true ]; then
-        ${GATK_COMMAND} BuildBamIndex \
-        --INPUT "${SAMPLE_NAME}_mutect2.bam"
+    if [[ ${mutect_bam_output} = true ]]; then
+        ${gatk_command} BuildBamIndex \
+        --INPUT "${vcf_name}_mutect2.bam" \
+        --OUTPUT "${vcf_name}_mutect2.bam.bai"
     fi
-        echo "...somatic variants called."
+
+    echo "...somatic variants called."
 else
-    echo "output name: ${OUTPUT_TEMP_NAME}_mutect2.vcf"
-    echo "Mutect2 somatic variants already called"
+    echo "Somatic variants already called with Mutect2 in: ${vcf_name}_mutect2.vcf"
 fi
 
-if  [[ ! -f "${PILEUP_NAME}_pileups.table" ]]; then
-    echo "$PILEUP_NAME: $PILEUP_NAME"
-    if [ $INTERVALS_FILE != "false" ]; then
-        pileup_intervals="${INTERVALS_FILE}"
-    else
-        pileup_intervals="${new_interval_file}"
-    fi
+# Get pileup summaries at known common germline variants to estimate germline contamination.
+if  [[ ! -f "${pileup_name}_pileups.table" ]]; then
     echo "Getting pileup summaries with GetPileupSummaries..."
-    # Need to make gnome_common_variants.vcf.bgz a variable
-    echo "command: ${GATK_COMMAND} GetPileupSummaries \
-        $INPUTS \
-        -V ${GNOMAD_GENOMES} \
-        -L "${pileup_intervals}" \
-        -R "${BWA_GREF}" \
-        -O "${PILEUP_TEMP_NAME}_pileups.table"
-"
-    #gatk GetPileupSummaries \
-   ${GATK_COMMAND} GetPileupSummaries \
-        $INPUTS \
-        -V ${GNOMAD_GENOMES} \
-        -L "${pileup_intervals}" \
-        -R "${BWA_GREF}" \
-        -O "${PILEUP_TEMP_NAME}_pileups.table"
-elif [ -f "${PILEUP_NAME}_pileups.table" ]; then
-    echo "$PILEUP_NAME: $PILEUP_NAME"
-    echo "Pileup summaries already calculated."
+    ${gatk_command} GetPileupSummaries \
+        --input "${bam_file}" \
+        --variant "${gnomad_reference}" \
+        --intervals "${interval_list}" \
+        --reference "${reference_genome}" \
+        --output "${pileup_name}_pileups.table"
+    echo "...pileup summaries calculated."
 else
-    echo "Pileup summaries not requested"
+    echo "Pileup summaries already calculated in: ${pileup_name}_pileups.table"
 fi
-echo "#######GATK COMMAND : $GATK_COMMAND########"
-echo "mutect_and_pileups.sh analysis complete"
