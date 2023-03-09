@@ -40,7 +40,7 @@ module load bismark/0.22.3
 
 	if [ ! -f "$dedup_output" ] || [ ! -f "$dedup_report" ]; then
 		echo "Begin deduplicating $dedup_input"
-            	deduplicate_bismark -p --bam $dedup_input -o $dedup_output
+            	deduplicate_bismark -p --bam $dedup_input -o $dedup_input #this uses $dedup_input as output file basename because bismark modifies it to add deduplicated.bam 
             	echo "Finished deduplicating $dedup_input"
     fi
 

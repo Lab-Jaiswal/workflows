@@ -176,7 +176,7 @@ for i in $(seq 0 $total_genomes); do
 
 
     #transfer results as a results checkpoint (just in case haven't)
-    rsync -vur $output_temp_directory/ $output_directory
+    #rsync -vur $output_temp_directory/ $output_directory
 
 
     #extract methylation
