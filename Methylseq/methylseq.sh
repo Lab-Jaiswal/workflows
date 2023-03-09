@@ -142,42 +142,53 @@ for i in $(seq 0 $total_genomes); do
     read1_output_name="${read1_input_name}${read1_addition}"
     read2_output_name="${read2_input_name}${read2_addition}"
     read1_output_basename=$( basename -s .fastq.gz $read1_input_name | xargs -n 1 basename -s .fq.gz )
-    bismark_name="${read1_output_basename}_bismark_bt2_PE_report.txt"
-    bismark_output="${output_temp_directory}/${bismark_name}"
+    #bismark_name="${read1_output_basename}_bismark_bt2_PE_report.txt"
+    #bismark_output="${output_temp_directory}/${bismark_name}"
 
-        
-    dedup_input=$(echo $bismark_output | sed 's/PE_report.txt/pe.bam/')
-    dedup_output=$(echo $bismark_output | sed 's/PE_report.txt/pe.deduplicated.bam/')
-    
-    ${code_directory}/map_and_deduplicate.sh $read1_input $read2_input $bismark_output $dedup_input $dedup_output $temp_genome $output_temp_directory $output_directory $cores $deduplicate $parameter_file
+    #map
+    bismark_map_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.bam"
+    bismark_map_report="${output_temp_directory}/${read1_output_basename}_bismark_bt2_PE_report.txt"
+    ${code_directory}/map.sh $read1_input $read2_input $bismark_map_output $bismark_map_report $temp_genome $output_temp_directory $output_directory $cores $parameter_file
 
-    #transfer results as a results checkpoint
-    rsync -vur $output_temp_directory/ $output_directory
 
-    cd ${code_directory}
-    
-    if [ $deduplicate == TRUE ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "TRUE" ]; then
-            sort_input=$(echo $bismark_output | sed 's/PE_report.txt/pe.deduplicated.bam/')
-            index_input="${dedup_output}.sorted.bam"
-            index_output="${index_input}.bai"
+    #deduplicate
+    if [ $deduplicate == TRUE ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "TRUE" ] || [ "$deduplicate" == "True" ]; then
+        dedup_input="${bismark_map_output}"
+        dedup_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.bam"
+        dedup_report="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplication_report.txt"
+        ${code_directory}/deduplicate.sh $dedup_input $dedup_output $dedup_report $output_temp_directory $output_directory $cores $parameter_file
+
+        sort_input="${dedup_output}"
+        index_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.sorted.bam"
+        index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.sorted.bai"
     else
-            sort_input=$(echo $bismark_output | sed 's/PE_report.txt/pe.bam/')
-            index_input="${sort_input}.sorted.bam"
-            index_output="${index_input}.bai"
+        sort_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.bam"
+        index_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bam"
+        index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bai"
     fi
 
-    ${code_directory}/sort_and_index.sh $sort_input $index_input $index_output $output_temp_directory $output_directory $parameter_file
+    #sort 
+    #${code_directory}/sort_and_index.sh $sort_input $index_input $index_output $output_temp_directory $output_directory $parameter_file
+    ${code_directory}/sort.sh $sort_input $index_input $output_temp_directory $output_directory $parameter_file
 
-    #transfer results as a results checkpoint
+    #index
+    ${code_directory}/index.sh $index_input $index_output $output_temp_directory $output_directory $parameter_file
+
+
+    #transfer results as a results checkpoint (just in case haven't)
     rsync -vur $output_temp_directory/ $output_directory
 
-    bismark_input=$index_input
+
+    #extract methylation
+    bismark_extraction_input=$index_input
     bismark_methyl_output=$(echo $bismark_input | sed 's/\(.*\).bam/\1_splitting_report.txt/')
         
-    ${code_directory}/extract_methyl.sh $bismark_input $bismark_methyl_output $output_temp_directory $output_directory $temp_genome $cores $parameter_file
+    ${code_directory}/extract_methyl.sh $bismark_extraction_input $bismark_methyl_output $output_temp_directory $output_directory $temp_genome $cores $parameter_file
+    #this must extract on the deduplicated file if it's made!
 
     #transfer results as a results checkpoint
     rsync -vur $output_temp_directory/ $output_directory
+
 
     #make insert size plot
     ###---STEP 10: PREVIOUSLY insert_size_analysis.sh---##

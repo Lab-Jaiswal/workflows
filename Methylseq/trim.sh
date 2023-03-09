@@ -40,3 +40,9 @@ if [[ ! -f "$read1_trimmed" ]]; then
 else
 	echo "$(basename "$read1") and $(basename "$read2") have already been trimmed"
 fi
+
+#TO DO: 
+#for EMseq, recommended to remove 10bp from ends to avoid bias and increase mapping rates. 
+#http://felixkrueger.github.io/Bismark/bismark/library_types/#em-seq-neb
+#https://github.com/FelixKrueger/Bismark/issues/509
+
