@@ -48,7 +48,7 @@ function run_job() {
     mkdir --parents "${local_output_directory}"
 
     sample_directory=$(echo "${sample_directory}" | tr '?' ' ')
-    parallel -j${n_downloads} bash -c "dx download --overwrite ${project_id}:/\"${sample_directory}/%\" --output ${local_input_directory}/\$(basename {})" < "${local_sample_list}"
+    parallel -j${n_downloads} "dx download --overwrite ${project_id}:/\"${sample_directory}/{}\" --output ${local_input_directory}/\$(basename {})" < "${local_sample_list}"
 
     # Download references
     local_references_directory="${HOME}/${references_directory}"
