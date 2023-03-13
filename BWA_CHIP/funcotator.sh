@@ -114,7 +114,7 @@ bcftools view "${funcotator_vcf}" | \
     sed "s/FUNCOTATION,Number=A,Type=String,Description=\".*\">/FUNCOTATION,Number=A,Type=String,Description=\"${funcotator_replacement_header}\">/g" | \
     tr --delete '[' | \
     tr --delete ']' | \
-    bgzip >! "${funcotator_vcf}.gz"
+    bgzip --stdout > "${funcotator_vcf}.gz"
 tabix --preset vcf --force "${funcotator_vcf}.gz"
 
 bcftools +split-vep --annotation "FUNCOTATION" --columns "${funcotator_columns}" --annot-prefix "funcotator_" "${funcotator_vcf}.gz" | bgzip | sponge "${funcotator_vcf}.gz"
