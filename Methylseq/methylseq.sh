@@ -181,7 +181,7 @@ for i in $(seq 0 $total_genomes); do
 
     #extract methylation
     bismark_extraction_input=$index_input
-    bismark_methyl_output=$(echo $bismark_input | sed 's/\(.*\).bam/\1_splitting_report.txt/')
+    bismark_methyl_output=$(echo $bismark_extraction_input | sed 's/\(.*\).bam/\1_splitting_report.txt/')
         
     ${code_directory}/extract_methyl.sh $bismark_extraction_input $bismark_methyl_output $output_temp_directory $output_directory $temp_genome $cores $parameter_file
     #this must extract on the deduplicated file if it's made!
