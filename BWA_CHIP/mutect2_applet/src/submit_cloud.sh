@@ -26,6 +26,7 @@ function run_job() {
         tar \
         util-linux
     micromamba create -n gatk4 gatk4
+    micromamba create -n bcftools bcftools tabix moreutils
     conda init bash
     . "${HOME}/micromamba/etc/profile.d/conda.sh"
     mamba init bash
@@ -34,25 +35,25 @@ function run_job() {
 
     git clone --branch "${git_branch}" https://github.com/Lab-Jaiswal/workflows
     
-    # Download references
-    local_references_directory="${HOME}/${references_directory}"
-    dx download --recursive --overwrite "${project_id}:/${references_directory}/" --output "${local_references_directory}"
-    
     # Download list of samples
     local_sample_list_directory="${HOME}/${sample_list_directory}"
-    mkdir -p "${local_sample_list_directory}"
+    mkdir --parents "${local_sample_list_directory}"
     local_sample_list="${local_sample_list_directory}/sample_list"
     sample_list=${sample_list_directory}/sample_batches/sample_list_${array_number}
     dx download --recursive --overwrite "${project_id}:/${sample_list}" --output "${local_sample_list}"
 
     local_input_directory="${HOME}/${input_directory}"
-    mkdir -p "${local_input_directory}"
+    mkdir --parents "${local_input_directory}"
     local_output_directory="${HOME}/${output_directory}"
-    mkdir -p "${local_output_directory}"
+    mkdir --parents "${local_output_directory}"
 
     sample_directory=$(echo "${sample_directory}" | tr '?' ' ')
-    xargs --replace=% bash -c "dx download --overwrite ${project_id}:/\"${sample_directory}/%\" --output ${local_input_directory}/\$(basename %)" < "${local_sample_list}"
+    parallel -j${n_downloads} "dx download --overwrite ${project_id}:/\"${sample_directory}/{}\" --output ${local_input_directory}/\$(basename {})" < "${local_sample_list}"
 
+    # Download references
+    local_references_directory="${HOME}/${references_directory}"
+    dx download --recursive --overwrite "${project_id}:/${references_directory}/" --output "${local_references_directory}"
+    
     passed_args=(
         bam_extension
         fastq_extension
@@ -148,7 +149,7 @@ function main() {
     batch_size=$(( 2*batch_size ))
 
     local_sample_list_directory="${HOME}/${sample_list_directory}"
-    mkdir -p "${local_sample_list_directory}"
+    mkdir --parents "${local_sample_list_directory}"
     all_samples_list="${local_sample_list_directory}/all_samples"
 
     # Get list of folders in main CRAM folder, then get the list of files in each folder.
@@ -175,13 +176,13 @@ function main() {
 
     filtered_samples_batches="${local_sample_list_directory}/filtered_samples_batches"
     xargs --max-args=${batch_size} < "${filtered_sample_list}" > "${filtered_samples_batches}"
-    filtered_samples_batches_length=$(wc -l "${filtered_sample_list}" | cut -d ' ' -f 1)
+    filtered_samples_batches_length=$(wc --lines "${filtered_sample_list}" | cut --delimiter=' ' --fields=1)
 
     # Check if the number of bat
     if [[ ${number_of_batches} == 0 ]]; then
         number_of_batches="${filtered_samples_batches_length}"
     elif (( number_of_batches > filtered_samples_batches_length )); then
-        filtered_sample_list_length=$(wc -l "${filtered_sample_list}")
+        filtered_sample_list_length=$(wc --lines "${filtered_sample_list}")
         echo "Error: you have requested ${number_of_batches} but the largest number of batches possible with ${filtered_sample_list_length} samples and a batch size of ${batch_size} is ${filtered_samples_batches_length}."
         echo "Please reduce the number of batches or batch size until they are compatible with each other and the number of samples you wish to include."
         exit 1
@@ -217,6 +218,7 @@ function main() {
         split_intervals
         realign
         n_jobs
+        n_downloads
         varscan_min_coverage
         varscan_min_var_freq
         varscan_max_pvalue

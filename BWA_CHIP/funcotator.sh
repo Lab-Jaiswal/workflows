@@ -4,6 +4,7 @@
 . "${HOME}/micromamba/etc/profile.d/conda.sh"
 . "${HOME}/micromamba/etc/profile.d/mamba.sh"
 mamba activate base
+mamba activate bcftools
 
 # Set bash options for verbose output and to fail immediately on errors or if variables are undefined.
 set -o xtrace -o nounset -o pipefail -o errexit
@@ -69,9 +70,9 @@ fi
 read -r -a optional_args_array <<< "${optional_args}"
 
 # Remove non-standard chromosomes from VCF header
-if [[ ! -f "${sample_name}_mutect2_filtered_reheadered.vcf" ]]; then
+reheadered_vcf="${sample_name}_mutect2_filtered_reheadered.vcf"
+if [[ ! -f "${reheadered_vcf}" ]]; then
     new_header="${sample_name}_new_header"
-    reheadered_vcf="${sample_name}_mutect2_filtered_reheadered.vcf"
 
     grep "^#" < "${filtered_vcf}" | grep -v -E "chrM|chr.*_|HLA|chrEBV" > "${new_header}"
 
@@ -83,8 +84,9 @@ if [[ ! -f "${sample_name}_mutect2_filtered_reheadered.vcf" ]]; then
     echo "...header fixed."
 fi
 
+funcotator_vcf="${sample_name}_mutect2_filtered_funcotator.vcf"
 # Annotate filtered Mutect2 VCF with Funcotator annotations
-if [[ ! -f "${sample_name}_mutect2_filtered_funcotator.vcf" ]]; then
+if [[ ! -f "${funcotator_vcf}" ]]; then
     echo "Annotating Mutect2 VCF with Funcotator..."
     ${gatk_command} Funcotator \
         --variant "${reheadered_vcf}" \
@@ -92,35 +94,28 @@ if [[ ! -f "${sample_name}_mutect2_filtered_funcotator.vcf" ]]; then
         --ref-version hg38 \
         --data-sources-path "${funcotator_sources}" \
         "${optional_args_array[@]}" \
-        --output "${sample_name}_mutect2_filtered_funcotator.vcf" \
+        --output "${funcotator_vcf}" \
         --output-file-format VCF 
     echo "...VCF annotated."
 else
     echo "Mutect2 VCF already annotated"
 fi
 
-# Filter VCF for coding mutations to reduce size, since non-coding mutations will be removed.
-if [[ ! -f "${sample_name}_mutect2_filtered_funcotator_coding.vcf" ]]; then
-    grep -E "^#|FRAME_SHIFT_DEL|FRAME_SHIFT_INS|MISSENSE|NONSENSE|SPLICE_SITE" < "${sample_name}_mutect2_filtered_funcotator.vcf" > "${sample_name}_mutect2_filtered_funcotator_coding.vcf"
-fi
+funcotator_header=$(bcftools view --header-only "${funcotator_vcf}" | grep FUNCOTATION | sed 's/.*Description="//g' | sed 's/">//g')
+funcotator_replacement_header=$(echo "${funcotator_header}" | \
+    sed "s/.*:/Format:/g" | \
+    sed "s/Gencode_[0-9]*_variantClassification/Consequence/g" | \
+    tr '/' '_' | \
+    tr '(' '_' | \
+    tr ')' '_')
+funcotator_columns=$(echo "${funcotator_replacement_header}" | sed 's/.*: //g' | tr '|' ',')
 
-# Annotate filtered Mutect2 VCF with Funcotator annotations and output as a MAF file
-if [[ ! -f "${sample_name}_mutect2_filtered_funcotator.maf" ]]; then
-    echo "Annotating VCF with Funcotator (MAF output)..."
-    ${gatk_command} Funcotator \
-        --variant "${reheadered_vcf}" \
-        --reference "${reference_genome}" \
-        --ref-version hg38 \
-        --data-sources-path "${funcotator_sources}" \
-        "${optional_args_array[@]}" \
-        --output "${sample_name}_mutect2_filtered_funcotator.maf" \
-        --output-file-format MAF
-    echo "...VCF annotated (MAF ouput)."
-else
-    echo "Mutect2 VCF already annotated (MAF output)"
-fi
+bcftools view "${funcotator_vcf}" | \
+    sed "s/FUNCOTATION,Number=A,Type=String,Description=\".*\">/FUNCOTATION,Number=A,Type=String,Description=\"${funcotator_replacement_header}\">/g" | \
+    tr --delete '[' | \
+    tr --delete ']' | \
+    bgzip --stdout > "${funcotator_vcf}.gz"
+tabix --preset vcf --force "${funcotator_vcf}.gz"
 
-# Filter MAF for coding mutations to reduce size, since non-coding mutations will be removed.
-if [[ ! -f "${sample_name}_mutect2_filtered_funcotator_coding.maf" ]]; then
-    grep -E "^#|^Hugo_Symbol|Frame_Shift_Del|Frame_Shift_Ins|Missense_Mutation|Nonsense_Mutation|Splice_Site" <  "${sample_name}_mutect2_filtered_funcotator.maf" > "${sample_name}_mutect2_filtered_funcotator_coding.maf" 
-fi
+bcftools +split-vep --annotation "FUNCOTATION" --columns "${funcotator_columns}" --annot-prefix "funcotator_" "${funcotator_vcf}.gz" | bgzip | sponge "${funcotator_vcf}.gz"
+tabix --preset vcf --force "${funcotator_vcf}.gz"
