@@ -390,7 +390,7 @@ if [[ ${run_mutect} == true ]]; then
     if [[ ${run_funcotator} == true ]]; then
         "${code_directory}/funcotator.sh" \
             --filtered_vcf "${output_directory}/${sample_name}_mutect2_filtered.vcf" \
-            --annotated_output_directory= "${annotated_output_directory}" \
+            --annotated_output_directory "${annotated_output_directory}" \
             --reference_genome "${reference_genome}" \
             --funcotator_sources "${funcotator_sources}" \
             --transcript_list "${transcript_list}" \
