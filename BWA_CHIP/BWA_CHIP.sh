@@ -149,6 +149,11 @@ if [[ $final_output_directory != "none" ]]; then
     mkdir -p "${final_output_directory}"
 fi
 
+if [[ $annotated_output_directory != "none" ]]; then
+    final_output_directory="${annotated_output_directory}/${sample_name}"
+    mkdir -p "${annotated_output_directory}"
+fi
+
 if [[ ${slurm_mode} == true ]]; then
     input_directory="${TMPDIR}/inputs"
     output_directory="${TMPDIR}/outputs/${sample_name}"
