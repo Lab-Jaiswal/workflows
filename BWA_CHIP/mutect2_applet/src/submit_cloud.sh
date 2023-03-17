@@ -46,6 +46,8 @@ function run_job() {
     mkdir --parents "${local_input_directory}"
     local_output_directory="${HOME}/${output_directory}"
     mkdir --parents "${local_output_directory}"
+    local_annotated_output_directory="${HOME}/${annotated_output_directory}"
+    mkdir --parents "${local_annotated_output_directory}"
 
     sample_directory=$(echo "${sample_directory}" | tr '?' ' ')
     parallel -j${n_downloads} "dx download --overwrite ${project_id}:/\"${sample_directory}/{}\" --output ${local_input_directory}/\$(basename {})" < "${local_sample_list}"
@@ -98,13 +100,18 @@ function run_job() {
     "${HOME}/workflows/BWA_CHIP/submit_BWA_CHIP.sh" \
         --input_directory "${local_input_directory}" \
         --output_directory "${local_output_directory}" \
+        --annotated_output_directory "${local_annotated_output_directory}" \
         "${passed_args_array[@]}" \
         "${reference_args_array[@]}"
 
     output_tar="${HOME}/outputs_${array_number}.tar"
     tar --create --file "${output_tar}" "${local_output_directory}"
+    annotated_output_tar="${HOME}/annotated_outputs_${array_number}.tar"
+    tar --create --file "${annotated_output_tar}" "${local_annotated_output_directory}"
     outputs_folder_id=$(dx upload "${output_tar}" --brief)
     dx-jobutil-add-output outputs_tar "${outputs_folder_id}" --class=file
+    annotated_outputs_folder_id=$(dx upload "${annotated_output_tar}" --brief)
+    dx-jobutil-add-output annotated_outputs_tar "${annotated_outputs_folder_id}" --class=file
 }
 
 function main() {
@@ -204,6 +211,7 @@ function main() {
         references_directory
         input_directory
         output_directory
+        annotated_output_directory
         project_id
         bam_extension
         fastq_extension

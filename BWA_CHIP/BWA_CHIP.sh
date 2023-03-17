@@ -32,6 +32,7 @@ check_for_directory() {
 options_array=(
     array_file
     output_directory
+    annotated_output_directory
     varscan_min_coverage
     varscan_min_var_freq
     varscan_max_pvalue
@@ -71,6 +72,8 @@ while true; do
             array_file="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
         --output_directory )
             final_output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --annotated_output_directory )
+            annotated_output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --bam_extension )
             bam_extension="${2}"; shift 2 ;;
         --fastq_extension )
@@ -235,6 +238,8 @@ if [[ ${slurm_mode} == true ]]; then
         #${rsync_command} "${original_normal_pileups_table}" "${normal_pileups_table}"
         #check_for_file "${rsync_command}" "${normal_pileups_table}"
     #fi
+else
+    output_directory=${final_output_directory}
 fi
 
 ##################################################################################################################################
@@ -379,6 +384,7 @@ if [[ ${run_mutect} == true ]]; then
     if [[ ${run_funcotator} == true ]]; then
         "${code_directory}/funcotator.sh" \
             --filtered_vcf "${output_directory}/${sample_name}_mutect2_filtered.vcf" \
+            --annotated_output_directory= "${annotated_output_directory}" \
             --reference_genome "${reference_genome}" \
             --funcotator_sources "${funcotator_sources}" \
             --transcript_list "${transcript_list}" \

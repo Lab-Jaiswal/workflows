@@ -62,6 +62,13 @@
             "help": "Path relative to $HOME where pipeline output will be stored (default: outputs)"
         },
         {
+            "name": "annotated_output_directory",
+            "class": "string",
+            "default": "annotated_outputs",
+            "optional": false,
+            "help": "Path relative to $HOME where annotated pipeline output will be stored (default: annotated_outputs)"
+        },
+        {
             "name": "project_id",
             "class": "string",
             "default": "project-G5B07V8JPkg740v9GjfF9PzV",
@@ -269,6 +276,7 @@
         {
             "name": "outputs_folder",
             "class": "array:file",
+            "default": "outputs",
             "help": "Path on DNA Nexus project storage relative to project root where job output will be saved (default: outputs)"
         }
     ],

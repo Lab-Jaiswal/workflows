@@ -29,6 +29,7 @@ check_for_directory() {
 
 options_array=(
     filtered_vcf
+    annotated_output_directory
     reference_genome
     funcotator_sources
     transcript_list
@@ -45,6 +46,8 @@ while true; do
     case "${1}" in
         --filtered_vcf )
             filtered_vcf="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --annotated_output_directory )
+            annotated_output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --reference_genome )
             reference_genome="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
         --funcotator_sources )
@@ -117,5 +120,7 @@ bcftools view "${funcotator_vcf}" | \
     bgzip --stdout > "${funcotator_vcf}.gz"
 tabix --preset vcf --force "${funcotator_vcf}.gz"
 
-bcftools +split-vep --annotation "FUNCOTATION" --columns "${funcotator_columns}" --annot-prefix "funcotator_" "${funcotator_vcf}.gz" | bgzip | sponge "${funcotator_vcf}.gz"
+funcotator_vcf_basename=$(basename ${funcotator_vcf})
+annotated_funcotator_vcf_gz="${annotated_output_directory}/${funcotator_vcf_basename}.gz"
+bcftools +split-vep --annotation "FUNCOTATION" --columns "${funcotator_columns}" --annot-prefix "funcotator_" "${funcotator_vcf}.gz" | bgzip --stdout > "${annotated_funcotator_vcf_gz}"
 tabix --preset vcf --force "${funcotator_vcf}.gz"
