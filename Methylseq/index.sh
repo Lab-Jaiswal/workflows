@@ -22,12 +22,12 @@ fi
 
 module load samtools/1.9
 
-if  [ -f "$index_output" ]; then
+if  [ ! -f "$index_output" ]; then
     echo "Starting to index $(basename "$index_input")"  
     samtools index $index_input
     echo "indexing of $(basename "$index_input") is complete"
 else
-    echo "sorting of $(basename "$index_input") already complete"
+    echo "indexing of $(basename "$index_input") already complete"
 fi
 
 rsync -vur $output_temp_directory/ $output_directory
