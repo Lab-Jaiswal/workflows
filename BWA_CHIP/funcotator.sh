@@ -123,4 +123,4 @@ tabix --preset vcf --force "${funcotator_vcf}.gz"
 funcotator_vcf_basename=$(basename ${funcotator_vcf})
 annotated_funcotator_vcf_gz="${annotated_output_directory}/${funcotator_vcf_basename}.gz"
 bcftools +split-vep --annotation "FUNCOTATION" --columns "${funcotator_columns}" --annot-prefix "funcotator_" "${funcotator_vcf}.gz" | bgzip --stdout > "${annotated_funcotator_vcf_gz}"
-tabix --preset vcf --force "${annotated_funcotator_vcf_gz}.gz"
+tabix --preset vcf --force "${annotated_funcotator_vcf_gz}"
