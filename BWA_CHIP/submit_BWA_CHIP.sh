@@ -35,6 +35,7 @@ options_array=(
     input_directory
     input_file_list
     output_directory
+    annotated_output_directory
     bam_extension
     fastq_extension
     assembly
@@ -99,6 +100,8 @@ while true; do
             input_file_list="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         --output_directory )
             output_directory="$2"; shift 2 ;;
+        --annotated_output_directory )
+            annotated_output_directory="$2"; shift 2 ;;
         --bam_extension )
             bam_extension="$2"; shift 2 ;;
         --fastq_extension )
@@ -478,6 +481,7 @@ fi
 passed_args_array=(
     array_file 
     output_directory 
+    annotated_output_directory 
     bam_extension 
     fastq_extension 
     assembly 
