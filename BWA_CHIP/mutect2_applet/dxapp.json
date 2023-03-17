@@ -276,7 +276,6 @@
         {
             "name": "outputs_folder",
             "class": "array:file",
-            "default": "outputs",
             "help": "Path on DNA Nexus project storage relative to project root where job output will be saved (default: outputs)"
         }
     ],

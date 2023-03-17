@@ -145,7 +145,8 @@ gatk_command="mamba run -n gatk4 gatk"
 code_directory=$(realpath $(dirname ${BASH_SOURCE[0]}))
 
 if [[ $final_output_directory != "none" ]]; then
-    final_output_directory=${final_output_directory}/${sample_name}
+    final_output_directory="${final_output_directory}/${sample_name}"
+    mkdir -p "${final_output_directory}"
 fi
 
 if [[ ${slurm_mode} == true ]]; then
