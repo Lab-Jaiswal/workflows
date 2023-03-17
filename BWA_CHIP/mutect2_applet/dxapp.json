@@ -274,9 +274,12 @@
     ],
     "outputSpec": [
         {
-            "name": "outputs_folder",
-            "class": "array:file",
-            "help": "Path on DNA Nexus project storage relative to project root where job output will be saved (default: outputs)"
+            "name": "outputs_tar",
+            "class": "array:file"
+        },
+        {
+            "name": "annotated_outputs_tar",
+            "class": "array:file"
         }
     ],
     "runSpec": {

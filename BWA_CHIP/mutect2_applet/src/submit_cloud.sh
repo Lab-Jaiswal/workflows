@@ -248,6 +248,7 @@ function main() {
 
     for array_number in $(seq 1 "${number_of_batches}"); do
         job_id=$(dx-jobutil-new-job run_job -iarray_number="${array_number}" "${job_args[@]}" --instance-type="${instance_type}")
-        dx-jobutil-add-output outputs_folder "${job_id}:outputs_tar" --class=jobref --array
+        dx-jobutil-add-output outputs_tar "${job_id}:outputs_tar" --class=jobref --array
+        dx-jobutil-add-output annotated_outputs_tar "${job_id}:annotated_outputs_tar" --class=jobref --array
     done
 }
