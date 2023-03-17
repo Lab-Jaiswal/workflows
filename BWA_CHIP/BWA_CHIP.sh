@@ -150,7 +150,7 @@ if [[ $final_output_directory != "none" ]]; then
 fi
 
 if [[ $annotated_output_directory != "none" ]]; then
-    final_output_directory="${annotated_output_directory}/${sample_name}"
+    annotated_output_directory="${annotated_output_directory}/${sample_name}"
     mkdir -p "${annotated_output_directory}"
 fi
 
