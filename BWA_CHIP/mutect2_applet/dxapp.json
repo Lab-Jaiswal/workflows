@@ -62,13 +62,6 @@
             "help": "Path relative to $HOME where pipeline output will be stored (default: outputs)"
         },
         {
-            "name": "annotated_output_directory",
-            "class": "string",
-            "default": "annotated_outputs",
-            "optional": false,
-            "help": "Path relative to $HOME where annotated pipeline output will be stored (default: annotated_outputs)"
-        },
-        {
             "name": "project_id",
             "class": "string",
             "default": "project-G5B07V8JPkg740v9GjfF9PzV",
@@ -130,6 +123,13 @@
             "default": false,
             "optional": false,
             "help": "Boolean indicating if VarScan should be run to call somatic variants"
+        },
+        {
+            "name": "run_pileup_region",
+            "class": "boolean",
+            "default": true,
+            "optional": false,
+            "help": "Boolean indicating if pileup_region should be run to quantify pileups"
         },
         {
             "name": "mutect_bam_out",
@@ -270,6 +270,20 @@
             "default": "annovar",
             "optional": true,
             "help": "Path to folder containing AnnoVar, which is used to annotate somatic variants called by VarScan "
+        },
+        {
+            "name": "pileup_region_intervals",
+            "class": "string",
+            "default": "pileup_region_intervals",
+            "optional": true,
+            "help": "Path to file with intervals over which to quantify pileups with pileup_region (https://github.com/weinstockj/pileup_region) "
+        },
+        {
+            "name": "germline_snps",
+            "class": "string",
+            "default": "none",
+            "optional": true,
+            "help": "Path to interval list of locations to call germline SNPs with HaplotypeCaller "
         }
     ],
     "outputSpec": [

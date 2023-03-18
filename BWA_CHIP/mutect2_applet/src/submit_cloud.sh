@@ -27,7 +27,7 @@ function run_job() {
         util-linux
     micromamba create -n gatk4 gatk4
     micromamba create -n bcftools bcftools tabix moreutils
-    micromamba create -n pileup_regions pilup_regions
+    micromamba create -n pileup_regions pileup_regions
     conda init bash
     . "${HOME}/micromamba/etc/profile.d/conda.sh"
     mamba init bash
@@ -67,6 +67,7 @@ function run_job() {
         mutect_bam_out
         run_funcotator
         run_annovar
+        run_pileup_region
         split_intervals
         realign
         varscan_min_coverage
@@ -86,12 +87,13 @@ function run_job() {
         transcript_list
         mpileup_interval_bed
         annovarroot
+        pileup_region_intervals
+        germline_snps
     )
 
     read -r -a passed_args_array <<< "$(printf "%s\n" "${passed_args[@]}" | \
         xargs --replace=% bash -c 'echo --% "${%}"' | \
         tr '\n' ' ')"
-    #read -r -a reference_args_array <<< "$(printf "%s\n" "${reference_args[@]}" | xargs --replace=% bash -c 'echo --% "${local_references_directory}/${%}"' | sed -e 's/.*none$/none/' | tr '\n' ' ')"
     read -r -a reference_args_array <<< "$(printf "%s\n" "${reference_args[@]}" | \
         xargs --replace=% bash -c 'echo --% "${%}"' | \
         sed -e "s? ? ${local_references_directory}/?" | \
@@ -101,14 +103,20 @@ function run_job() {
     "${HOME}/workflows/BWA_CHIP/submit_BWA_CHIP.sh" \
         --input_directory "${local_input_directory}" \
         --output_directory "${local_output_directory}" \
-        --annotated_output_directory "${local_annotated_output_directory}" \
         "${passed_args_array[@]}" \
         "${reference_args_array[@]}"
 
     output_tar="${HOME}/outputs_${array_number}.tar"
     tar --create --file "${output_tar}" "${local_output_directory}"
+    find "filtered_funcotator.vcf.gz" "${local_output_directory}" \
+        -exec cp {} "${local_annotated_output_directory}" ";"
+    find "filtered_funcotator.vcf.gz.tbi" "${local_output_directory}" \
+        -exec cp {} "${local_annotated_output_directory}" ";"
+    find "pileup_region" "${local_output_directory}" \
+        -exec cp {} "${local_annotated_output_directory}" ";"
     annotated_output_tar="${HOME}/annotated_outputs_${array_number}.tar"
     tar --create --file "${annotated_output_tar}" "${local_annotated_output_directory}"
+
     outputs_folder_id=$(dx upload "${output_tar}" --brief)
     dx-jobutil-add-output outputs_tar "${outputs_folder_id}" --class=file
     annotated_outputs_folder_id=$(dx upload "${annotated_output_tar}" --brief)
@@ -177,7 +185,7 @@ function main() {
     if [[ ${sample_list} != "none" ]]; then
         local_sample_list="${local_sample_list_directory}/${sample_list}"
         dx download "${project_id}":"${sample_list_directory}/${sample_list}" --output "${local_sample_list}"
-        grep -f "${local_sample_list}" < "${all_samples_list}" > "${filtered_sample_list}"
+        grep --file "${local_sample_list}" < "${all_samples_list}" > "${filtered_sample_list}"
     else
         cp "${all_samples_list}" "${filtered_sample_list}"
     fi
@@ -221,6 +229,7 @@ function main() {
         run_mutect
         run_haplotypecaller
         run_varscan
+        run_pileup_region
         mutect_bam_out
         run_funcotator
         run_annovar
@@ -241,6 +250,8 @@ function main() {
         transcript_list
         mpileup_interval_bed
         annovarroot
+        pileup_region_intervals
+        germline_snps
     )
 
     read -r -a job_args <<< "$(printf "%s\n" "${arg_array[@]}" | xargs --replace=% bash -c 'echo -i%="${%}"' | tr '\n' ' ')"

@@ -35,7 +35,6 @@ options_array=(
     input_directory
     input_file_list
     output_directory
-    annotated_output_directory
     bam_extension
     fastq_extension
     assembly
@@ -53,17 +52,19 @@ options_array=(
     funcotator_sources
     transcript_list
     mpileup_interval_bed
-    varscan_min_coverage
-    varscan_min_var_freq
-    varscan_max_pvalue
     annovarroot
+    pileup_region_intervals
     germline_snps
     n_jobs
     slurm_mode
     run_mutect
     run_varscan
+    run_pileup_region
     run_haplotypecaller
     mutect_bam_output
+    varscan_min_coverage
+    varscan_min_var_freq
+    varscan_max_pvalue
     run_annovar
     run_funcotator
     split_intervals
@@ -100,8 +101,6 @@ while true; do
             input_file_list="$2"; check_for_file "${1}" "${2}"; shift 2 ;;
         --output_directory )
             output_directory="$2"; shift 2 ;;
-        --annotated_output_directory )
-            annotated_output_directory="$2"; shift 2 ;;
         --bam_extension )
             bam_extension="$2"; shift 2 ;;
         --fastq_extension )
@@ -158,6 +157,10 @@ while true; do
             run_annovar="$2"; shift 2 ;;
         --annnovarroot )
             annovarroot="$2"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --run_pileup_region )
+            run_pileup_region="${2}"; shift 2 ;;
+        --pileup_region_intervals )
+            pileup_region_intervals="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
         --run_haplotypecaller )
             run_haplotypecaller="$2"; shift 2 ;;
         --germline_snps )
@@ -481,7 +484,6 @@ fi
 passed_args_array=(
     array_file 
     output_directory 
-    annotated_output_directory 
     bam_extension 
     fastq_extension 
     assembly 
@@ -498,6 +500,8 @@ passed_args_array=(
     run_funcotator 
     funcotator_sources 
     transcript_list 
+    run_pileup_region
+    pileup_region_intervals
     run_varscan 
     mpileup_interval_bed 
     varscan_min_coverage 
@@ -505,6 +509,8 @@ passed_args_array=(
     varscan_max_pvalue 
     run_annovar 
     annovarroot 
+    run_pileup_region
+    pileup_region_intervals
     run_haplotypecaller 
     germline_snps
 )

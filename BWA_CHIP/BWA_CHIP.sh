@@ -32,32 +32,34 @@ check_for_directory() {
 options_array=(
     array_file
     output_directory
-    annotated_output_directory
+    code_directory
+    bam_extension
+    fastq_extension
+    assembly
+    reference_genome
+    interval_list
+    sequence_dictionary
+    gnomad_reference
+    normal_bam
+    normal_pileups_table
+    funcotator_sources
+    transcript_list
+    mpileup_interval_bed
+    annovarroot
+    pileup_region_intervals
+    germline_snps
+    slurm_mode
+    run_mutect
+    run_varscan
+    run_pileup_region
+    run_haplotypecaller
+    mutect_bam_output
     varscan_min_coverage
     varscan_min_var_freq
     varscan_max_pvalue
-    annovarroot
-    mpileup_interval_bed
-    run_varscan
-    run_mutect
-    run_funcotator
     run_annovar
-    run_haplotypecaller
-    bam_extension
-    fastq_extension
-    interval_list
+    run_funcotator
     split_intervals
-    normal_bam
-    normal_pileups_table
-    reference_genome
-    gnomad_reference
-    germline_snps
-    assembly
-    funcotator_sources
-    transcript_list
-    sequence_dictionary
-    mutect_bam_output
-    slurm_mode
 )
 
 longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g'):
@@ -72,8 +74,8 @@ while true; do
             array_file="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
         --output_directory )
             final_output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
-        --annotated_output_directory )
-            annotated_output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --code_directory )
+            code_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --bam_extension )
             bam_extension="${2}"; shift 2 ;;
         --fastq_extension )
@@ -120,6 +122,10 @@ while true; do
             run_annovar="${2}"; shift 2 ;;
         --annovarroot )
             annovarroot="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --run_pileup_region )
+            run_pileup_region="${2}"; shift 2 ;;
+        --pileup_region_intervals )
+            pileup_region_intervals="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
         --run_haplotypecaller )
             run_haplotypecaller="${2}"; shift 2 ;;
         --germline_snps )
@@ -142,7 +148,6 @@ array_prefix="$(sed "${line_number}q; d" "${array_file}")" #extract only the lin
 sample_name=$(basename "${array_prefix}")
 bam_file="${array_prefix}.${bam_extension}"
 gatk_command="mamba run -n gatk4 gatk"
-code_directory=$(realpath $(dirname ${BASH_SOURCE[0]}))
 
 if [[ $final_output_directory != "none" ]]; then
     final_output_directory="${final_output_directory}/${sample_name}"
@@ -390,7 +395,6 @@ if [[ ${run_mutect} == true ]]; then
     if [[ ${run_funcotator} == true ]]; then
         "${code_directory}/funcotator.sh" \
             --filtered_vcf "${output_directory}/${sample_name}_mutect2_filtered.vcf" \
-            --annotated_output_directory "${annotated_output_directory}" \
             --reference_genome "${reference_genome}" \
             --funcotator_sources "${funcotator_sources}" \
             --transcript_list "${transcript_list}" \
@@ -404,11 +408,20 @@ if [[ ${run_mutect} == true ]]; then
 else
     echo "Mutect2 calling of somatic variants not requested"
 fi
+
+if [[ $run_pileup_region == true ]]; then
+    "${code_directory}"/pileup_region.sh \
+        --bam_file "${bam_file}" \
+        --reference_genome "${reference_genome}" \
+        --pileup_region_intervals "${pileup_region_intervals}"
+else
+    echo "pileup_region quantification not requested"
+fi
             
 ##################################################################################################################################
 ############################################---STEP 3: HAPLOTYPECALLER.sh---######################################################
 ##################################################################################################################################    
-if [[ $run_haplotypecaller = true ]] ; then
+if [[ $run_haplotypecaller == true ]] ; then
     "${code_directory}/haplotypecaller.sh" \
         --bam_file "${bam_file}" \
         --reference_genome "${reference_genome}" \
@@ -427,7 +440,7 @@ fi
 ##################################################################################################################################
 ################################################---STEP 4: VARSCAN.sh---########################################################## 
 ##################################################################################################################################    
-if [[ ${run_varscan} = true ]]; then
+if [[ ${run_varscan} == true ]]; then
     echo "Varscan analysis requested..."
     "${code_directory}/varscan.sh" \
         --bam_file "${bam_file}" \
