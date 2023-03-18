@@ -172,9 +172,7 @@ while true; do
         -- )
             shift; break ;;
         * )
-            shift; break ;;
-            echo "Invalid argument ${1}" >&2
-            exit 1
+            shift; echo "Invalid argument ${1}" >&2; exit 1
     esac
 done
 
