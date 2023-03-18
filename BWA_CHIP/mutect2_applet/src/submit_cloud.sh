@@ -108,11 +108,11 @@ function run_job() {
 
     output_tar="${HOME}/outputs_${array_number}.tar"
     tar --create --file "${output_tar}" "${local_output_directory}"
-    find "filtered_funcotator.vcf.gz" "${local_output_directory}" \
+    find "${local_output_directory}" -name "*filtered_funcotator.vcf.gz" -type f \
         -exec cp {} "${local_annotated_output_directory}" ";"
-    find "filtered_funcotator.vcf.gz.tbi" "${local_output_directory}" \
+    find "${local_output_directory}" -name "*filtered_funcotator.vcf.gz.tbi" -type f \
         -exec cp {} "${local_annotated_output_directory}" ";"
-    find "pileup_region" "${local_output_directory}" \
+    find "${local_output_directory}" -name "*pileup_region" -type f \
         -exec cp {} "${local_annotated_output_directory}" ";"
     annotated_output_tar="${HOME}/annotated_outputs_${array_number}.tar"
     tar --create --file "${annotated_output_tar}" "${local_annotated_output_directory}"
