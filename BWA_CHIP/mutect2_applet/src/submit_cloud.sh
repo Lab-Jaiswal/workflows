@@ -97,7 +97,7 @@ function run_job() {
     read -r -a reference_args_array <<< "$(printf "%s\n" "${reference_args[@]}" | \
         xargs --replace=% bash -c 'echo --% "${%}"' | \
         sed -e "s? ? ${local_references_directory}/?" | \
-        sed -e 's/.*none$/none/' | \
+        sed -e "s?${local_references_directory}/none?none?" | \
         tr '\n' ' ')"
 
     "${HOME}/workflows/BWA_CHIP/submit_BWA_CHIP.sh" \

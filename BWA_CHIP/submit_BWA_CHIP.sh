@@ -155,7 +155,7 @@ while true; do
             varscan_max_pvalue="$2"; shift 2 ;;
         --run_annovar )
             run_annovar="$2"; shift 2 ;;
-        --annnovarroot )
+        --annovarroot )
             annovarroot="$2"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --run_pileup_region )
             run_pileup_region="${2}"; shift 2 ;;
@@ -173,8 +173,8 @@ while true; do
             shift; break ;;
         * )
             shift; break ;;
-            #echo "Invalid argument ${1}" >&2
-            #exit 1
+            echo "Invalid argument ${1}" >&2
+            exit 1
     esac
 done
 
