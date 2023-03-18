@@ -484,6 +484,7 @@ fi
 passed_args_array=(
     array_file 
     output_directory 
+    code_directory
     bam_extension 
     fastq_extension 
     assembly 
