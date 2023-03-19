@@ -60,16 +60,21 @@ else
 	echo "$(basename "$read1_input") and $(basename "$read2_input") have already been Bismark mapped to $genome_fasta_path"
 fi
 
+#checkpoint
+rsync -vur $output_temp_directory/ $output_directory
+
 	
 if [ "$deduplicate" == "TRUE" ] || [ "$deduplicate" == TRUE ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "True" ]; then
 	echo "Deduplication requested for mapping output of $(basename "$read1_input") and $(basename "$read2_input") to genome $genome_fasta_path"
 	echo "Expected deduplication output file is $dedup_output"
 
 	if [ ! -f "$dedup_output" ]; then
-		cd $output_temp_directory
-                deduplication_input=$(basename $dedup_input)
+		#why is this changing the directory? Does it need to in order to work???
+		#cd $output_temp_directory
+                #deduplication_input=$(basename $dedup_input) #this never gets used!
 		echo "Begin deduplicating $dedup_input"
-            	deduplicate_bismark -p --bam $dedup_input -o $dedup_input
+            	#deduplicate_bismark -p --bam $dedup_input -o $dedup_input #this has the wrong variable used as the output!!
+            	deduplicate_bismark -p --bam $dedup_input -o $dedup_output
             	echo "Finished deduplicating $dedup_input"
         fi
     
@@ -84,4 +89,4 @@ rsync -vur $output_temp_directory/ $output_directory
 #TO DO: halt code with any error to prevent errors from snowballing and not being detected by end user or by development team. http://web.archive.org/web/20110314180918/http://www.davidpashley.com/articles/writing-robust-shell-scripts.html
 
 #TO DO: 
-#should do test on relative and absolute paths and ensure that it is mapping the files. it's looking for the relative path . which exists always. It should map and output the mapped files to the current working directory. 
+#should do test on relative and absolute paths and ensure that it is mapping the files. it's looking for the relative path . which exists always. It should map and output the mapped files to the current working directory. (why? in order for the recursive looping logic to work? shouldn't need to. Kameron thinks be best to always use absolute paths)

@@ -151,7 +151,8 @@ else
     " >> $parameter_file
    
     picard=$(find "$output_path" -type f | grep ".*\.bam_picard_insert_size_plot.pdf$" | sort -u | wc -l)
-    
+    #this should actually check for coverage output file from bismark, as that's the real important output file, not picard.
+
     if [[ $picard -lt 1 ]] || [[ $force = true ]]; then
             echo "entering methylseq.sh"
             sbatch -o "$Logs/${log_name}_%A_%a.log" `#put into log` \
