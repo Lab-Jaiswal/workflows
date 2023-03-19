@@ -216,8 +216,8 @@ for i in $(seq 0 $total_genomes); do
     find "${output_temp_directory}/" -type f -not -name "${read1_output_name}" -not -name "${read2_output_name}" -delete
 
     #remove the old inputs before updating the input name to be the output names
-    rm $read1_input_name
-    rm $read2_input_name
+    rm $read1_input
+    rm $read1_input
 
     #set up variables for the next possible for loop iteration
     input_temp_directory="${output_temp_directory}"
