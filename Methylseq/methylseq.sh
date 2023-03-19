@@ -157,6 +157,7 @@ for i in $(seq 0 $total_genomes); do
         dedup_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.bam"
         dedup_report="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplication_report.txt"
         ${code_directory}/deduplicate.sh $dedup_input $dedup_output $dedup_report $output_temp_directory $output_directory $cores $parameter_file
+        wait
         if [ -f "$dedup_output" ]; then
             sort_input="${dedup_output}"
             index_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.sorted.bam"
@@ -222,4 +223,4 @@ for i in $(seq 0 $total_genomes); do
     read2_input_name="${read2_output_name}"
 
 
-done 
+done
