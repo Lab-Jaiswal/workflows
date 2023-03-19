@@ -217,7 +217,7 @@ for i in $(seq 0 $total_genomes); do
 
     #remove the old inputs before updating the input name to be the output names
     rm $read1_input
-    rm $read1_input
+    rm $read2_input
 
     #set up variables for the next possible for loop iteration
     input_temp_directory="${output_temp_directory}"
