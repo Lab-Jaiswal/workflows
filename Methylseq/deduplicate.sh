@@ -40,7 +40,8 @@ module load bismark/0.22.3
 
 	if [ ! -f "$dedup_output" ] || [ ! -f "$dedup_report" ]; then
 		echo "Begin deduplicating $dedup_input"
-            	deduplicate_bismark -p --bam $dedup_input --output_dir $output_temp_directory -o $dedup_input #this uses $dedup_input as output file basename because bismark modifies it to add deduplicated.bam 
+            	deduplicate_bismark -p --bam $dedup_input --output_dir $output_temp_directory -o $dedup_input 
+            	#-o uses $dedup_input as output file basename because bismark modifies it to add deduplicated.bam ... -o just wants the basename to use for the output file.
             	#output_dir needed, otherwise outputs get written to the working directory!
             	echo "Finished deduplicating $dedup_input"
     fi
