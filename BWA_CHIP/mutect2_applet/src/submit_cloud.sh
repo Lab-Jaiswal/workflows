@@ -21,12 +21,13 @@ function run_job() {
         git \
         grep \
         mamba \
+        moreutils \
         parallel \
         sed \
         tar \
         util-linux
     micromamba create -n gatk4 gatk4
-    micromamba create -n bcftools bcftools tabix moreutils
+    micromamba create -n bcftools bcftools tabix
     micromamba create -n pileup_region pileup_region
     conda init bash
     . "${HOME}/micromamba/etc/profile.d/conda.sh"
