@@ -22,10 +22,10 @@ function run_job() {
         grep \
         mamba \
         moreutils \
-        parallel \
         sed \
         tar \
         util-linux
+    micromamba install --yes parallel
     micromamba create -n gatk4 gatk4
     micromamba create -n bcftools bcftools tabix
     micromamba create -n pileup_region pileup_region
