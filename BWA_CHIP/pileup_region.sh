@@ -58,7 +58,7 @@ if [[ ! -f "${pileup_name}" ]]; then
         "${reference_genome}" > "${pileup_name}.pileup_region"
 
     pileup_region_nrows=$(head -n -1 "${pileup_name}.pileup_region" | wc -l)
-    paste <(yes "${sample_name}" | head -n "${pileup_region_nrows}") "${pileup_name}.pileup_region" | sponge "${pileup_name}.pileup_region"
+    paste <(yes "${sample_name}" | head -n "${pileup_region_nrows}") <(head -n -1 "${pileup_name}.pileup_region") | sponge "${pileup_name}.pileup_region"
 else
     echo "Region pileups already computed in: ${pileup_name}.pileup_region"
 fi
