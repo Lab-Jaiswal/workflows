@@ -218,7 +218,7 @@
         {
             "name": "interval_list",
             "class": "string",
-            "default": "CHIP_exons.interval_list",
+            "default": "CHIP_exons_updated020223.interval_list",
             "optional": true,
             "help": "Path to interval list over which to call CHIP with Mutect2"
         },
