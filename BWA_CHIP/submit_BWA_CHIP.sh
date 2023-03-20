@@ -499,8 +499,6 @@ passed_args_array=(
     run_funcotator 
     funcotator_sources 
     transcript_list 
-    run_pileup_region
-    pileup_region_intervals
     run_varscan 
     mpileup_interval_bed 
     varscan_min_coverage 
