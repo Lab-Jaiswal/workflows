@@ -50,8 +50,10 @@ if [ ! -f $bismark_map_output ] || [ ! -f $bismark_map_report]; then
 #more concervative mapping
 #	bismark --bam --maxins 800 $genome_fasta_path -1 $read1_input -2 $read2_input -o $output_temp_directory --unmapped --nucleotide_coverage --multicore $cores
 
+N_cores=$((cores/3))
+
 #more liberal mapping
-	bismark --bam --maxins 800 $genome_fasta_path -1 $read1_input -2 $read2_input -o $output_temp_directory --unmapped --nucleotide_coverage --multicore $cores --score_min L,0,-0.6
+	bismark --bam --maxins 800 $genome_fasta_path -1 $read1_input -2 $read2_input -o $output_temp_directory --unmapped --nucleotide_coverage --multicore $N_cores --score_min L,0,-0.6
 
 	echo "finished mapping $(basename $read1_input) and $(basename $read2_input) read pair; map to control seqs complete for $genome_name"
 else

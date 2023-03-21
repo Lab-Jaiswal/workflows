@@ -1,9 +1,10 @@
 #!/bin/bash
 
-#SBATCH --time=72:00:00
+#SBATCH --time=167:00:00
+#SBATCH --partition=nih_s10
 #SBATCH --account=sjaiswal
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=256GB
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=4GB
 #SBATCH --job-name=submit_methylseq
 
 ##################################################################################################################################
@@ -158,6 +159,8 @@ else
             sbatch -o "$Logs/${log_name}_%A_%a.log" `#put into log` \
                     -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
                    -W `#indicates to the script not to move on until the sbatch operation is complete` \
+                   --cpus-per-task "${cores}" \
+                   --mem "$((cores * 16 / 3))GB" `#the ratio of memory needed for bismark to work` \
                     "${code_directory}/methylseq.sh" \
                     $data_path $output_path $genetic_locations $cores $log_name $parameter_file $code_directory $Logs $parameter_file $initial_path
 

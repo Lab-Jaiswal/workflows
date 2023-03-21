@@ -2,9 +2,11 @@
 
 #SBATCH --time=72:00:00
 #SBATCH --account=sjaiswal
-#SBATCH --cpus-per-task=20
-#SBATCH --mem=256GB
 #SBATCH --job-name=methylseq
+
+###number of cores per task should be ${cores}
+###mem should be $((cores * 16 / 3))GB
+
 
 ##################################################################################################################################
 #############################################---STEP 1: SET UP ARGUMENTS---####################################################### 
@@ -184,8 +186,8 @@ for i in $(seq 0 $total_genomes); do
     #rsync -vur $output_temp_directory/ $output_directory
 
 
-    #extract methylation
-    bismark_extraction_input=$index_input
+    #extract methylation (must not be sorted by position to work!) see https://github.com/FelixKrueger/Bismark/issues/360
+    bismark_extraction_input=$dedup_output
     bismark_extraction_report=$(echo $bismark_extraction_input | sed 's/\(.*\).bam/\1_splitting_report.txt/')
     #bismark_extraction_report="${output_temp_directory}/$(basename -s .bam "${bismark_extraction_input}")_splitting_report.txt"
         
