@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --time=72:00:00
+#SBATCH --time=167:00:00
 #SBATCH --partition=nih_s10
 #SBATCH --account=sjaiswal
 #SBATCH --job-name=methylseq
