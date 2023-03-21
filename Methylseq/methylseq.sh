@@ -188,7 +188,7 @@ for i in $(seq 0 $total_genomes); do
 
 
     #extract methylation (must not be sorted by position to work!) see https://github.com/FelixKrueger/Bismark/issues/360
-    bismark_extraction_input=$dedup_output
+    bismark_extraction_input=$sort_input #not simply $dedup_output because sometimes there won't be deduplication requested
     bismark_extraction_report=$(echo $bismark_extraction_input | sed 's/\(.*\).bam/\1_splitting_report.txt/')
     #bismark_extraction_report="${output_temp_directory}/$(basename -s .bam "${bismark_extraction_input}")_splitting_report.txt"
         
