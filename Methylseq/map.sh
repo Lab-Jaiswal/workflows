@@ -41,6 +41,12 @@ fi
 
 module load bismark/0.22.3        
 
+#copy over output files if they are already made
+bismark_map_output_name=$(basename "${bismark_map_output}")
+bismark_map_report_name=$(basename "${bismark_map_report}")
+# rsync -vur --include="${read1_name}" --include="${read2_name}" --include="${read1_trimmed_name}" --include="${read2_trimmed_name}" --exclude="*" "${data_path}/fastq/" $temp_path
+rsync -vur --include="${bismark_map_output_name}" --include="${bismark_map_report_name}" --exclude="*" "$output_directory/" $output_temp_directory
+
 if [ ! -f $bismark_map_output ] || [ ! -f $bismark_map_report]; then
 	echo "Expected mapping output file is $bismark_map_report"
 	echo "$(basename "$read1_input") and $(basename "$read2_input") read pair not yet mapped to '$genome_name' genome. Mapping now."
