@@ -101,6 +101,10 @@ else
     echo "Mutect2 VCF already annotated"
 fi
 
+# Fix header entry from funcotator so that it will work with split-vep
+# 1) Extract Description tag, and change the part before the ':' to only say 'Format:'
+# 2) Rename Gencode_*_variantClassification column to Consequence
+# 3) Remove illegal characters '/', '(', and ')' from Funcotator field names
 funcotator_header=$(bcftools view --header-only "${funcotator_vcf}" | grep FUNCOTATION | sed 's/.*Description="//g' | sed 's/">//g')
 funcotator_replacement_header=$(echo "${funcotator_header}" | \
     sed "s/.*:/Format:/g" | \
@@ -108,8 +112,11 @@ funcotator_replacement_header=$(echo "${funcotator_header}" | \
     tr '/' '_' | \
     tr '(' '_' | \
     tr ')' '_')
+# Create comma separated list of all Funcotator columns
 funcotator_columns=$(echo "${funcotator_replacement_header}" | sed 's/.*: //g' | tr '|' ',')
 
+# Replace the Funcotator Description tag with the corrected one generated above
+# Also remove '[' and ']' from every Funcotator entry
 bcftools view "${funcotator_vcf}" | \
     sed "s/FUNCOTATION,Number=A,Type=String,Description=\".*\">/FUNCOTATION,Number=A,Type=String,Description=\"${funcotator_replacement_header}\">/g" | \
     tr --delete '[' | \
@@ -117,5 +124,86 @@ bcftools view "${funcotator_vcf}" | \
     bgzip --stdout > "${funcotator_vcf}.gz"
 tabix --preset vcf --force "${funcotator_vcf}.gz"
 
-bcftools +split-vep --annotation "FUNCOTATION" --columns "${funcotator_columns}" --annot-prefix "funcotator_" "${funcotator_vcf}.gz" | bgzip | sponge "${funcotator_vcf}.gz"
+# Use split-vep to make new INFO tags for each Funcotator field
+# Also make sure new Funcotator INFO tags have Number=A so multiallelic variants can be split by bcftools norm properly
+bcftools +split-vep --annotation "FUNCOTATION" --columns "${funcotator_columns}" --annot-prefix "funcotator_" "${funcotator_vcf}.gz" | \
+    sed "s/Number=\./Number=A/g" | \
+    bgzip | sponge "${funcotator_vcf}.gz"
 tabix --preset vcf --force "${funcotator_vcf}.gz"
+
+# Fix the AS_SB_TABLE and AS_FilterStatus columns so that they can be properly split for multiallelic variants
+# Use bcftools query to extract CHROM, POS, REF, and ALT without modification
+# Also use bcftoosl query to extract AS_SB_TABLE and AS_FilterStatus and use a series of translate steps to change the allele separator
+# from '|' to the standard ','
+# 1) Convert all '|' to '?'
+# 2) Convert all ',' to '|'
+# 3) Convert all '?' to ','
+fixed_as_columns="${funcotator_vcf//.vcf/_fixed_as_columns}"
+paste <(bcftools query --format "%CHROM\t%POS\t%REF\t%ALT\n" "${funcotator_vcf}.gz") \
+    <(bcftools query --format "%AS_FilterStatus\n" "${funcotator_vcf}.gz" | tr '|' '?' | tr ',' '|' | tr '?' ',') \
+    <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | tr '|' '?' | tr ',' '|' | tr '?' ',') | \
+    bgzip --stdout > "${fixed_as_columns}"
+tabix --force --sequence 1 --begin 2 --end 2 "${fixed_as_columns}"
+
+# HACK: For some reason AS_FilterStatus refuses to copy in multiallelic variants to overwite the AS_FilterStatus tag
+# We circumvent this by changing the Number tag of AS_FilterStatus to 1, which we will change back later
+bcftools view "${funcotator_vcf}.gz" | sed 's/AS_FilterStatus,Number=A/AS_FilterStatus,Number=1/' | bgzip | sponge "${funcotator_vcf}.gz"
+tabix --preset vcf --force "${funcotator_vcf}.gz"
+
+# Use bcftools annotate to replace AS_FilterStatus and AS_SB_TABLE with fixed versions
+# Also change Number of AS_FilterStatus back to A, and to to R for AS_SB_TABLE
+# Finally, use bcftools norm to separate multiallelic variants into their own rows so they can be processed individually later
+bcftools annotate --annotations "${fixed_as_columns}" \
+    --columns CHROM,POS,REF,ALT,AS_FilterStatus,AS_SB_TABLE \
+    "${funcotator_vcf}.gz" | \
+    sed 's/AS_SB_TABLE,Number=1/AS_SB_TABLE,Number=R/' | \
+    sed 's/AS_FilterStatus,Number=1/AS_FilterStatus,Number=A/' | \
+    bcftools norm --multiallelics - | \
+    bgzip | sponge "${funcotator_vcf}.gz"
+tabix --preset vcf --force "${funcotator_vcf}.gz"
+
+# After separateing multiallelic sites into their own rows, split AS_SB_TABLE so that it has the two strands in separate columns 
+# that can be properly filtered by bcftools later.
+# 1) Extract the reference allele and extract strand 1 reads
+# 2) Extract the alternate allele and extract strand 1 reads
+# 3) Combine the strand 1 reads from the reference and alternate
+# 4) Extract the reference allele and extract strand 2 reads
+# 5) Extract the alternate allele and extract strand 2 reads
+# 6) Combine the strand 2 reads from the reference and alternate
+fixed_as_sb_table_columns="${funcotator_vcf//.vcf/_fixed_as_sb_table_columns}"
+fixed_as_sb_table_columns_header="${funcotator_vcf//.vcf/_fixed_as_sb_table_columns_header}"
+paste <(bcftools query --format "%CHROM\t%POS\t%REF\t%ALT\n" "${funcotator_vcf}.gz") \
+    <(paste --delimiters=',' \
+        <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | \
+            cut --delimiter=',' --fields=1 | \
+            cut --delimiter='|' --fields=1) \
+        <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | \
+            cut --delimiter=',' --fields=2 | \
+            cut --delimiter='|' --fields=1)) \
+    <(paste --delimiters=',' \
+        <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | \
+            cut --delimiter=',' --fields=1 | \
+            cut --delimiter='|' --fields=2) \
+        <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | \
+            cut --delimiter=',' --fields=2 | \
+            cut --delimiter='|' --fields=2)) | \
+    bgzip --stdout > "${fixed_as_sb_table_columns}"
+tabix --force --sequence 1 --begin 2 --end 2 "${fixed_as_sb_table_columns}"
+
+# Export new header lines for the split AS_SB_TABLE columns
+echo "##INFO=<ID=AS_SB_TABLE_strand1,Number=R,Type=Integer,Description=\"Allele-specific forward read counts for strand bias tests.\">" > "${fixed_as_sb_table_columns_header}"
+echo "##INFO=<ID=AS_SB_TABLE_strand2,Number=R,Type=Integer,Description=\"Allele-specific reverse read counts for strand bias tests.\">" >> "${fixed_as_sb_table_columns_header}"
+
+# Use bcftools annotate to add the AS_SB_TABLE_strand1 and AS_SB_TABLE_strand2 columns.
+# We don't delete the original column as this can be done by the user later.
+bcftools annotate --annotations "${fixed_as_sb_table_columns}" \
+    --columns CHROM,POS,REF,ALT,AS_SB_TABLE_forward,AS_SB_TABLE_reverse \
+    --header-lines "${fixed_as_sb_table_columns_header}" \
+    "${funcotator_vcf}.gz" | \
+    bgzip | sponge "${funcotator_vcf}.gz"
+tabix --preset vcf --force "${funcotator_vcf}.gz"
+
+# Delete intermediary file with fixed AS_FilterStatus and AS_SB_TABLE columns because we do not use it downstream.
+rm "${fixed_as_columns}"
+rm "${fixed_as_sb_table_columns}"
+rm "${fixed_as_sb_table_columns_header}"
