@@ -138,7 +138,7 @@ tabix --preset vcf --force "${funcotator_vcf}.gz"
 # 2) Convert all ',' to '|'
 # 3) Convert all '?' to ','
 fixed_as_columns="${funcotator_vcf//.vcf/_fixed_as_columns}"
-paste <(bcftools query -f "%CHROM\t%POS\t%REF\t%ALT\n" ${funcotator_vcf}.gz) \
+paste <(bcftools query -f "%CHROM\t%POS\t%REF\t%ALT\n" "${funcotator_vcf}.gz") \
     <(bcftools query -f "%AS_FilterStatus\n" "${funcotator_vcf}.gz" | tr '|' '?' | tr ',' '|' | tr '?' ',') \
     <(bcftools query -f "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | tr '|' '?' | tr ',' '|' | tr '?' ',') | \
     bgzip --stdout > "${fixed_as_columns}"
@@ -146,15 +146,15 @@ tabix --force --sequence 1 --begin 2 --end 2 "${fixed_as_columns}"
 
 # HACK: For some reason AS_FilterStatus refuses to copy in multiallelic variants to overwite the AS_FilterStatus tag
 # We circumvent this by changing the Number tag of AS_FilterStatus to 1, which we will change back later
-bcftools view ${funcotator_vcf}.gz | sed 's/AS_FilterStatus,Number=A/AS_FilterStatus,Number=1/' | bgzip | sponge ${funcotator_vcf}.gz
+bcftools view "${funcotator_vcf}.gz" | sed 's/AS_FilterStatus,Number=A/AS_FilterStatus,Number=1/' | bgzip | sponge "${funcotator_vcf}.gz"
 tabix --preset vcf --force "${funcotator_vcf}.gz"
 
 # Use bcftools annotate to replace AS_FilterStatus and AS_SB_TABLE with fixed versions
 # Also change Number of AS_FilterStatus back to A, and to to R for AS_SB_TABLE
 # Finally, use bcftools norm to separate multiallelic variants into their own rows so they can be processed individually later
-bcftools annotate --annotations ${fixed_as_columns} \
+bcftools annotate --annotations "${fixed_as_columns}" \
     --columns CHROM,POS,REF,ALT,AS_FilterStatus,AS_SB_TABLE \
-    ${funcotator_vcf}.gz | \
+    "${funcotator_vcf}.gz" | \
     sed 's/AS_SB_TABLE,Number=1/AS_SB_TABLE,Number=R/' | \
     sed 's/AS_FilterStatus,Number=1/AS_FilterStatus,Number=A/' | \
     bcftools norm --multiallelics - | \
@@ -171,7 +171,7 @@ tabix --preset vcf --force "${funcotator_vcf}.gz"
 # 6) Combine the strand 2 reads from the reference and alternate
 fixed_as_sb_table_columns="${funcotator_vcf//.vcf/_fixed_as_sb_table_columns}"
 fixed_as_sb_table_columns_header="${funcotator_vcf//.vcf/_fixed_as_sb_table_columns_header}"
-paste <(bcftools query -f "%CHROM\t%POS\t%REF\t%ALT\n" ${funcotator_vcf}.gz) \
+paste <(bcftools query -f "%CHROM\t%POS\t%REF\t%ALT\n" "${funcotator_vcf}.gz") \
     <(paste --delimiters=',' <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | cut --delimiter=',' --fields=1 | cut --delimiter='|' --fields=1) \
         <(bcftools query -f "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | cut --delimiter=',' --fields=2 | cut --delimiter='|' --fields=1)) \
     <(paste --delimiters=',' <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | cut --delimiter=',' --fields=1 | cut --delimiter='|' --fields=2) \
@@ -185,14 +185,14 @@ echo "##INFO=<ID=AS_SB_TABLE_strand2,Number=R,Type=Integer,Description=\"Allele-
 
 # Use bcftools annotate to add the AS_SB_TABLE_strand1 and AS_SB_TABLE_strand2 columns.
 # We don't delete the original column as this can be done by the user later.
-bcftools annotate --annotations ${fixed_as_sb_table_columns} \
+bcftools annotate --annotations "${fixed_as_sb_table_columns}" \
     --columns CHROM,POS,REF,ALT,AS_SB_TABLE_strand1,AS_SB_TABLE_strand2 \
-    --header-lines ${fixed_as_sb_table_columns_header} \
-    ${funcotator_vcf}.gz | \
+    --header-lines "${fixed_as_sb_table_columns_header}" \
+    "${funcotator_vcf}.gz" | \
     bgzip | sponge "${funcotator_vcf}.gz"
 tabix --preset vcf --force "${funcotator_vcf}.gz"
 
 # Deleted intermediary file with fixed AS_FilterStatus and AS_SB_TABLE columns because we do not use it downstream.
-rm ${fixed_as_columns}
-rm ${fixed_as_sb_table_columns}
-rm ${fixed_as_sb_table_columns_header}
+rm "${fixed_as_columns}"
+rm "${fixed_as_sb_table_columns}"
+rm "${fixed_as_sb_table_columns_header}"
