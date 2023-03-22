@@ -29,6 +29,7 @@ function run_job() {
     micromamba create -n gatk4 gatk4
     micromamba create -n bcftools bcftools tabix
     micromamba create -n pileup_region pileup_region
+    micromamba create -n samtools samtools
     conda init bash
     . "${HOME}/micromamba/etc/profile.d/conda.sh"
     mamba init bash
