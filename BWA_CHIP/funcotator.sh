@@ -84,7 +84,6 @@ if [[ ! -f "${reheadered_vcf}" ]]; then
     echo "...header fixed."
 fi
 
-funcotator_vcf="./split_vep_test/home/dnanexus/outputs/1000646_23143_0_0/1000646_23143_0_0_mutect2_filtered_funcotator.vcf"
 funcotator_vcf="${sample_name}_mutect2_filtered_funcotator.vcf"
 # Annotate filtered Mutect2 VCF with Funcotator annotations
 if [[ ! -f "${funcotator_vcf}" ]]; then
