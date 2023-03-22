@@ -50,6 +50,7 @@ done
 
 sample_name=$(basename "${bam_file}" | sed -e 's/.bam$//g'  | sed -e 's/.cram$//g')
 pileup_name="${output_directory}/${sample_name}"
+sample_name_sam=$(mamba run -n samtools samtools samples "${bam_file}" | cut -f 1)
 
 if [[ ! -f "${pileup_name}" ]]; then
     mamba run -n pileup_region pileup_region \
@@ -58,7 +59,7 @@ if [[ ! -f "${pileup_name}" ]]; then
         "${reference_genome}" > "${pileup_name}.pileup_region"
 
     pileup_region_nrows=$(head -n -1 "${pileup_name}.pileup_region" | wc -l)
-    paste <(yes "${sample_name}" | head -n "${pileup_region_nrows}") <(head -n -1 "${pileup_name}.pileup_region") | sponge "${pileup_name}.pileup_region"
+    paste <(yes "${sample_name_sam}" | head -n "${pileup_region_nrows}") <(head -n -1 "${pileup_name}.pileup_region") | sponge "${pileup_name}.pileup_region"
 else
     echo "Region pileups already computed in: ${pileup_name}.pileup_region"
 fi
