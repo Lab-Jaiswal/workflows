@@ -122,7 +122,7 @@ bcftools view "${funcotator_vcf}" | \
     sed "s/FUNCOTATION,Number=A,Type=String,Description=\".*\">/FUNCOTATION,Number=A,Type=String,Description=\"${funcotator_replacement_header}\">/g" | \
     tr --delete '[' | \
     tr --delete ']' | \
-    bgzip --stdout >! "${funcotator_vcf}.gz"
+    bgzip --stdout > "${funcotator_vcf}.gz"
 tabix --preset vcf --force "${funcotator_vcf}.gz"
 
 # Use split-vep to make new INFO tags for each Funcotator field
@@ -180,7 +180,7 @@ paste <(bcftools query -f "%CHROM\t%POS\t%REF\t%ALT\n" "${funcotator_vcf}.gz") \
 tabix --force --sequence 1 --begin 2 --end 2 "${fixed_as_sb_table_columns}"
 
 # Export new header lines for the split AS_SB_TABLE columns
-echo "##INFO=<ID=AS_SB_TABLE_strand1,Number=R,Type=Integer,Description=\"Allele-specific forward/reverse read counts for strand bias tests on strand 1.\">" >! "${fixed_as_sb_table_columns_header}"
+echo "##INFO=<ID=AS_SB_TABLE_strand1,Number=R,Type=Integer,Description=\"Allele-specific forward/reverse read counts for strand bias tests on strand 1.\">" > "${fixed_as_sb_table_columns_header}"
 echo "##INFO=<ID=AS_SB_TABLE_strand2,Number=R,Type=Integer,Description=\"Allele-specific forward/reverse read counts for strand bias tests on strand 2.\">" >> "${fixed_as_sb_table_columns_header}"
 
 # Use bcftools annotate to add the AS_SB_TABLE_strand1 and AS_SB_TABLE_strand2 columns.
