@@ -126,7 +126,9 @@ tabix --preset vcf --force "${funcotator_vcf}.gz"
 
 # Use split-vep to make new INFO tags for each Funcotator field
 # Also make sure new Funcotator INFO tags have Number=A so multiallelic variants can be split by bcftools norm properly
-bcftools +split-vep --annotation "FUNCOTATION" --columns "${funcotator_columns}" --annot-prefix "funcotator_" "${funcotator_vcf}.gz" | sed "s/Number=\./Number=A/g" | bgzip | sponge "${funcotator_vcf}.gz"
+bcftools +split-vep --annotation "FUNCOTATION" --columns "${funcotator_columns}" --annot-prefix "funcotator_" "${funcotator_vcf}.gz" | \
+    sed "s/Number=\./Number=A/g" | \
+    bgzip | sponge "${funcotator_vcf}.gz"
 tabix --preset vcf --force "${funcotator_vcf}.gz"
 
 # Fix the AS_SB_TABLE and AS_FilterStatus columns so that they can be properly split for multiallelic variants
@@ -171,10 +173,20 @@ tabix --preset vcf --force "${funcotator_vcf}.gz"
 fixed_as_sb_table_columns="${funcotator_vcf//.vcf/_fixed_as_sb_table_columns}"
 fixed_as_sb_table_columns_header="${funcotator_vcf//.vcf/_fixed_as_sb_table_columns_header}"
 paste <(bcftools query --format "%CHROM\t%POS\t%REF\t%ALT\n" "${funcotator_vcf}.gz") \
-    <(paste --delimiters=',' <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | cut --delimiter=',' --fields=1 | cut --delimiter='|' --fields=1) \
-        <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | cut --delimiter=',' --fields=2 | cut --delimiter='|' --fields=1)) \
-    <(paste --delimiters=',' <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | cut --delimiter=',' --fields=1 | cut --delimiter='|' --fields=2) \
-        <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | cut --delimiter=',' --fields=2 | cut --delimiter='|' --fields=2)) | \
+    <(paste --delimiters=',' \
+        <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | \
+            cut --delimiter=',' --fields=1 | \
+            cut --delimiter='|' --fields=1) \
+        <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | \
+            cut --delimiter=',' --fields=2 | \
+            cut --delimiter='|' --fields=1)) \
+    <(paste --delimiters=',' \
+        <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | \
+            cut --delimiter=',' --fields=1 | \
+            cut --delimiter='|' --fields=2) \
+        <(bcftools query --format "%AS_SB_TABLE\n" "${funcotator_vcf}.gz" | \
+            cut --delimiter=',' --fields=2 | \
+            cut --delimiter='|' --fields=2)) | \
     bgzip --stdout > "${fixed_as_sb_table_columns}"
 tabix --force --sequence 1 --begin 2 --end 2 "${fixed_as_sb_table_columns}"
 
