@@ -191,8 +191,8 @@ paste <(bcftools query --format "%CHROM\t%POS\t%REF\t%ALT\n" "${funcotator_vcf}.
 tabix --force --sequence 1 --begin 2 --end 2 "${fixed_as_sb_table_columns}"
 
 # Export new header lines for the split AS_SB_TABLE columns
-echo "##INFO=<ID=AS_SB_TABLE_strand1,Number=R,Type=Integer,Description=\"Allele-specific forward read counts for strand bias tests.\">" > "${fixed_as_sb_table_columns_header}"
-echo "##INFO=<ID=AS_SB_TABLE_strand2,Number=R,Type=Integer,Description=\"Allele-specific reverse read counts for strand bias tests.\">" >> "${fixed_as_sb_table_columns_header}"
+echo "##INFO=<ID=AS_SB_TABLE_forward,Number=R,Type=Integer,Description=\"Allele-specific forward read counts for strand bias tests.\">" > "${fixed_as_sb_table_columns_header}"
+echo "##INFO=<ID=AS_SB_TABLE_reverse,Number=R,Type=Integer,Description=\"Allele-specific reverse read counts for strand bias tests.\">" >> "${fixed_as_sb_table_columns_header}"
 
 # Use bcftools annotate to add the AS_SB_TABLE_strand1 and AS_SB_TABLE_strand2 columns.
 # We don't delete the original column as this can be done by the user later.
