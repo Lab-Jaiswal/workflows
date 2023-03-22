@@ -180,19 +180,19 @@ paste <(bcftools query -f "%CHROM\t%POS\t%REF\t%ALT\n" "${funcotator_vcf}.gz") \
 tabix --force --sequence 1 --begin 2 --end 2 "${fixed_as_sb_table_columns}"
 
 # Export new header lines for the split AS_SB_TABLE columns
-echo "##INFO=<ID=AS_SB_TABLE_strand1,Number=R,Type=Integer,Description=\"Allele-specific forward/reverse read counts for strand bias tests on strand 1.\">" > "${fixed_as_sb_table_columns_header}"
-echo "##INFO=<ID=AS_SB_TABLE_strand2,Number=R,Type=Integer,Description=\"Allele-specific forward/reverse read counts for strand bias tests on strand 2.\">" >> "${fixed_as_sb_table_columns_header}"
+echo "##INFO=<ID=AS_SB_TABLE_strand1,Number=R,Type=Integer,Description=\"Allele-specific forward read counts for strand bias tests.\">" > "${fixed_as_sb_table_columns_header}"
+echo "##INFO=<ID=AS_SB_TABLE_strand2,Number=R,Type=Integer,Description=\"Allele-specific reverse read counts for strand bias tests.\">" >> "${fixed_as_sb_table_columns_header}"
 
 # Use bcftools annotate to add the AS_SB_TABLE_strand1 and AS_SB_TABLE_strand2 columns.
 # We don't delete the original column as this can be done by the user later.
 bcftools annotate --annotations "${fixed_as_sb_table_columns}" \
-    --columns CHROM,POS,REF,ALT,AS_SB_TABLE_strand1,AS_SB_TABLE_strand2 \
+    --columns CHROM,POS,REF,ALT,AS_SB_TABLE_forward,AS_SB_TABLE_reverse \
     --header-lines "${fixed_as_sb_table_columns_header}" \
     "${funcotator_vcf}.gz" | \
     bgzip | sponge "${funcotator_vcf}.gz"
 tabix --preset vcf --force "${funcotator_vcf}.gz"
 
-# Deleted intermediary file with fixed AS_FilterStatus and AS_SB_TABLE columns because we do not use it downstream.
+# Delete intermediary file with fixed AS_FilterStatus and AS_SB_TABLE columns because we do not use it downstream.
 rm "${fixed_as_columns}"
 rm "${fixed_as_sb_table_columns}"
 rm "${fixed_as_sb_table_columns_header}"
