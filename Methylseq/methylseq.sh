@@ -93,7 +93,9 @@ echo "copying data from the output file (if there is any)"                      
 #the trimmed file gets saved to the temp directory and the trim script copies over the trimmed sample fastq files to the output directory so does not need to be coded in this script
 
 #remove the untrimmed files from temp directory to save space
+if [ -f "${read1}" ] || [ -f "${read2}" ]; then
 rm "${read1}" "${read2}"
+fi
 
 #rsync -vur --exclude "Logs" --exclude "Parameters" $initial_path/ $temp_path                    #done after trim.sh to simplify rsync step
 
