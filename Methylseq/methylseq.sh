@@ -136,11 +136,13 @@ for i in $(seq 0 $total_genomes); do
                 " >> $parameter_file
     fi
 
+    echo ""
     echo "LOOP $k INFORMATION:
         genome name: $genome_name
         genome fasta path: $genome_fasta_path
         deduplicate status: $deduplicate "            
-       
+    echo ""
+
     output_temp_directory="${input_temp_directory}/${genome_name}"
     output_directory="${previous_loop_output_directory}/${genome_name}"
     
