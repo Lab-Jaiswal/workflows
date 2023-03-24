@@ -1,5 +1,7 @@
 #!/bin/bash
+echo ""
 echo "entering extract_methyl script"
+echo ""
 
 bismark_extraction_input=$1
 bismark_extraction_report=$2
@@ -41,12 +43,16 @@ if [ ! -f "$output_directory/$bismark_extraction_report_name" ]; then #TO DO: sh
 
         echo "$bismark_extraction_report does not exist yet"
     bismark_methylation_extractor --gzip --cytosine_report --bedGraph --genome_folder "$genome_fasta_path" $bismark_extraction_input -o $output_temp_directory --multicore $N_cores --paired-end
-        echo "extract_methylation_controls complete for unmethyl control"
+        echo ""
+        echo "extract_methylation now complete for this genome"
+        echo ""
 
         rsync -vur $output_temp_directory/ $output_directory
 
 else
-    echo "methylation control extraction for the unmethyl control found and already created"
+    echo ""
+    echo "methylation extraction for this genome already created."
+    echo ""
 fi
 
 

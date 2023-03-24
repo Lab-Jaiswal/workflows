@@ -1,8 +1,9 @@
 #!/bin/bash
 
 #script to deduplicate the output from mapping.
-
+echo ""
 echo "entering deduplicate script"
+echo ""
 
 dedup_input=$1
 dedup_output=$2
@@ -57,13 +58,17 @@ dedup_input_name=$(basename "${dedup_input}")
             	deduplicate_bismark -p --bam $dedup_input --output_dir $output_temp_directory -o $dedup_input 
             	#-o uses $dedup_input as output file basename because bismark modifies it to add deduplicated.bam ... -o just wants the basename to use for the output file.
             	#output_dir needed, otherwise outputs get written to the working directory!
+        echo ""
         echo "Finished deduplicating $dedup_input"
-        
+        echo ""
+
         #checkpoint
 		rsync -vur $output_temp_directory/ $output_directory
 
 	else
+	echo ""
 	echo "$(basename "$dedup_input") has already been deduplicated"
+	echo ""
 
     fi
 

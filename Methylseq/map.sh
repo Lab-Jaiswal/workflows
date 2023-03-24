@@ -1,8 +1,9 @@
 #!/bin/bash
 
 #script to map to genome using Bismark
-
+echo ""
 echo "entering map script"
+echo ""
 
 read1_input=$1
 read2_input=$2
@@ -84,12 +85,16 @@ N_cores=$((cores/3))
 #more liberal mapping
 	bismark --bam --maxins 800 $genome_fasta_path -1 $read1_input -2 $read2_input -o $output_temp_directory --unmapped --nucleotide_coverage --multicore $N_cores --score_min L,0,-0.6
 
+	echo ""
 	echo "finished mapping $(basename $read1_input) and $(basename $read2_input) read pair; map to control seqs complete for $genome_name"
+	echo ""
 
 	rsync -vur $output_temp_directory/ $output_directory
 
 else
+	echo ""
 	echo "$(basename "$read1_input") and $(basename "$read2_input") have already been Bismark mapped to $genome_fasta_path"
+	echo ""
 fi
 
 #checkpoint

@@ -1,5 +1,7 @@
 #!/bin/bash
+echo ""
 echo "entering index script"
+echo ""
 
 index_input=$1
 index_output=$2
@@ -35,12 +37,16 @@ if [ ! -f "$output_directory/$index_output_name" ]; then
 
     echo "Starting to index $(basename "$index_input")"  
     samtools index $index_input
-    echo "indexing of $(basename "$index_input") is complete"
+    echo ""
+    echo "indexing of $(basename "$index_input") is now complete"
+    echo ""
 
     rsync -vur $output_temp_directory/ $output_directory
 
 else
+    echo ""
     echo "indexing of $(basename "$index_input") already complete"
+    echo ""
 fi
 
 

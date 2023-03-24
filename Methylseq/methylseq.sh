@@ -142,7 +142,7 @@ for i in $(seq 0 $total_genomes); do
     output_temp_directory="${input_temp_directory}/${genome_name}"
     output_directory="${previous_loop_output_directory}/${genome_name}"
     
-    echo "copying transcriptome to the temporary file directory"
+    echo "copying genome fasta to the temporary file directory"
     rsync -vur "$genome_fasta_path/" "$temp_path/${genome_name}_fasta"
     temp_genome="$temp_path/${genome_name}_fasta"
     
@@ -212,10 +212,14 @@ for i in $(seq 0 $total_genomes); do
         module load R
         module load picard/2.9.5
         picard CollectInsertSizeMetrics INPUT=$dedup_input OUTPUT=$dedup_input\_picard_insert_size_metrics.txt HISTOGRAM_FILE=$dedup_input\_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
+            echo ""
             echo "picard insert_size_analysis complete"
+            echo ""
         rsync -vur $output_temp_directory/ $output_directory
     else
-        echo "picard insert size analysis already complete"
+        echo ""
+        echo "picard insert size analysis already completed."
+        echo ""
     fi
 
     #transfer files from tmp directory to the output directory, 
