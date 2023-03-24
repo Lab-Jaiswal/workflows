@@ -163,14 +163,14 @@ for i in $(seq 0 $total_genomes); do
     bismark_map_report="${output_temp_directory}/${read1_output_basename}_bismark_bt2_PE_report.txt"
     ${code_directory}/map.sh $read1_input $read2_input $bismark_map_output $bismark_map_report $temp_genome $output_temp_directory $output_directory $cores $parameter_file $previous_loop_output_directory
 
-
     #deduplicate
     if [ $deduplicate == TRUE ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "TRUE" ] || [ "$deduplicate" == "True" ]; then
         dedup_input="${bismark_map_output}"
         dedup_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.bam"
         dedup_report="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplication_report.txt"
+        dedup_output_name=$(basename "${dedup_input}")
         ${code_directory}/deduplicate.sh $dedup_input $dedup_output $dedup_report $output_temp_directory $output_directory $cores $parameter_file
-        if [ -f "$dedup_output" ]; then
+        if [ -f "$output_directory/$dedup_output_name" ]; then #because deduplication could have occurred previously and outputs not in the temp directory
             sort_input="${dedup_output}"
             index_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.sorted.bam"
             index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.sorted.bam.bai"
