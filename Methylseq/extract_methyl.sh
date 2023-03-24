@@ -28,8 +28,8 @@ fi
 module load bismark/0.22.3
 
 #copy over output files if they are already made
-bismark_extraction_report_name=$(basename "${index_output}")
-bismark_extraction_input_name=$(basename "${index_input}")
+bismark_extraction_report_name=$(basename "${bismark_extraction_report}")
+bismark_extraction_input_name=$(basename "${bismark_extraction_input}")
 
 
 N_cores=$((cores/3))
