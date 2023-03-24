@@ -51,7 +51,7 @@ if [ ! -f "$output_directory/$bismark_extraction_report_name" ]; then #TO DO: sh
 
 else
     echo ""
-    echo "methylation extraction for this genome already created."
+    echo "methylation extraction for this genome already performed."
     echo ""
 fi
 
