@@ -40,7 +40,7 @@ if [ ! -f "$output_directory/$bismark_extraction_report_name" ]; then #TO DO: sh
     fi
 
         echo "$bismark_extraction_report does not exist yet"
-    bismark_methylation_extractor --gzip --cytosine_report --bedGraph --genome_folder "$genome_fasta_path" $bismark_extraction_input -o $output_temp_directory --multicore $N_cores
+    bismark_methylation_extractor --gzip --cytosine_report --bedGraph --genome_folder "$genome_fasta_path" $bismark_extraction_input -o $output_temp_directory --multicore $N_cores --paired-end
         echo "extract_methylation_controls complete for unmethyl control"
 
         rsync -vur $output_temp_directory/ $output_directory
