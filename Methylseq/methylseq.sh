@@ -169,16 +169,16 @@ for i in $(seq 0 $total_genomes); do
         if [ -f "$dedup_output" ]; then
             sort_input="${dedup_output}"
             index_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.sorted.bam"
-            index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.sorted.bai"
+            index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.sorted.bam.bai"
         else
             sort_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.bam"
             index_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bam"
-            index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bai"
+            index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bam.bai"
         fi
     else
         sort_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.bam"
         index_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bam"
-        index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bai"
+        index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bam.bai"
     fi
 
     #sort 
