@@ -25,14 +25,28 @@ fi
 
 module load bismark/0.22.3
 
+#copy over output files if they are already made
+bismark_extraction_report_name=$(basename "${index_output}")
+bismark_extraction_input_name=$(basename "${index_input}")
+
+
 N_cores=$((cores/3))
 
-if [ ! -f $bismark_extraction_report ]; then  #TO DO: should add requirement to also have the extracted methylation files too! Not just the report.
+#if there is not the bismark extraction output in the output directory, then transfer files needed to make it and make it. else skip
+if [ ! -f "$output_directory/$bismark_extraction_report_name" ]; then #TO DO: should add requirement to also have the extracted methylation files too! Not just the report.
+    #transfer files needed if not present yet in temp directory.
+    if [ ! -f "$bismark_extraction_input" ]; then
+        rsync -vur --include="${bismark_extraction_input_name}" --exclude="*" "$output_directory/" $output_temp_directory
+    fi
+
         echo "$bismark_extraction_report does not exist yet"
     bismark_methylation_extractor --gzip --cytosine_report --bedGraph --genome_folder "$genome_fasta_path" $bismark_extraction_input -o $output_temp_directory --multicore $N_cores
         echo "extract_methylation_controls complete for unmethyl control"
+
+        rsync -vur $output_temp_directory/ $output_directory
+
 else
     echo "methylation control extraction for the unmethyl control found and already created"
 fi
 
-rsync -vur $output_temp_directory/ $output_directory
+

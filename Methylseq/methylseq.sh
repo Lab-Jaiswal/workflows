@@ -68,11 +68,17 @@ read2_trimmed=$(echo $read2 | sed 's/fastq.gz/trimmed.fastq.gz/')
 read1_trimmed_name=$(basename "${read1_trimmed}")
 read2_trimmed_name=$(basename "${read2_trimmed}")
 
-
+#TO DO: if mapping step is already done, then don't need to transfer fastq files (only need to transfer files needed for the next step that's left to do)
 
 #copy data from data_path to the temp_path
-#copy over to the temp directory just the untrimmed and trimmed (if exists) fastqs for the sample it’s going to work on
-rsync -vur --include="${read1_name}" --include="${read2_name}" --include="${read1_trimmed_name}" --include="${read2_trimmed_name}" --exclude="*" "${data_path}/fastq/" $temp_path
+#copy over to the temp directory just the untrimmed and trimmed (if exists) fastqs for the sample it’s going to work on, and only if the mapping isn't done yet
+
+#if [ -f "$read1_trimmed" ] && [ -f "$read2_trimmed" ]; then
+if [ -f "${data_path}/fastq/$read1_trimmed_name" ] && [ -f "${data_path}/fastq/$read2_trimmed_name" ]; then
+    rsync -vur --include="${read1_trimmed_name}" --include="${read2_trimmed_name}" --exclude="*" "${data_path}/fastq/" $temp_path
+else
+    rsync -vur --include="${read1_name}" --include="${read2_name}" --exclude="*" "${data_path}/fastq/" $temp_path
+fi
 
 cd $temp_path
 
@@ -151,7 +157,7 @@ for i in $(seq 0 $total_genomes); do
     #map
     bismark_map_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.bam"
     bismark_map_report="${output_temp_directory}/${read1_output_basename}_bismark_bt2_PE_report.txt"
-    ${code_directory}/map.sh $read1_input $read2_input $bismark_map_output $bismark_map_report $temp_genome $output_temp_directory $output_directory $cores $parameter_file
+    ${code_directory}/map.sh $read1_input $read2_input $bismark_map_output $bismark_map_report $temp_genome $output_temp_directory $output_directory $cores $parameter_file $previous_loop_output_directory
 
 
     #deduplicate
