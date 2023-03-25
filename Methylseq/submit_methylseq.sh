@@ -1,9 +1,10 @@
 #!/bin/bash
 
-#SBATCH --time=72:00:00
+#SBATCH --time=167:00:00
+#SBATCH --partition=nih_s10
 #SBATCH --account=sjaiswal
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=256GB
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=4GB
 #SBATCH --job-name=submit_methylseq
 
 ##################################################################################################################################
@@ -134,9 +135,13 @@ else
         module load bcl2fastq2
         bcl2fastq -o ./fastq -p 8
         cd $code_directory
+        echo ""
         echo "conversion of bcls to fastqs complete"
+        echo ""
     else
+        echo ""
         echo "bcls already transformed into fastqs"
+        echo ""
     fi
 
 ##################################################################################################################################
@@ -154,17 +159,25 @@ else
     #this should actually check for coverage output file from bismark, as that's the real important output file, not picard.
 
     if [[ $picard -lt 1 ]] || [[ $force = true ]]; then
+            echo ""
             echo "entering methylseq.sh"
+            echo ""
             sbatch -o "$Logs/${log_name}_%A_%a.log" `#put into log` \
                     -a "1-${array_length}" `#initiate job array equal to the number of fastq files` \
                    -W `#indicates to the script not to move on until the sbatch operation is complete` \
+                   --cpus-per-task "${cores}" \
+                   --mem "$((cores * 16 / 3))GB" `#the ratio of memory needed for bismark to work` \
                     "${code_directory}/methylseq.sh" \
                     $data_path $output_path $genetic_locations $cores $log_name $parameter_file $code_directory $Logs $parameter_file $initial_path
 
             wait
+            echo ""
             echo "methylseq.sh complete"
+            echo ""
         else
+            echo ""
             echo "picard files already created, methylseq.sh skipped"
+            echo ""
     fi
 
 #####################previously report_controls.sh################################
@@ -184,9 +197,13 @@ else
             module load bismark
             bismark2report
             bismark2summary
-                echo "bismark summary complete"
+                echo ""
+                echo "bismark summary now complete"
+                echo ""
         else
+            echo ""
             echo "bismark summary already complete, skipping bismark2report and bismark2summary for $genome_name"
+            echo ""
         fi
 
         #set previous_loop_output_directory variable for next possible loop iteration

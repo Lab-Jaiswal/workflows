@@ -12,7 +12,10 @@ read2_trimmed=$4
 data_path=$5
 parameter_file=$6
 
+echo ""
 echo "entering trim.sh script"
+echo ""
+
 echo "trim command used the following parameters:"
 echo "$0 $1 $2 $3 $4 $5 $6"
 
@@ -32,13 +35,17 @@ parent_directory="$(dirname "$read1_trimmed")"
 
 echo "Parent directory for trimming is '$parent_directory'"
 
-if [[ ! -f "$read1_trimmed" ]]; then			
+if [[ ! -f "$read1_trimmed" ]] || [ ! -f "$read2_trimmed" ]; then
 	echo "$(basename "$read1") and $(basename "$read2") read pair not yet trimmed. Trimming now."
 	cutadapt -q 20 -m 15 -a AGATCGGAAGAGC -A AAATCAAAAAAAC -o $read1_trimmed -p $read2_trimmed $read1 $read2 -j 0
+	echo ""
 	echo "finished trimming $(basename $read1) and $(basename $read2) read pair."
+	echo ""
 	rsync -vur $parent_directory/ "$data_path/fastq"
 else
+	echo ""
 	echo "$(basename "$read1") and $(basename "$read2") have already been trimmed"
+	echo ""
 fi
 
 #TO DO: 

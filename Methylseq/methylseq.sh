@@ -1,10 +1,13 @@
 #!/bin/bash
 
-#SBATCH --time=72:00:00
+#SBATCH --time=167:00:00
+#SBATCH --partition=nih_s10
 #SBATCH --account=sjaiswal
-#SBATCH --cpus-per-task=20
-#SBATCH --mem=256GB
 #SBATCH --job-name=methylseq
+
+###number of cores per task should be ${cores}
+###mem should be $((cores * 16 / 3))GB
+
 
 ##################################################################################################################################
 #############################################---STEP 1: SET UP ARGUMENTS---####################################################### 
@@ -65,11 +68,17 @@ read2_trimmed=$(echo $read2 | sed 's/fastq.gz/trimmed.fastq.gz/')
 read1_trimmed_name=$(basename "${read1_trimmed}")
 read2_trimmed_name=$(basename "${read2_trimmed}")
 
-
+#TO DO: if mapping step is already done, then don't need to transfer fastq files (only need to transfer files needed for the next step that's left to do)
 
 #copy data from data_path to the temp_path
-#copy over to the temp directory just the untrimmed and trimmed (if exists) fastqs for the sample it’s going to work on
-rsync -vur --include="${read1_name}" --include="${read2_name}" --include="${read1_trimmed_name}" --include="${read2_trimmed_name}" --exclude="*" "${data_path}/fastq/" $temp_path
+#copy over to the temp directory just the untrimmed and trimmed (if exists) fastqs for the sample it’s going to work on, and only if the mapping isn't done yet
+
+#if [ -f "$read1_trimmed" ] && [ -f "$read2_trimmed" ]; then
+if [ -f "${data_path}/fastq/$read1_trimmed_name" ] && [ -f "${data_path}/fastq/$read2_trimmed_name" ]; then
+    rsync -vur --include="${read1_trimmed_name}" --include="${read2_trimmed_name}" --exclude="*" "${data_path}/fastq/" $temp_path
+else
+    rsync -vur --include="${read1_name}" --include="${read2_name}" --exclude="*" "${data_path}/fastq/" $temp_path
+fi
 
 cd $temp_path
 
@@ -84,7 +93,9 @@ echo "copying data from the output file (if there is any)"                      
 #the trimmed file gets saved to the temp directory and the trim script copies over the trimmed sample fastq files to the output directory so does not need to be coded in this script
 
 #remove the untrimmed files from temp directory to save space
+if [ -f "${read1}" ] || [ -f "${read2}" ]; then
 rm "${read1}" "${read2}"
+fi
 
 #rsync -vur --exclude "Logs" --exclude "Parameters" $initial_path/ $temp_path                    #done after trim.sh to simplify rsync step
 
@@ -125,15 +136,17 @@ for i in $(seq 0 $total_genomes); do
                 " >> $parameter_file
     fi
 
+    echo ""
     echo "LOOP $k INFORMATION:
         genome name: $genome_name
         genome fasta path: $genome_fasta_path
         deduplicate status: $deduplicate "            
-       
+    echo ""
+
     output_temp_directory="${input_temp_directory}/${genome_name}"
     output_directory="${previous_loop_output_directory}/${genome_name}"
     
-    echo "copying transcriptome to the temporary file directory"
+    echo "copying genome fasta to the temporary file directory"
     rsync -vur "$genome_fasta_path/" "$temp_path/${genome_name}_fasta"
     temp_genome="$temp_path/${genome_name}_fasta"
     
@@ -148,28 +161,28 @@ for i in $(seq 0 $total_genomes); do
     #map
     bismark_map_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.bam"
     bismark_map_report="${output_temp_directory}/${read1_output_basename}_bismark_bt2_PE_report.txt"
-    ${code_directory}/map.sh $read1_input $read2_input $bismark_map_output $bismark_map_report $temp_genome $output_temp_directory $output_directory $cores $parameter_file
-
+    ${code_directory}/map.sh $read1_input $read2_input $bismark_map_output $bismark_map_report $temp_genome $output_temp_directory $output_directory $cores $parameter_file $previous_loop_output_directory
 
     #deduplicate
     if [ $deduplicate == TRUE ] || [ "$deduplicate" == "true" ] || [ "$deduplicate" == "TRUE" ] || [ "$deduplicate" == "True" ]; then
         dedup_input="${bismark_map_output}"
         dedup_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.bam"
         dedup_report="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplication_report.txt"
+        dedup_output_name=$(basename "${dedup_input}")
         ${code_directory}/deduplicate.sh $dedup_input $dedup_output $dedup_report $output_temp_directory $output_directory $cores $parameter_file
-        if [ -f "$dedup_output" ]; then
+        if [ -f "$output_directory/$dedup_output_name" ]; then #because deduplication could have occurred previously and outputs not in the temp directory
             sort_input="${dedup_output}"
             index_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.sorted.bam"
-            index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.sorted.bai"
+            index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.deduplicated.sorted.bam.bai"
         else
             sort_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.bam"
             index_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bam"
-            index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bai"
+            index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bam.bai"
         fi
     else
         sort_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.bam"
         index_input="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bam"
-        index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bai"
+        index_output="${output_temp_directory}/${read1_output_basename}_bismark_bt2_pe.sorted.bam.bai"
     fi
 
     #sort 
@@ -184,8 +197,8 @@ for i in $(seq 0 $total_genomes); do
     #rsync -vur $output_temp_directory/ $output_directory
 
 
-    #extract methylation
-    bismark_extraction_input=$index_input
+    #extract methylation (must not be sorted by position to work!) see https://github.com/FelixKrueger/Bismark/issues/360
+    bismark_extraction_input=$sort_input #not simply $dedup_output because sometimes there won't be deduplication requested
     bismark_extraction_report=$(echo $bismark_extraction_input | sed 's/\(.*\).bam/\1_splitting_report.txt/')
     #bismark_extraction_report="${output_temp_directory}/$(basename -s .bam "${bismark_extraction_input}")_splitting_report.txt"
         
@@ -203,10 +216,14 @@ for i in $(seq 0 $total_genomes); do
         module load R
         module load picard/2.9.5
         picard CollectInsertSizeMetrics INPUT=$dedup_input OUTPUT=$dedup_input\_picard_insert_size_metrics.txt HISTOGRAM_FILE=$dedup_input\_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
+            echo ""
             echo "picard insert_size_analysis complete"
+            echo ""
         rsync -vur $output_temp_directory/ $output_directory
     else
-        echo "picard insert size analysis already complete"
+        echo ""
+        echo "picard insert size analysis already completed."
+        echo ""
     fi
 
     #transfer files from tmp directory to the output directory, 

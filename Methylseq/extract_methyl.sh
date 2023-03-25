@@ -1,5 +1,7 @@
 #!/bin/bash
+echo ""
 echo "entering extract_methyl script"
+echo ""
 
 bismark_extraction_input=$1
 bismark_extraction_report=$2
@@ -25,12 +27,34 @@ fi
 
 module load bismark/0.22.3
 
-if [ ! -f $bismark_extraction_report ]; then  #TO DO: should add requirement to also have the extracted methylation files too! Not just the report.
+#copy over output files if they are already made
+bismark_extraction_report_name=$(basename "${bismark_extraction_report}")
+bismark_extraction_input_name=$(basename "${bismark_extraction_input}")
+
+bismark_extraction_output_name="$(basename -s .bam "{bismark_extraction_input}").CpG_report.txt.gz"
+
+
+N_cores=$((cores/3))
+
+#if there is not the bismark extraction output in the output directory, then transfer files needed to make it and make it. else skip
+if [ ! -f "$output_directory/$bismark_extraction_report_name" ] || [ ! -f "$output_directory/$bismark_extraction_output_name" ]; then #TO DO: should add requirement to also have the extracted methylation files too! Not just the report.
+    #transfer files needed if not present yet in temp directory.
+    if [ ! -f "$bismark_extraction_input" ]; then
+        rsync -vur --include="${bismark_extraction_input_name}" --exclude="*" "$output_directory/" $output_temp_directory
+    fi
+
         echo "$bismark_extraction_report does not exist yet"
-    bismark_methylation_extractor --gzip --cytosine_report --bedGraph --genome_folder "$genome_fasta_path" $bismark_extraction_input -o $output_temp_directory --multicore $cores
-        echo "extract_methylation_controls complete for unmethyl control"
+    bismark_methylation_extractor --gzip --cytosine_report --bedGraph --genome_folder "$genome_fasta_path" $bismark_extraction_input -o $output_temp_directory --multicore $N_cores --paired-end
+        echo ""
+        echo "extract_methylation now complete for this genome"
+        echo ""
+
+        rsync -vur $output_temp_directory/ $output_directory
+
 else
-    echo "methylation control extraction for the unmethyl control found and already created"
+    echo ""
+    echo "methylation extraction for this genome already performed."
+    echo ""
 fi
 
-rsync -vur $output_temp_directory/ $output_directory
+
