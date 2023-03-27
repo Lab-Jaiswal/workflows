@@ -194,7 +194,7 @@ function main() {
 
     filtered_samples_batches="${local_sample_list_directory}/filtered_samples_batches"
     xargs --max-args=${batch_size} < "${filtered_sample_list}" > "${filtered_samples_batches}"
-    filtered_samples_batches_length=$(wc --lines "${filtered_sample_list}" | cut --delimiter=' ' --fields=1)
+    filtered_samples_batches_length=$(wc --lines "${filtered_sample_batches}" | cut --delimiter=' ' --fields=1)
 
     # Check if the number of bat
     if [[ ${number_of_batches} == 0 ]]; then
