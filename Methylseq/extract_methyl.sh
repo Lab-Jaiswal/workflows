@@ -44,7 +44,7 @@ if [ ! -f "$output_directory/$bismark_extraction_report_name" ] || [ ! -f "$outp
     fi
 
         echo "$bismark_extraction_report does not exist yet"
-    bismark_methylation_extractor --gzip --cytosine_report --CX --bedGraph --CX --genome_folder "$genome_fasta_path" $bismark_extraction_input -o $output_temp_directory --multicore $N_cores --paired-end --comprehensive --merge_non_CpG # --ignore 5 --ignore_r2 5 --ignore_3prime 5 --ignore_3prime_r2 5
+    bismark_methylation_extractor --gzip --cytosine_report --CX --bedGraph --CX --genome_folder "$genome_fasta_path" $bismark_extraction_input -o $output_temp_directory --multicore $N_cores --paired-end #--comprehensive --merge_non_CpG # --ignore 5 --ignore_r2 5 --ignore_3prime 5 --ignore_3prime_r2 5
         echo ""
         echo "extract_methylation now complete for this genome"
         echo ""
