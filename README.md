@@ -1,6 +1,7 @@
 # Workflows
 ## BWA CHIP Workflow
 ### Set Up
+Test commit
 Running this pipeline is done by:
 1. Ensure that you have a directory containing only fastqs from your samples
   * If you do not have fastqs, but have bam files, please convert the files to fastqs using our [bam to fastq script](https://github.com/Lab-Jaiswal/workflows/tree/main/filetype_transformation/bam_to_fastq)
