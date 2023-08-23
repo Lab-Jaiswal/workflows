@@ -1,19 +1,30 @@
-#!/bin/bash
-#always mandatory
-    reference_genome="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Params/GRCh38.p12.genome.u2af1l5_mask.fa"
-    gnomad_genomes="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Params/gnomad.genomes.v3.1.2.sites.maf05.vcf.bgz"
+input_directory="/oak/stanford/groups/sjaiswal/dnachun/adrc/chip/test"
+input_file_list=none
+output_directory="/oak/stanford/groups/sjaiswal/dnachun/adrc/chip/test_output"
+bam_extension=bam
+fastq_extension=none
+assembly=GRCh38
+slurm_account=sjaiswal
+slurm_mode=true
+slurm_runtime=3:00:00
+slurm_memory=64G
+slurm_ncpus=1
+slurm_jobname=CHIP
+slurm_partition=batch
+run_mutect=true
+split_intervals=false
+mutect_bam_output=true
+run_funcotator=true
+run_varscan=false
+run_annovar=false
+run_pileup_region=true
+run_haplotypecaller=false
+realign=false
 
-#mandatory if using funcotator
-    funcotator_sources="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Params/funcotator_dataSources.v1.6.20190124s"
-
-#mandatory if using split_by_chr
-    sequence_dictionary="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Params/GRCh38.p12.genome.u2af1l5_mask.fa.dict"
-
-#Optional
-    #chr_intervals="${code_directory}/whole_genome_intervals.interval_list"
-    chr_intervals="${code_directory}/chr21_chr22.interval_list"
-
-    intervals="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Params/CHIP_exons.interval_list"
-    transcript_list="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Params/chip_transcript_list.txt"
-
-    #
+reference_genome="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Params/GRCh38.p12.genome.u2af1l5_mask.fa"
+sequence_dictionary="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Params/GRCh38.p12.genome.u2af1l5_mask.fa.dict"
+gnomad_reference="/oak/stanford/groups/sjaiswal/references/gnomad.genomes.v3.1.2.sites.maf05.vcf.bgz"
+funcotator_sources="/oak/stanford/groups/sjaiswal/references/funcotator_dataSources.v1.6.20190124s"
+interval_list="/oak/stanford/groups/sjaiswal/references/CHIP_exons_updated020223.interval_list"
+transcript_list="/oak/stanford/groups/sjaiswal/references/chip_transcript_list.txt"
+pileup_region_intervals="/oak/stanford/groups/sjaiswal/references/pileup_region_intervals"
