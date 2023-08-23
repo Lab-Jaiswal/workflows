@@ -41,6 +41,7 @@ options_array=(
     reference_genome
     slurm_runtime
     slurm_account
+    slurm_partition
     slurm_ncpus
     slurm_memory
     slurm_jobname
@@ -95,6 +96,8 @@ fi
 eval set -- "${arguments}"
 while true; do
     case "$1" in
+        --config_file )
+            shift 2 ;;
         --input_directory )
             input_directory="$2"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --input_file_list )
@@ -115,6 +118,8 @@ while true; do
             slurm_runtime="$2"; shift 2 ;;
         --slurm_account )
             slurm_account="$2"; shift 2 ;;
+        --slurm_partition )
+            slurm_partition="$2"; shift 2 ;;
         --slurm_ncpus )
             slurm_ncpus="$2"; shift 2 ;;
         --slurm_memory )
@@ -523,6 +528,7 @@ if [[ $slurm_mode == true ]]; then
         --wait `#indicates to the script not to move on until the sbatch operation is complete` \
         --time "${slurm_runtime}" \
         --account "${slurm_account}" \
+        --partition "${slurm_partition}" \
         --cpus-per-task "${slurm_ncpus}" \
         --mem "${slurm_memory}" \
         --job-name "${slurm_jobname}" \
