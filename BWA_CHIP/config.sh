@@ -1,6 +1,6 @@
-input_directory="/oak/stanford/groups/sjaiswal/dnachun/adrc/chip/test"
+input_directory="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Inputs"
 input_file_list=none
-output_directory="/oak/stanford/groups/sjaiswal/dnachun/adrc/chip/test_output"
+output_directory="/oak/stanford/groups/sjaiswal/dnachun/adrc/chip"
 bam_extension=bam
 fastq_extension=none
 assembly=GRCh38
@@ -20,6 +20,7 @@ run_annovar=false
 run_pileup_region=true
 run_haplotypecaller=false
 realign=false
+filter_silent=true
 
 reference_genome="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Params/GRCh38.p12.genome.u2af1l5_mask.fa"
 sequence_dictionary="/oak/stanford/groups/smontgom/maurertm/ADRC/Cloud_Testing_Folder/Params/GRCh38.p12.genome.u2af1l5_mask.fa.dict"
@@ -28,3 +29,4 @@ funcotator_sources="/oak/stanford/groups/sjaiswal/references/funcotator_dataSour
 interval_list="/oak/stanford/groups/sjaiswal/references/CHIP_exons_updated020223.interval_list"
 transcript_list="/oak/stanford/groups/sjaiswal/references/chip_transcript_list.txt"
 pileup_region_intervals="/oak/stanford/groups/sjaiswal/references/pileup_region_intervals"
+whitelist="/oak/stanford/groups/sjaiswal/references/variant_whitelist_cleaned.xlsx"
