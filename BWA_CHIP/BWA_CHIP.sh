@@ -408,7 +408,13 @@ if [[ $run_pileup_region == true ]]; then
     "${code_directory}"/pileup_region.sh \
         --bam_file "${bam_file}" \
         --reference_genome "${reference_genome}" \
-        --pileup_region_intervals "${pileup_region_intervals}"
+        --pileup_region_intervals "${pileup_region_intervals}" \
+        --output_directory "${output_directory}"
+
+    if [[ $slurm_mode == true ]]; then
+        ${rsync_command} "${output_directory}/" "${final_output_directory}"
+        check_for_file "${rsync_command}" "${final_output_directory}/${sample_name}.pileup_region"
+    fi
 else
     echo "pileup_region quantification not requested"
 fi
