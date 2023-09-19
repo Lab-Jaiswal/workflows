@@ -310,12 +310,12 @@ wait
 ################################################--STEP 4: RUN R SCRIPTS---########################################################
 ##################################################################################################################################
 if [[ $slurm_mode == true ]]; then
-    if [[ $run_mutect = true ]]; then
-        ${code_directory}/filter_variants_targeted.sh \
-            --vcf_directory=${output_directory} \
-            --output_directory=${output_directory} \
-            --filter_silent=${filter_silent} 
+    ${code_directory}/filter_variants_targeted.sh \
+        --vcf_directory=${output_directory} \
+        --output_directory=${output_directory} \
+        --filter_silent=${filter_silent} 
 
+    if [[ $run_mutect = true ]]; then
         mamba run --no-capture-output -n r Rscript ${code_directory}/annotate_chip_calls.R \
             --output_directory "${output_directory}" \
             --chip_calls "${output_directory}/aggregated.tsv" \
