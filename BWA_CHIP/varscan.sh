@@ -4,6 +4,7 @@
 . "${HOME}/micromamba/etc/profile.d/conda.sh"
 . "${HOME}/micromamba/etc/profile.d/mamba.sh"
 mamba activate base
+mamba activate bcftools
 
 # Set bash options for verbose output and to fail immediately on errors or if variables are undefined.
 set -o xtrace -o nounset -o pipefail -o errexit
@@ -95,6 +96,7 @@ if [[ ! -f "${sample_name}_varscan2.vcf" ]]; then
     echo "Calling variants from pileup..."
     mamba run -n varscan varscan mpileup2cns \
     "${sample_name}.pileup" \
+        -Xmx64g \
         --min-coverage "${varscan_min_coverage}" \
         --min-var-freq "${varscan_min_var_freq}" \
         --p-value "${varscan_max_pvalue}" \
@@ -117,7 +119,8 @@ else
     echo "Variants already filtered"
 fi
 
-if [[ ! -f "${sample_name}_varscan2_filter_annovar.hg38_multianno.vcf" ]] && [[ $run_annovar == true ]]; then
+annovar_vcf="${sample_name}_varscan2_filter_annovar.hg38_multianno.vcf"
+if [[ ! -f "${annovar_vcf}" ]] && [[ $run_annovar == true ]]; then
     echo "Annotating VCF with Annovar..."
     perl "${annovarroot}/table_annovar.pl" \
         "${sample_name}_varscan2_filter.vcf" \
@@ -131,6 +134,25 @@ if [[ ! -f "${sample_name}_varscan2_filter_annovar.hg38_multianno.vcf" ]] && [[ 
         --vcfinput \
         --thread 1
     echo "...VCF annotated"
+
+    bgzip --stdout "${annovar_vcf}" > "${annovar_vcf}.gz"
+    tabix --preset vcf --force "${annovar_vcf}.gz"
+
+    fixed_aachange_columns="${annovar_vcf//.vcf/_fixed_aachange_columns}"
+    paste <(bcftools query --format "%CHROM\t%POS\t%REF\t%ALT\n" "${annovar_vcf}.gz") \
+        <(bcftools query --format "%AAChange.ensGene\n" "${annovar_vcf}.gz" | tr ':' '|') | \
+        bgzip --stdout > "${fixed_aachange_columns}"
+    tabix --force --sequence 1 --begin 2 --end 2 "${fixed_aachange_columns}"
+
+    aachange_columns="Transcript.ensGene|Exon.ensGene|cDNAChange.ensGene|proteinChange.ensGene"
+    bcftools view "${annovar_vcf}.gz" | \
+        sed "s/AAChange.ensGene annotation provided by ANNOVAR/Format: Consequence|${aachange_columns}/" | \
+        bcftools annotate --annotations "${fixed_aachange_columns}" --columns "CHROM,POS,REF,ALT,AAChange.ensGene" | \
+        bgzip | sponge "${annovar_vcf}.gz"
+
+    bcftools +split-vep --annotation "AAChange.ensGene" --columns "${aachange_columns//|/,}" --annot-prefix "" ${annovar_vcf}.gz | \
+        bcftools norm --multiallelics - | \
+        bgzip | sponge "${annovar_vcf}.gz"
 else
     echo "VCF already annotated"
 fi

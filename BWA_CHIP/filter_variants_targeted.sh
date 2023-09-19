@@ -230,6 +230,82 @@ query_vcf() {
 
 export -f query_vcf
 
+query_vcf_varscan() {
+    vcf_file="${1}"
+    minimum_dp="${2}"
+    minimum_ad="${3}"
+    minimum_af="${4}"
+    filter_silent="${5}"
+    filter_pass=${6}
+    filter_exclusions="${7}"
+    filter_sb="${8}"
+    sample_tsv="${vcf_file//.vcf.gz/.tsv}"
+
+    readarray -t info_columns < <(bcftools view --header "${vcf_file}" | \
+        grep "INFO=" | \
+        grep --invert-match --extended-regexp "AAChange.ensGene|ALLELE_END" | \
+        sed 's/##INFO=<ID=//g' | \
+        sed 's/,.*$//g' | \
+        sort --unique)
+    readarray -t format_columns < <(bcftools view --header "${vcf_file}" | \
+        grep "FORMAT=" | \
+        sed 's/##FORMAT=<ID=//g' | \
+        sed 's/,.*$//g')
+
+    info_string=$(printf '%%INFO/%s\\t' "${info_columns[@]}" | sed 's/\\t$//g')
+    format_string=$(printf '%%%s\\t' "${format_columns[@]}" | sed 's/\\t$//g')
+    query_string=$(printf '%s\\t%s\\t%s\\t%s\\t[%s]\\t%s' "%FILTER" "%CHROM" "%REF" "%ALT" "${format_string}" "${info_string}")
+
+    echo "${query_string}" | sed 's/\\t/\t/g' | \
+        tr --delete '%[]' | \
+        sed 's?INFO/??g' | \
+        tr '[:upper:]' '[:lower:]' > "${sample_tsv}"
+
+    declare filter_condition=()
+
+    if [[ ${minimum_dp} != "none" ]]; then
+        filter_condition+=("INFO/ADP < ${minimum_dp} || FORMAT/DP < ${minimum_dp}")
+    fi
+
+    if [[ ${minimum_ad} != "none" ]]; then
+        filter_condition+=("FORMAT/AD[0:*] < ${minimum_ad}")
+    fi
+
+    if [[ ${minimum_af} != "none" ]]; then
+        filter_condition+=("FORMAT/AF < ${minimum_af}")
+    fi
+
+    if [[ ${filter_silent} == true ]]; then
+        filter_condition+=('(INFO/Func.ensGene !~ "exonic" && INFO/Func.ensGene !~ "splice")')
+    fi
+
+    if [[ ${filter_sb} == true ]]; then
+        filter_condition+=("FORMAT/RDF[0:*] == 0 || FORMAT/RDR[0:*] == 0 || FORMAT/ADF[0:*] == 0 || FORMAT/ADR[0:*] == 0")
+    fi
+
+    if [[ ${filter_pass} == true ]]; then
+        filter_condition+=('FILTER != "PASS"')
+    fi
+
+    if [[ ${filter_exclusions} != "none" ]]; then
+        filter_condition+=("$(printf 'FILTER ~ "%s" || ' $(cat "${filter_exclusions}") | sed 's/ || $//g')")
+    fi
+
+    declare filter_string=""
+    if [[ ((${#filter_condition[@]} -gt 0 )) ]]; then
+        filter_string_concat="$(printf '%s || ' "${filter_condition[@]}" | sed 's/ || $//g')"
+        filter_string=("--exclude" "${filter_string_concat}")
+    fi
+
+    #bcftools query "${filter_string[@]}" "${vcf_file}" --format "${query_string}\\n" >> "${sample_tsv}"
+    bcftools query "${vcf_file}" --format "${query_string}\\n" >> "${sample_tsv}"
+    sample_tsv_nrows=$(tail -n +2 ${sample_tsv} | wc --lines)
+    sample_file_name="$(basename ${vcf_file//.vcf.gz/})"
+    paste <(echo -e "file_name\n$(yes "${sample_file_name}" | head -n ${sample_tsv_nrows})") "${sample_tsv}" | sponge "${sample_tsv}"
+}
+
+export -f query_vcf_varscan
+
 add_file_name() {
     vcf_file="${1}"
     pileup_region_file="${1}"
@@ -246,9 +322,11 @@ if [[ ${vcf_directory} == "none" ]]; then
     line_number=${SLURM_ARRAY_TASK_ID}
     vcf_directory="$(sed "${line_number}q; d" "${vcf_directory_list}")"
     aggregated_file="${output_directory}/aggregated_${line_number}.tsv"
+    aggregated_file_varscan="${output_directory}/aggregated_varscan_${line_number}.tsv"
     aggregated_pileup_file="${output_directory}/aggregated_${line_number}.pileup_region" 
 else
     aggregated_file="${output_directory}/aggregated.tsv"
+    aggregated_file_varscan="${output_directory}/aggregated_varscan.tsv"
     aggregated_pileup_file="${output_directory}/aggregated.pileup_region" 
 fi
 
@@ -265,12 +343,18 @@ fi
 find "${vcf_directory}" -name "*_funcotator.vcf.gz" | sort --unique | \
     xargs --replace=% bash -c "query_vcf % ${minimum_dp} ${minimum_ad} ${minimum_af} ${filter_silent} ${filter_pass} ${filter_exclusions} ${filter_sb}"
 
+find "${vcf_directory}" -name "*_multianno.vcf.gz" | sort --unique | \
+    xargs --replace=% bash -c "query_vcf_varscan % ${minimum_dp} ${minimum_ad} ${minimum_af} ${filter_silent} ${filter_pass} ${filter_exclusions} ${filter_sb}"
+
 find "${vcf_directory}" -name "*.pileup_region" | grep --invert-match "file_name" | sort -u | \
     xargs --replace=% bash -c "add_file_name %"
 
 mkdir -p ${output_directory}
 head -n 1 "$(find "${vcf_directory}" -name "*filtered_funcotator.tsv" | sort --unique | head -n 1)" > "${aggregated_file}"
 find "${vcf_directory}" -name "*filtered_funcotator.tsv" -print0 | xargs --null --replace=% bash -c "tail -n +2 % >> ${aggregated_file}"
+
+head -n 1 "$(find "${vcf_directory}" -name "*_multianno.tsv" | sort --unique | head -n 1)" > "${aggregated_file_varscan}"
+find "${vcf_directory}" -name "*_multianno.tsv" -print0 | xargs --null --replace=% bash -c "tail -n +2 % >> ${aggregated_file_varscan}"
 
 echo -e "file_name\tsample\tchr\tpos\tref\talt\tprotein_change\tref_count\talt_count" > "${aggregated_pileup_file}"
 find "${vcf_directory}" -name "*_file_name.pileup_region" -print0 | xargs --null --replace=% bash -c "cat % >> ${aggregated_pileup_file}"

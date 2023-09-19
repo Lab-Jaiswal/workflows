@@ -147,7 +147,7 @@ fi
 array_prefix="$(sed "${line_number}q; d" "${array_file}")" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
 sample_name=$(basename "${array_prefix}")
 bam_file="${array_prefix}.${bam_extension}"
-gatk_command="mamba run -n gatk4 gatk"
+gatk_command="mamba run -n gatk4 gatk --java-options -Xmx64g"
 
 if [[ $final_output_directory != "none" ]]; then
     final_output_directory="${final_output_directory}/${sample_name}"
