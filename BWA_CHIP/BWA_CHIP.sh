@@ -278,7 +278,7 @@ if [[ ${run_mutect} == true ]]; then
     if [[ ${split_intervals} == true ]]; then
         num_intervals=$(grep -c -v "@" < "${interval_list}")
         echo "Number of intervals: $num_intervals"
-        seq 1 "${num_intervals}" | parallel -j8 --progress --ungroup \
+        seq 1 "${num_intervals}" | parallel -j${split_jobs} --progress --ungroup \
             "${code_directory}/mutect_and_pileups.sh" \
                 --bam_file "${bam_file}" \
                 --normal_bam_file "${normal_bam_file}" \
@@ -288,6 +288,7 @@ if [[ ${run_mutect} == true ]]; then
                 --gnomad_reference "${gnomad_reference}" \
                 --output_directory "${output_directory}" \
                 --mutect_bam_output "${mutect_bam_output}" \
+                --run-mutect "${run_mutect}" \
                 --gatk_command "${gatk_command}"
            
         if [[ ${slurm_mode} == true ]]; then
@@ -296,7 +297,7 @@ if [[ ${run_mutect} == true ]]; then
         fi
         
         if [[ ! -f "${output_directory}/${sample_name}_pileups.table" ]]; then
-            pileup_tables=$(find "${output_directory}/pileups" -type f | grep -E ".*_pileups.table$" | sort -V | sed -e 's/^/--input /g' | tr '\n' ' ')
+            pileup_tables=$(find "${output_directory}/pileups" -type f | grep -E ".*_pileups.table$" | sort -V | sed -e 's/^/--I /g' | tr '\n' ' ')
             read -r -a pileup_tables_array <<< "${pileup_tables}"
             ${gatk_command} GatherPileupSummaries \
                 --sequence-dictionary "${sequence_dictionary}" \
