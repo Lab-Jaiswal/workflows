@@ -54,7 +54,7 @@ while true; do
         --exac_reference_dir )
             exac_reference_dir="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --output_directory )
-            output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+            output_directory="${2}"; shift 2 ;;
         --)
             shift; break;;
         * )
