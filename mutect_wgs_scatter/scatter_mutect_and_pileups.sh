@@ -52,7 +52,7 @@ while true; do
         --bam_extension )
             bam_extension="${2}"; shift 2 ;;
         --output_directory )
-            final_output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+            output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --reference_genome )
             reference_genome="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
         --interval_list_dir )
