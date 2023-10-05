@@ -33,7 +33,6 @@ options_array=(
     reference_genome
     exac_reference_dir
     output_directory
-    gatk_command
 )
 
 longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g' | sed -e 's/$/:/')
@@ -56,8 +55,6 @@ while true; do
             exac_reference_dir="${2}"; check_for_dir "${1}" "${2}"; shift 2 ;;
         --output_directory )
             output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
-        --gatk_command )
-            gatk_command="${2}"; shift 2 ;;
         --)
             shift; break;;
         * )
@@ -66,10 +63,16 @@ while true; do
     esac
 done
 
-interval_list=$(ls ${interval_list_dir} | sort -h | sed "${interval_number}q; d" ) 
-chromosome_name=$(basename ${interval_list//.interval_list/})
+pushd ${interval_list_dir}
+    interval_list_basename=$(ls *.interval_list | sort -h | sed "${interval_number}q; d")
+    interval_list="${interval_list_dir}/${interval_list_basename}"
+popd
+pushd ${exac_reference_dir}
+    exac_reference_basename=$(ls | sort -h | sed "${interval_number}q; d" ) 
+    exac_reference="${exac_reference_dir}/${exac_reference_basename}"
+popd
+chromosome_name=${interval_list_basename//.interval_list/}
 sample_name="${sample_name}_${chromosome_name}"
-exac_reference=$(ls ${exac_reference_dir} | sort -h | sed "${interval_number}q; d" ) 
 
 mkdir -p "${output_directory}/vcfs"
 mkdir -p "${output_directory}/pileups"
@@ -79,33 +82,24 @@ vcf_name="${output_directory}/vcfs/${sample_name}"
 pileup_name="${output_directory}/pileups/${sample_name}"
 f1r2_name="${output_directory}/f1r2/${sample_name}"
 
-# Call somatic variants with Mutect2 and output orientation bias read counts
-if [[ ! -f "${vcf_name}_mutect2.vcf" ]]; then
-    echo "Calling somatic variants with Mutect2..."
-    ${gatk_command} Mutect2 \
-        --input "${bam_file}" \
-        --output "${vcf_name}_mutect2.vcf" \
-        --reference "${reference_genome}" \
-        --intervals "${interval_list}" \
-        --dont-use-soft-clipped-bases \
-        --f1r2-tar-gz "${f1r2_name}_f1r2.tar.gz" \
-        --annotation OrientationBiasReadCounts
-
-    echo "...somatic variants called."
-else
-    echo "Somatic variants already called with Mutect2 in: ${vcf_name}_mutect2.vcf"
-fi
-
 # Get pileup summaries at known common germline variants to estimate germline contamination.
-if  [[ ! -f "${pileup_name}_pileups.table" ]]; then
-    echo "Getting pileup summaries with GetPileupSummaries..."
-    ${gatk_command} GetPileupSummaries \
-        --input "${bam_file}" \
-        --variant "${exac_reference}" \
-        --intervals "${exac_reference}" \
-        --reference "${reference_genome}" \
-        --output "${pileup_name}_pileups.table"
-    echo "...pileup summaries calculated."
-else
-    echo "Pileup summaries already calculated in: ${pileup_name}_pileups.table"
-fi
+echo "Getting pileup summaries with GetPileupSummaries..."
+mamba run -n gatk4 gatk GetPileupSummaries \
+    --input "${bam_file}" \
+    --variant "${exac_reference}" \
+    --intervals "${exac_reference}" \
+    --reference "${reference_genome}" \
+    --output "${pileup_name}_pileups.table"
+echo "...pileup summaries calculated."
+
+# Call somatic variants with Mutect2 and output orientation bias read counts
+echo "Calling somatic variants with Mutect2..."
+mamba run -n gatk4 gatk Mutect2 \
+    --input "${bam_file}" \
+    --output "${vcf_name}_mutect2.vcf" \
+    --reference "${reference_genome}" \
+    --intervals "${interval_list}" \
+    --dont-use-soft-clipped-bases \
+    --f1r2-tar-gz "${f1r2_name}_f1r2.tar.gz" \
+    --annotation OrientationBiasReadCounts
+echo "...somatic variants called."

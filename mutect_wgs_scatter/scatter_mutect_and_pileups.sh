@@ -33,10 +33,10 @@ options_array=(
     bam_file
     bam_extension
     output_directory
-    code_directory
     reference_genome
     interval_list_dir
     exac_reference_dir
+    split_jobs
 )
 
 longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g'):
@@ -53,8 +53,6 @@ while true; do
             bam_extension="${2}"; shift 2 ;;
         --output_directory )
             final_output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
-        --code_directory )
-            code_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --reference_genome )
             reference_genome="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
         --interval_list_dir )
@@ -72,10 +70,10 @@ while true; do
 done
 
 sample_name=$(basename "${bam_file//.${bam_extension}/}")
-gatk_command="mamba run -n gatk4 gatk"
 output_directory=${output_directory}/${sample_name}
+code_directory=$(realpath $(dirname ${BASH_SOURCE[0]}))
 
-num_intervals=$(ls "${interval_list_dir}" | wc -l)
+num_intervals=$(ls "${interval_list_dir}"/*.interval_list | wc -l)
 echo "Number of intervals: $num_intervals"
 seq 1 "${num_intervals}" | parallel -j${split_jobs} --progress --ungroup \
     "${code_directory}/mutect_and_pileups.sh" \
@@ -84,5 +82,4 @@ seq 1 "${num_intervals}" | parallel -j${split_jobs} --progress --ungroup \
         --interval_number {} \
         --reference_genome "${reference_genome}" \
         --exac_reference_dir "${exac_reference_dir}" \
-        --output_directory "${output_directory}" \
-        --gatk_command "${gatk_command}"
+        --output_directory "${output_directory}" 
