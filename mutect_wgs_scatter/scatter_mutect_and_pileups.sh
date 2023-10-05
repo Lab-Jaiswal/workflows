@@ -58,7 +58,7 @@ while true; do
         --interval_list_dir )
             interval_list_dir="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --exac_reference_dir )
-            exac_reference_dir="${2}"; check_for_dir "${1}" "${2}"; shift 2 ;;
+            exac_reference_dir="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --split_jobs )
             split_jobs="${2}"; shift 2 ;;
         -- )

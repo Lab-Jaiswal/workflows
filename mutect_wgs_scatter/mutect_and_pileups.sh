@@ -52,7 +52,7 @@ while true; do
         --reference_genome )
             reference_genome="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
         --exac_reference_dir )
-            exac_reference_dir="${2}"; check_for_dir "${1}" "${2}"; shift 2 ;;
+            exac_reference_dir="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --output_directory )
             output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --)
