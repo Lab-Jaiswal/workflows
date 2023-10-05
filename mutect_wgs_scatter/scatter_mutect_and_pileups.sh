@@ -78,6 +78,7 @@ echo "Number of intervals: $num_intervals"
 seq 1 "${num_intervals}" | parallel -j${split_jobs} --progress --ungroup \
     "${code_directory}/mutect_and_pileups.sh" \
         --bam_file "${bam_file}" \
+        --bam_extension "${bam_extension}" \
         --interval_list_dir "${interval_list_dir}" \
         --interval_number {} \
         --reference_genome "${reference_genome}" \

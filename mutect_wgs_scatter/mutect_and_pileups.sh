@@ -28,6 +28,7 @@ check_for_directory() {
 
 options_array=(
     bam_file
+    bam_extension
     interval_list_dir
     interval_number
     reference_genome
@@ -45,6 +46,8 @@ while true; do
     case "${1}" in
         --bam_file )
             bam_file="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
+        --bam_extension )
+            bam_extension="${2}"; shift 2 ;;
         --interval_list_dir )
             interval_list_dir="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --interval_number )
@@ -72,6 +75,7 @@ pushd ${exac_reference_dir}
     exac_reference="${exac_reference_dir}/${exac_reference_basename}"
 popd
 chromosome_name=${interval_list_basename//.interval_list/}
+sample_name="$(basename ${bam_file//.${bam_extension}/})"
 sample_name="${sample_name}_${chromosome_name}"
 
 mkdir -p "${output_directory}/vcfs"
