@@ -46,7 +46,7 @@ while true; do
         --bam_file )
             bam_file="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
         --interval_list_dir )
-            interval_list="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+            interval_list_dir="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --interval_number )
             interval_number="${2}"; shift 2 ;;
         --reference_genome )
