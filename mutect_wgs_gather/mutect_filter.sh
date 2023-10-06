@@ -85,86 +85,106 @@ output_directory="${output_directory}/${sample_name}"
 mkdir -p ${output_directory}
 
 # Gather pileup summaries
-pileup_tables=$(find "${input_directory}/pileups" -type f | grep -E ".*_pileups.table$" | sort -V | sed -e 's/^/--I /g' | tr '\n' ' ')
-read -r -a pileup_tables_array <<< "${pileup_tables}"
-mamba run -n gatk4 gatk GatherPileupSummaries \
-    --sequence-dictionary "${sequence_dictionary}" \
-    "${pileup_tables_array[@]}" \
-    --output "${output_directory}/${sample_name}_pileups.table"
+if [[ ! -f "${output_directory}/${sample_name}_pileups.table" ]]; then
+    pileup_tables=$(find "${input_directory}/pileups" -type f | grep -E ".*_pileups.table$" | sort -V | sed -e 's/^/--I /g' | tr '\n' ' ')
+    read -r -a pileup_tables_array <<< "${pileup_tables}"
+    mamba run -n gatk4 gatk GatherPileupSummaries \
+        --sequence-dictionary "${sequence_dictionary}" \
+        "${pileup_tables_array[@]}" \
+        --output "${output_directory}/${sample_name}_pileups.table"
+fi
 
 # Gather VCFs
-vcf_files=$(find "${input_directory}/vcfs" -type f | grep -E ".*.vcf$" | sort -V | sed -e 's/^/--INPUT /g' | tr '\n' ' ')
-read -r -a vcf_files_array <<< "${vcf_files}"
-mamba run -n gatk4 gatk MergeVcfs \
-    "${vcf_files_array[@]}" \
-    --OUTPUT "${output_directory}/${sample_name}_mutect2.vcf"
+if [[ ! -f "${output_directory}/${sample_name}_mutect2.vcf" ]]; then
+    vcf_files=$(find "${input_directory}/vcfs" -type f | grep -E ".*.vcf$" | sort -V | sed -e 's/^/--INPUT /g' | tr '\n' ' ')
+    read -r -a vcf_files_array <<< "${vcf_files}"
+    mamba run -n gatk4 gatk MergeVcfs \
+        "${vcf_files_array[@]}" \
+        --OUTPUT "${output_directory}/${sample_name}_mutect2.vcf"
+fi
 
 # Gather VCF stats
-vcf_stats=$(find "${input_directory}/vcfs" -type f | grep -E ".*.vcf.stats$" | sort -V | sed -e 's/^/--stats /g' | tr '\n' ' ')
-read -r -a vcf_stats_array <<< "${vcf_stats}"
-mamba run -n gatk4 gatk MergeMutectStats \
-    "${vcf_stats_array[@]}" \
-    --output "${output_directory}/${sample_name}_mutect2.vcf.stats"
+if [[ ! -f "${output_directory}/${sample_name}_mutect2.vcf.stats" ]]; then
+    vcf_stats=$(find "${input_directory}/vcfs" -type f | grep -E ".*.vcf.stats$" | sort -V | sed -e 's/^/--stats /g' | tr '\n' ' ')
+    read -r -a vcf_stats_array <<< "${vcf_stats}"
+    mamba run -n gatk4 gatk MergeMutectStats \
+        "${vcf_stats_array[@]}" \
+        --output "${output_directory}/${sample_name}_mutect2.vcf.stats"
+fi
 
 # Learn read orientatation bias model
-echo "Learning read orientation bias model..."
-f1r2_files=$(find "${output_directory}/f1r2" -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
-read -r -a f1r2_files_array <<< "${f1r2_files}"
-mamba run -n gatk4 gatk LearnReadOrientationModel \
-    "${f1r2_files_array[@]}" \
-    --output "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz"
-echo "...read orientation bias model trained."
+if [[ ! -f "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz" ]]; then
+    echo "Learning read orientation bias model..."
+    f1r2_files=$(find "${output_directory}/f1r2" -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
+    read -r -a f1r2_files_array <<< "${f1r2_files}"
+    mamba run -n gatk4 gatk LearnReadOrientationModel \
+        "${f1r2_files_array[@]}" \
+        --output "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz"
+    echo "...read orientation bias model trained."
+fi
     
 # Calculate cross sample contamination using pileups at known common germline variants.
-echo "Getting contamination rate with CalculateContamination..."
-mamba run -n gatk4 gatk CalculateContamination \
-    --input "${output_directory}/${sample_name}_pileups.table" \
-    --output "${output_directory}/${sample_name}_contamination.table"
-echo "...contamination rate calculated."
+if [[ ! -f "${output_directory}/${sample_name}_contamination.table" ]]; then
+    echo "Getting contamination rate with CalculateContamination..."
+    mamba run -n gatk4 gatk CalculateContamination \
+        --input "${output_directory}/${sample_name}_pileups.table" \
+        --output "${output_directory}/${sample_name}_contamination.table"
+    echo "...contamination rate calculated."
+fi
 
 # Add FILTER column to Mutect2 VCF to identify variants which pass or fail filters.
 filtered_vcf="${output_directory}/${sample_name}_mutect2_filtered.vcf"
-echo "Filtering somatic variants with FilterMutectCalls..."
-mamba run -n gatk4 gatk FilterMutectCalls \
-    --variant "${vcf_file}" \
-    --output "${filtered_vcf}" \
-    --contamination-table "${output_directory}/${sample_name}_contamination.table" \
-    --ob-priors  "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz" \
-    --reference "${reference_genome}"
-echo "...somatic variants filtered."
+if [[ ! -f "${filtered_vcf}" ]]; then
+    echo "Filtering somatic variants with FilterMutectCalls..."
+    mamba run -n gatk4 gatk FilterMutectCalls \
+        --variant "${vcf_file}" \
+        --output "${filtered_vcf}" \
+        --contamination-table "${output_directory}/${sample_name}_contamination.table" \
+        --ob-priors  "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz" \
+        --reference "${reference_genome}"
+    echo "...somatic variants filtered."
+fi
 
 # Filter variants that do not pass filter
 filtered_vcf_filter_pass="${filtered_vcf//.vcf/_filter_pass.vcf.gz}"
-filter_array=(
-        'FILTER="PASS"'
-        "INFO/DP>=${min_sequencing_depth}"
-        "INFO/DP<=${max_sequencing_depth}"
-        'TYPE="snp"'
-        '(REF="C" & ALT="T") || (REF="T" & ALT="C")'
-    )
-filter_string=$(printf '%s && ' "${filter_array[@]}" | sed 's/ && $//g')
-bcftools view "${filtered_vcf}" --include "${filter_string}" --min-alleles 2 --max-alleles 2 --output "${filtered_vcf_filter_pass}"
-tabix --force --preset vcf "${filtered_vcf_filter_pass}"
+if [[ ! -f "${filtered_vcf_filter_pass}" ]]; then
+    filter_array=(
+            'FILTER="PASS"'
+            "INFO/DP>=${min_sequencing_depth}"
+            "INFO/DP<=${max_sequencing_depth}"
+            'TYPE="snp"'
+            '(REF="C" & ALT="T") || (REF="T" & ALT="C")'
+        )
+    filter_string=$(printf '%s && ' "${filter_array[@]}" | sed 's/ && $//g')
+    bcftools view "${filtered_vcf}" --include "${filter_string}" --min-alleles 2 --max-alleles 2 --output "${filtered_vcf_filter_pass}"
+    tabix --force --preset vcf "${filtered_vcf_filter_pass}"
+fi
 
 # Remove variants which are BRAVO TOPMed germline variants
 filtered_vcf_bravo_pass="${filtered_vcf_filter_pass//.vcf.gz/_bravo_pass.vcf.gz}"
-bcftools view "${filtered_vcf_filter_pass}" --targets-file "${bravo_variants}" --output "${filtered_vcf_bravo_pass}"
-tabix --force --preset vcf "${filtered_vcf_bravo_pass}"
+if [[ ! -f "${filtered_vcf_bravo_pass}" ]]; then
+    bcftools view "${filtered_vcf_filter_pass}" --targets-file "${bravo_variants}" --output "${filtered_vcf_bravo_pass}"
+    tabix --force --preset vcf "${filtered_vcf_bravo_pass}"
+fi
 
 # Create BED file from VCF with window around reference
 filtered_bed="${filtered_vcf//.vcf/.bed}"
-sequence_context_window_padding=$(( sequence_context_window_size / 2 ))
-bcftools view -H "${filtered_vcf_bravo_pass}" | \
-    cut --fields 1-2 | \
-    awk "{print \$1,\$2-${sequence_context_window_size}-1,\$2+${sequence_context_window_padding}}" | \
-    tr ' ' '\t' > "${filtered_bed}"
+if [[ ! -f "${filtered_bed}" ]]; then
+    sequence_context_window_padding=$(( sequence_context_window_size / 2 ))
+    bcftools view -H "${filtered_vcf_bravo_pass}" | \
+        cut --fields 1-2 | \
+        awk "{print \$1,\$2-${sequence_context_window_size}-1,\$2+${sequence_context_window_padding}}" | \
+        tr ' ' '\t' > "${filtered_bed}"
+fi
 
 # Retrieve sequence context from reference FASTA using BED file
 sequence_context="${filtered_bed//.bed/.txt.gz}"
-paste <(bcftools view --no-header "${filtered_vcf_bravo_pass}" | cut --fields 1-2) \
-    <(bedtools getfasta -fi "${reference_genome}" -bed "${filtered_bed}" | grep -v ">") | \
-    bgzip > "${sequence_context}"
-tabix --sequence 1 --begin 2 --end 2 --force "${sequence_context}"
+if [[ ! -f "${sequence_context}" ]]; then
+    paste <(bcftools view --no-header "${filtered_vcf_bravo_pass}" | cut --fields 1-2) \
+        <(bedtools getfasta -fi "${reference_genome}" -bed "${filtered_bed}" | grep -v ">") | \
+        bgzip > "${sequence_context}"
+    tabix --sequence 1 --begin 2 --end 2 --force "${sequence_context}"
+fi
 
 # Create header line for sequence_context annotation
 sequence_context_header="${filtered_bed//.bed/_sequence_context_header}"

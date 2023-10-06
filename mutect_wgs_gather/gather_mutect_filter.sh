@@ -80,11 +80,12 @@ vcf_array_length=$(wc -l < ${vcf_list}) #get the number of FASTQs
 
 mkdir -p "${output_directory}/logs"
 code_directory=$(realpath $(dirname ${BASH_SOURCE[0]}))
-seq 1 ${vcf_array_length} | parallel --eta -j ${n_jobs} TASK_ID={} "${code_directory}/mutect_wgs_gather/mutect_filter.sh" 
-    --output_directory=${output_directory} \
-    --min_sequencing_depth=${min_sequencing_depth} \
-    --max_sequencing_depth=${max_sequencing_depth} \
-    --bravo_variants=${bravo_variants} \
-    --sequence_context_window_size=${sequence_context_window_size} \
-    --reference_genome=${reference_genome} \
-    --sequence_dictionary=${sequence_dictionary}
+seq 1 ${vcf_array_length} | parallel --eta -j ${n_jobs} TASK_ID={} "${code_directory}/mutect_wgs_gather/mutect_filter.sh" \
+    --array_file "${}" \
+    --output_directory ${output_directory} \
+    --min_sequencing_depth ${min_sequencing_depth} \
+    --max_sequencing_depth ${max_sequencing_depth} \
+    --bravo_variants ${bravo_variants} \
+    --sequence_context_window_size ${sequence_context_window_size} \
+    --reference_genome ${reference_genome} \
+    --sequence_dictionary ${sequence_dictionary}
