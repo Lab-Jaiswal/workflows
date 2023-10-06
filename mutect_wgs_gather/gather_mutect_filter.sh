@@ -36,7 +36,7 @@ options_array=(
   sequence_context_window_size
   reference_genome
   sequence_dictionary
-  type_file
+  n_jobs
 )
 
 longoptions=$(echo "${options_array[@]}" | sed -e 's/ /:,/g' | sed -e 's/$/:/')
