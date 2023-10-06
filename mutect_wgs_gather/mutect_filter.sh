@@ -78,7 +78,7 @@ done
 
 line_number=${TASK_ID}
 input_directory="$(sed "${line_number}q; d" "${array_file}")" #extract only the line number corresponding to $SLURM_ARRAY_TASK_ID
-sample_name=$(basename "${array_prefix}")
+sample_name=$(basename "${input_directory}")
 gatk_command="mamba run -n gatk4 gatk"
 
 output_directory="${output_directory}/${sample_name}"
