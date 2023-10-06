@@ -74,7 +74,7 @@ while true; do
 done
 
 vcf_list=${input_directory}/vcf_list
-find -L "${input_directory}" -depth 1 -type d  `#list all files in ${vcf_directory}` | \
+find -L "${input_directory}" -maxdepth 1 -type d  `#list all files in ${vcf_directory}` | \
     sort -u  `#sort and remove duplicate names` > ${vcf_list}
 vcf_array_length=$(wc -l < ${vcf_list}) #get the number of FASTQs
 
