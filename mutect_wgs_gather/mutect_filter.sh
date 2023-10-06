@@ -91,7 +91,7 @@ if [[ ! -f "${output_directory}/${sample_name}_pileups.table" ]]; then
     mamba run -n gatk4 gatk GatherPileupSummaries \
         --sequence-dictionary "${sequence_dictionary}" \
         "${pileup_tables_array[@]}" \
-        --output "${output_directory}/${sample_name}_pileups.table"
+        -O "${output_directory}/${sample_name}_pileups.table"
 fi
 
 # Gather VCFs
@@ -115,7 +115,7 @@ fi
 # Learn read orientatation bias model
 if [[ ! -f "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz" ]]; then
     echo "Learning read orientation bias model..."
-    f1r2_files=$(find "${output_directory}/f1r2" -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
+    f1r2_files=$(find "${input_directory}/f1r2" -type f | sed -e 's/^/-I /g' | tr '\n' ' ')
     read -r -a f1r2_files_array <<< "${f1r2_files}"
     mamba run -n gatk4 gatk LearnReadOrientationModel \
         "${f1r2_files_array[@]}" \
@@ -137,7 +137,7 @@ filtered_vcf="${output_directory}/${sample_name}_mutect2_filtered.vcf"
 if [[ ! -f "${filtered_vcf}" ]]; then
     echo "Filtering somatic variants with FilterMutectCalls..."
     mamba run -n gatk4 gatk FilterMutectCalls \
-        --variant "${vcf_file}" \
+        --variant "${output_directory}/${sample_name}_mutect2.vcf" \
         --output "${filtered_vcf}" \
         --contamination-table "${output_directory}/${sample_name}_contamination.table" \
         --ob-priors  "${output_directory}/${sample_name}_mutect2_artifact_prior.tar.gz" \
@@ -153,9 +153,9 @@ if [[ ! -f "${filtered_vcf_filter_pass}" ]]; then
             "INFO/DP>=${min_sequencing_depth}"
             "INFO/DP<=${max_sequencing_depth}"
             'TYPE="snp"'
-            '(REF="C" & ALT="T") || (REF="T" & ALT="C")'
+            '((REF="C" & ALT="T") || (REF="T" & ALT="C"))'
         )
-    filter_string=$(printf '%s && ' "${filter_array[@]}" | sed 's/ && $//g')
+    filter_string=$(printf '%s & ' "${filter_array[@]}" | sed 's/ & $//g')
     bcftools view "${filtered_vcf}" --include "${filter_string}" --min-alleles 2 --max-alleles 2 --output "${filtered_vcf_filter_pass}"
     tabix --force --preset vcf "${filtered_vcf_filter_pass}"
 fi
@@ -163,7 +163,7 @@ fi
 # Remove variants which are BRAVO TOPMed germline variants
 filtered_vcf_bravo_pass="${filtered_vcf_filter_pass//.vcf.gz/_bravo_pass.vcf.gz}"
 if [[ ! -f "${filtered_vcf_bravo_pass}" ]]; then
-    bcftools view "${filtered_vcf_filter_pass}" --targets-file "${bravo_variants}" --output "${filtered_vcf_bravo_pass}"
+    bcftools view "${filtered_vcf_filter_pass}" --targets-file "^${bravo_variants}" --output "${filtered_vcf_bravo_pass}"
     tabix --force --preset vcf "${filtered_vcf_bravo_pass}"
 fi
 
