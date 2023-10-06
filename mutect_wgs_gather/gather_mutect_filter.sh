@@ -4,7 +4,6 @@
 . "${HOME}/micromamba/etc/profile.d/conda.sh"
 . "${HOME}/micromamba/etc/profile.d/mamba.sh"
 mamba activate base
-mamba activate bcftools
 
 # Set bash options for verbose output and to fail immediately on errors or if variables are undefined.
 set -o xtrace -o nounset -o pipefail -o errexit
