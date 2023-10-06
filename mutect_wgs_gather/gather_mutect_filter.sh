@@ -74,14 +74,14 @@ while true; do
 done
 
 vcf_list=${input_directory}/vcf_list
-find -L "${input_directory}" -maxdepth 1 -type d  `#list all files in ${vcf_directory}` | \
+find -L "${input_directory}" -maxdepth 1 -mindepth 1 -type d  `#list all files in ${vcf_directory}` | \
     sort -u  `#sort and remove duplicate names` > ${vcf_list}
 vcf_array_length=$(wc -l < ${vcf_list}) #get the number of FASTQs
 
 mkdir -p "${output_directory}/logs"
 code_directory=$(realpath $(dirname ${BASH_SOURCE[0]}))
 seq 1 ${vcf_array_length} | parallel --eta -j ${n_jobs} TASK_ID={} "${code_directory}/mutect_wgs_gather/mutect_filter.sh" \
-    --array_file "${}" \
+    --array_file "${vcf_list}" \
     --output_directory ${output_directory} \
     --min_sequencing_depth ${min_sequencing_depth} \
     --max_sequencing_depth ${max_sequencing_depth} \
