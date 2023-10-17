@@ -31,8 +31,8 @@ options_array=(
     bam_extension
     output_directory
     reference_genome
-    interval_list_dir
-    exac_reference_dir
+    interval_list_directory
+    exac_reference_directory
     split_jobs
 )
 
@@ -52,10 +52,10 @@ while true; do
             output_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --reference_genome )
             reference_genome="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
-        --interval_list_dir )
-            interval_list_dir="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
-        --exac_reference_dir )
-            exac_reference_dir="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --interval_list_directory )
+            interval_list_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --exac_reference_directory )
+            exac_reference_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --split_jobs )
             split_jobs="${2}"; shift 2 ;;
         -- )
@@ -70,14 +70,14 @@ sample_name=$(basename "${bam_file//.${bam_extension}/}")
 output_directory=${output_directory}/${sample_name}
 code_directory=$(realpath $(dirname ${BASH_SOURCE[0]}))
 
-num_intervals=$(ls "${interval_list_dir}"/*.interval_list | wc -l)
+num_intervals=$(ls "${interval_list_directory}"/*.interval_list | wc -l)
 echo "Number of intervals: $num_intervals"
 seq 1 "${num_intervals}" | parallel -j${split_jobs} --eta --ungroup \
     "${code_directory}/mutect_and_pileups.sh" \
         --bam_file "${bam_file}" \
         --bam_extension "${bam_extension}" \
-        --interval_list_dir "${interval_list_dir}" \
+        --interval_list_directory "${interval_list_directory}" \
         --interval_number {} \
         --reference_genome "${reference_genome}" \
-        --exac_reference_dir "${exac_reference_dir}" \
+        --exac_reference_directory "${exac_reference_directory}" \
         --output_directory "${output_directory}" 

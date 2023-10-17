@@ -29,10 +29,10 @@ check_for_directory() {
 options_array=(
     bam_file
     bam_extension
-    interval_list_dir
+    interval_list_directory
     interval_number
     reference_genome
-    exac_reference_dir
+    exac_reference_directory
     output_directory
 )
 
@@ -48,14 +48,14 @@ while true; do
             bam_file="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
         --bam_extension )
             bam_extension="${2}"; shift 2 ;;
-        --interval_list_dir )
-            interval_list_dir="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --interval_list_directory )
+            interval_list_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --interval_number )
             interval_number="${2}"; shift 2 ;;
         --reference_genome )
             reference_genome="${2}"; check_for_file "${1}" "${2}"; shift 2 ;;
-        --exac_reference_dir )
-            exac_reference_dir="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
+        --exac_reference_directory )
+            exac_reference_directory="${2}"; check_for_directory "${1}" "${2}"; shift 2 ;;
         --output_directory )
             output_directory="${2}"; shift 2 ;;
         --)
@@ -66,11 +66,11 @@ while true; do
     esac
 done
 
-pushd ${interval_list_dir}
+pushd ${interval_list_directory}
     interval_list_basename=$(ls *.interval_list | sort -h | sed "${interval_number}q; d")
     interval_list="${interval_list_dir}/${interval_list_basename}"
 popd
-pushd ${exac_reference_dir}
+pushd ${exac_reference_directory}
     exac_reference_basename=$(ls *.vcf.gz | sort -h | sed "${interval_number}q; d" ) 
     exac_reference="${exac_reference_dir}/${exac_reference_basename}"
 popd
