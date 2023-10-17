@@ -72,7 +72,7 @@ code_directory=$(realpath $(dirname ${BASH_SOURCE[0]}))
 
 num_intervals=$(ls "${interval_list_dir}"/*.interval_list | wc -l)
 echo "Number of intervals: $num_intervals"
-seq 1 "${num_intervals}" | parallel -j${split_jobs} --progress --ungroup \
+seq 1 "${num_intervals}" | parallel -j${split_jobs} --eta --ungroup \
     "${code_directory}/mutect_and_pileups.sh" \
         --bam_file "${bam_file}" \
         --bam_extension "${bam_extension}" \
