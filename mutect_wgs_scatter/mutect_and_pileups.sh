@@ -68,7 +68,7 @@ done
 
 pushd ${interval_list_directory}
     interval_list_basename=$(ls *.interval_list | sort -h | sed "${interval_number}q; d")
-    interval_list="${interval_list_dir}/${interval_list_basename}"
+    interval_list="${interval_list_directory}/${interval_list_basename}"
 popd
 pushd ${exac_reference_directory}
     exac_reference_basename=$(ls *.vcf.gz | sort -h | sed "${interval_number}q; d" ) 
