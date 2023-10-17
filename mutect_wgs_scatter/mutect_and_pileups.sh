@@ -74,7 +74,7 @@ pushd ${exac_reference_directory}
     exac_reference_basename=$(ls *.vcf.gz | sort -h | sed "${interval_number}q; d" ) 
     exac_reference="${exac_reference_directory}/${exac_reference_basename}"
 popd
-chromosome_name=${interval_list_basename//.interval_list/}
+chromosome_name=$(echo ${interval_list_basename//.interval_list/} | sed "s/_.*$//g")
 sample_name="$(basename ${bam_file//.${bam_extension}/})"
 sample_name="${sample_name}_${chromosome_name}"
 
