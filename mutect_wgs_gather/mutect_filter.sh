@@ -153,8 +153,8 @@ if [[ ! -f "${filtered_vcf_filter_pass}" ]]; then
             "INFO/DP>=${min_sequencing_depth}"
             "INFO/DP<=${max_sequencing_depth}"
             'TYPE="snp"'
-            '((REF="C" & ALT="T") || (REF="T" & ALT="C"))'
         )
+            #'((REF="C" & ALT="T") || (REF="T" & ALT="C"))'
     filter_string=$(printf '%s & ' "${filter_array[@]}" | sed 's/ & $//g')
     bcftools view "${filtered_vcf}" --include "${filter_string}" --min-alleles 2 --max-alleles 2 --output "${filtered_vcf_filter_pass}"
     tabix --force --preset vcf "${filtered_vcf_filter_pass}"
