@@ -215,7 +215,7 @@ for i in $(seq 0 $total_genomes); do
     if [ ! -f $picard_output ]; then 
         module load R
         module load picard/2.9.5
-        picard CollectInsertSizeMetrics INPUT=$dedup_input OUTPUT=$dedup_input\_picard_insert_size_metrics.txt HISTOGRAM_FILE=$dedup_input\_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
+        picard CollectInsertSizeMetrics W=1000 INPUT=$dedup_input OUTPUT=$dedup_input\_picard_insert_size_metrics.txt HISTOGRAM_FILE=$dedup_input\_picard_insert_size_plot.pdf METRIC_ACCUMULATION_LEVEL=ALL_READS
             echo ""
             echo "picard insert_size_analysis complete"
             echo ""
