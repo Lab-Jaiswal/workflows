@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-# Run scripts to enable activating conda environments
-. "${HOME}/micromamba/etc/profile.d/conda.sh"
-. "${HOME}/micromamba/etc/profile.d/mamba.sh"
-mamba activate base
-
 # Set bash options for verbose output and to fail immediately on errors or if variables are undefined.
 set -o xtrace -o nounset -o pipefail -o errexit
 
@@ -88,7 +83,7 @@ f1r2_name="${output_directory}/f1r2/${sample_name}"
 
 # Get pileup summaries at known common germline variants to estimate germline contamination.
 echo "Getting pileup summaries with GetPileupSummaries..."
-mamba run -n gatk4 gatk GetPileupSummaries \
+gatk GetPileupSummaries \
     --input "${bam_file}" \
     --variant "${exac_reference}" \
     --intervals "${exac_reference}" \
@@ -98,7 +93,7 @@ echo "...pileup summaries calculated."
 
 # Call somatic variants with Mutect2 and output orientation bias read counts
 echo "Calling somatic variants with Mutect2..."
-mamba run -n gatk4 gatk Mutect2 \
+gatk Mutect2 \
     --input "${bam_file}" \
     --output "${vcf_name}_mutect2.vcf" \
     --reference "${reference_genome}" \

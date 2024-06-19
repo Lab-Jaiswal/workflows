@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-# Run scripts to enable activating conda environments
-. "${HOME}/micromamba/etc/profile.d/conda.sh"
-. "${HOME}/micromamba/etc/profile.d/mamba.sh"
-mamba activate base
-
 # Set bash options for verbose output and to fail immediately on errors or if variables are undefined.
 set -o xtrace -o nounset -o pipefail -o errexit
 
